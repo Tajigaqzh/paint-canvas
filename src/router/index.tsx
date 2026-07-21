@@ -12,7 +12,17 @@ export const routes: RouteObject[] = [
   {
     errorElement: routeErrorElement,
     path: "/",
-    element: createElement(lazy(() => import("@/pages/home"))),
+    element: createElement(lazy(() => import("@/layouts/AppLayout"))),
+    children: [
+      {
+        index: true,
+        element: createElement(lazy(() => import("@/pages/home"))),
+      },
+      {
+        path: "image-cache-worker-test",
+        element: createElement(lazy(() => import("@/pages/image-cache-test"))),
+      },
+    ],
   },
 ];
 

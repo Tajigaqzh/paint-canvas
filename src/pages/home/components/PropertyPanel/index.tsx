@@ -1,11 +1,17 @@
 import { DeleteOutlined, LeftOutlined, PlusOutlined, RightOutlined } from "@ant-design/icons";
-import { Button, Divider, Empty, Form, Input, InputNumber, Select } from "antd";
+import { Button, Divider, Empty, Form, Input, InputNumber, Select, Space } from "antd";
 import type {
   CanvasAnimationItem,
   CanvasAnimationPreset,
   CanvasNode,
+  CanvasStrokeStyle,
   CanvasTransformOrigin,
-} from "../types";
+} from "@/types";
+import CircleProperty from "./nodeProperty/CircleProperty";
+import LineProperty from "./nodeProperty/LineProperty";
+import PolygonProperty from "./nodeProperty/PolygonProperty";
+import RectProperty from "./nodeProperty/RectProperty";
+import StarProperty from "./nodeProperty/StarProperty";
 
 type PropertyPanelProps = {
   /** 属性栏是否收起。 */
@@ -23,6 +29,26 @@ type PropertyPanelProps = {
 };
 
 const toPanelNumber = (value: number | undefined) => Math.round(value ?? 0);
+
+const getDefaultFill = (node: CanvasNode) => {
+  if (node.kind === "ellipse") return "#14b8a6";
+  if (node.kind === "line") return "#ffffff";
+  if (node.kind === "polygon") return "#32cd79";
+  if (node.kind === "star") return "#32cd79";
+  if (node.kind === "text") return "#111827";
+  if (node.kind === "rect") return "#4f46e5";
+
+  return "#ffffff";
+};
+
+const strokeStyleOptions: Array<{
+  label: string;
+  value: CanvasStrokeStyle;
+}> = [
+  { label: "实线", value: "solid" },
+  { label: "虚线", value: "dashed" },
+  { label: "点线", value: "dotted" },
+];
 
 const animationPresetOptions: Array<{
   label: string;
@@ -157,7 +183,7 @@ function PropertyPanel({
                 </label>
               </div>
 
-              {node.kind !== "text" && (
+              {node.kind !== "text" && node.kind !== "line" && (
                 <div className="property-grid property-grid--two">
                   <label className="property-field">
                     <span>宽</span>
@@ -178,14 +204,74 @@ function PropertyPanel({
                 </div>
               )}
 
+              {node.kind === "rect" && <RectProperty node={node} onUpdateNode={onUpdateNode} />}
+              {node.kind === "ellipse" && (
+                <CircleProperty node={node} onUpdateNode={onUpdateNode} />
+              )}
+              {node.kind === "line" && <LineProperty node={node} onUpdateNode={onUpdateNode} />}
+              {node.kind === "polygon" && (
+                <PolygonProperty node={node} onUpdateNode={onUpdateNode} />
+              )}
+              {node.kind === "star" && <StarProperty node={node} onUpdateNode={onUpdateNode} />}
+
+              {node.kind !== "group" && (
+                <div className="property-paint">
+                  <span className="property-paint__label">外观</span>
+                  <div className="property-grid property-grid--two">
+                    {node.kind !== "line" && (
+                      <label className="property-field">
+                        <span>填充</span>
+                        <Input
+                          className="property-color-input"
+                          type="color"
+                          value={node.fill ?? getDefaultFill(node)}
+                          onChange={(event) => onUpdateNode(node.id, { fill: event.target.value })}
+                        />
+                      </label>
+                    )}
+                    <label className="property-field">
+                      <span>描边</span>
+                      <Input
+                        className="property-color-input"
+                        type="color"
+                        value={node.stroke ?? "#0f172a"}
+                        onChange={(event) => onUpdateNode(node.id, { stroke: event.target.value })}
+                      />
+                    </label>
+                  </div>
+                  <div className="property-grid property-grid--two">
+                    <label className="property-field">
+                      <span>线宽</span>
+                      <InputNumber
+                        min={0}
+                        value={toPanelNumber(node.strokeWidth)}
+                        onChange={(value) =>
+                          onUpdateNode(node.id, { strokeWidth: Number(value ?? 0) })
+                        }
+                      />
+                    </label>
+                    <label className="property-field">
+                      <span>线型</span>
+                      <Select
+                        options={strokeStyleOptions}
+                        value={node.strokeStyle ?? "solid"}
+                        onChange={(strokeStyle) => onUpdateNode(node.id, { strokeStyle })}
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
+
               <div className="property-grid property-grid--two">
                 <label className="property-field">
                   <span>旋转</span>
-                  <InputNumber
-                    addonAfter="deg"
-                    value={toPanelNumber(node.rotation)}
-                    onChange={(value) => onUpdateNode(node.id, { rotation: Number(value ?? 0) })}
-                  />
+                  <Space.Compact className="property-unit-input">
+                    <InputNumber
+                      value={toPanelNumber(node.rotation)}
+                      onChange={(value) => onUpdateNode(node.id, { rotation: Number(value ?? 0) })}
+                    />
+                    <span className="property-unit-input__suffix">deg</span>
+                  </Space.Compact>
                 </label>
                 <label className="property-field">
                   <span>基准</span>

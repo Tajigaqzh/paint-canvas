@@ -8,6 +8,7 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
+      "@/types": ["src/types/index.ts"],
       "@/*": ["src/*"]
     },
     "allowArbitraryExtensions": true,

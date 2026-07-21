@@ -17,6 +17,8 @@ type CanvasContextMenuProps = {
   onClose: () => void;
   /** 打组回调。 */
   onGroup: () => void;
+  /** 删除当前选中节点回调。 */
+  onRemove: () => void;
   /** 向下一层回调。 */
   onSendBackward: () => void;
   /** 拆组回调。 */
@@ -33,6 +35,7 @@ function CanvasContextMenu({
   onBringForward,
   onClose,
   onGroup,
+  onRemove,
   onSendBackward,
   onUngroup,
 }: CanvasContextMenuProps) {
@@ -52,6 +55,10 @@ function CanvasContextMenu({
       </button>
       <button type="button" disabled={selectedCount !== 1} onClick={onSendBackward}>
         向下一层
+      </button>
+      <span />
+      <button type="button" disabled={selectedCount === 0} onClick={onRemove}>
+        删除
       </button>
     </div>
   );

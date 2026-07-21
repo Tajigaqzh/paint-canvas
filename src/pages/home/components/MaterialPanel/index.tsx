@@ -6,7 +6,7 @@ import {
 } from "@ant-design/icons";
 import { Button, Tabs } from "antd";
 import type { ReactNode } from "react";
-import type { CanvasNodeKind } from "../types";
+import type { CanvasMaterialKind } from "@/types";
 
 const RectMaterialIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 48 48">
@@ -20,9 +20,68 @@ const EllipseMaterialIcon = () => (
   </svg>
 );
 
+const OvalMaterialIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 48 48">
+    <ellipse cx="24" cy="24" rx="16" ry="11" />
+  </svg>
+);
+
+const RingMaterialIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 48 48" fillRule="evenodd">
+    <path d="M24 8a16 16 0 1 1 0 32 16 16 0 0 1 0-32Zm0 9a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z" />
+  </svg>
+);
+
+const SectorMaterialIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 48 48">
+    <path d="M24 24V8a16 16 0 0 1 13.9 23.9Z" />
+  </svg>
+);
+
+const SectorRingMaterialIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 48 48" fillRule="evenodd">
+    <path d="M24 24V8a16 16 0 0 1 13.9 23.9l-7.8-4.5A7 7 0 0 0 24 17Z" />
+  </svg>
+);
+
+const ArcMaterialIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 48 48" fill="none">
+    <path
+      d="M32 10.1A16 16 0 0 1 8 24"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeWidth="7"
+    />
+  </svg>
+);
+
 const TextMaterialIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 48 48">
     <path d="M12 12h24v5h-9v19h-6V17h-9z" />
+  </svg>
+);
+
+const LineMaterialIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 48 48" fill="none">
+    <path d="M10 34L38 14" stroke="currentColor" strokeLinecap="round" strokeWidth="6" />
+  </svg>
+);
+
+const TriangleMaterialIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 48 48">
+    <path d="M24 9l17 30H7z" />
+  </svg>
+);
+
+const PolygonMaterialIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 48 48">
+    <path d="M24 7l15 8.5v17L24 41 9 32.5v-17z" />
+  </svg>
+);
+
+const StarMaterialIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 48 48">
+    <path d="M24 6l5.2 11 11.8 1.7-8.5 8.3 2 11.8L24 33.2 13.5 38.8l2-11.8L7 18.7 18.8 17z" />
   </svg>
 );
 
@@ -42,10 +101,40 @@ const materials = [
     icon: <RectMaterialIcon />,
   },
   {
-    key: "ellipse",
+    key: "circle",
     title: "圆形",
     description: "头像、节点、徽标",
     icon: <EllipseMaterialIcon />,
+  },
+  {
+    key: "ellipse",
+    title: "椭圆",
+    description: "标签、背景、装饰",
+    icon: <OvalMaterialIcon />,
+  },
+  {
+    key: "ring",
+    title: "圆环",
+    description: "进度、状态、图标",
+    icon: <RingMaterialIcon />,
+  },
+  {
+    key: "sector",
+    title: "扇形",
+    description: "饼图、角标、强调",
+    icon: <SectorMaterialIcon />,
+  },
+  {
+    key: "sector-ring",
+    title: "扇形圆环",
+    description: "进度段、仪表盘",
+    icon: <SectorRingMaterialIcon />,
+  },
+  {
+    key: "arc",
+    title: "圆角弧线",
+    description: "路径、进度、标注",
+    icon: <ArcMaterialIcon />,
   },
   {
     key: "text",
@@ -53,8 +142,32 @@ const materials = [
     description: "标题、标签、说明",
     icon: <TextMaterialIcon />,
   },
+  {
+    key: "line",
+    title: "线条",
+    description: "分割线、连接线、标注",
+    icon: <LineMaterialIcon />,
+  },
+  {
+    key: "triangle",
+    title: "三角形",
+    description: "箭头、标识、图标",
+    icon: <TriangleMaterialIcon />,
+  },
+  {
+    key: "polygon",
+    title: "正多边形",
+    description: "徽章、图标、容器",
+    icon: <PolygonMaterialIcon />,
+  },
+  {
+    key: "star",
+    title: "星形",
+    description: "评级、标识、强调",
+    icon: <StarMaterialIcon />,
+  },
 ] satisfies Array<{
-  key: Exclude<CanvasNodeKind, "group">;
+  key: CanvasMaterialKind;
   title: string;
   description: string;
   icon: ReactNode;
@@ -79,7 +192,7 @@ type MaterialPanelProps = {
   /** 素材栏是否收起。 */
   collapsed: boolean;
   /** 添加素材节点到画布。 */
-  onAddNode: (kind: Exclude<CanvasNodeKind, "group">) => void;
+  onAddNode: (kind: CanvasMaterialKind) => void;
   /** 收起或展开素材栏。 */
   onToggle: () => void;
 };
