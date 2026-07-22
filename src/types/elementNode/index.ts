@@ -3,6 +3,7 @@ import type { IUIInputData } from "leafer-ui";
 /** 画布节点类型。group 是真实层级节点，不是普通标签。 */
 export type CanvasNodeKind = "rect" | "ellipse" | "line" | "polygon" | "star" | "text" | "group";
 
+/** 左侧素材面板可创建的图形类型。部分素材会映射到同一个画布节点类型。 */
 export type CanvasMaterialKind =
   | "rect"
   | "text"
@@ -32,14 +33,19 @@ export type CanvasTransformOrigin =
   | "bottom"
   | "bottom-right";
 
+/** 描边线型。 */
 export type CanvasStrokeStyle = "solid" | "dashed" | "dotted";
 
+/** 描边相对节点路径的位置。 */
 export type CanvasStrokeAlign = "inside" | "center" | "outside";
 
+/** 描边端点形状。 */
 export type CanvasStrokeCap = "none" | "round" | "square";
 
+/** 椭圆节点的细分绘制模式。 */
 export type CanvasEllipseMode = "circle" | "ellipse" | "ring" | "sector" | "sector-ring" | "arc";
 
+/** 多边形节点的细分绘制模式。 */
 export type CanvasPolygonMode = "triangle" | "polygon";
 
 /** 矩形圆角。数组顺序遵循 Leafer: topLeft, topRight, bottomRight, bottomLeft。 */
@@ -111,15 +117,15 @@ export interface CanvasNodeBase {
   transformOrigin?: CanvasTransformOrigin;
   /** 填充色。 */
   fill?: string;
-  // 描边颜色。strokeWidth 为 0 时不会显示描边，但颜色仍然会保留。
+  /** 描边颜色。strokeWidth 为 0 时不会显示描边，但颜色仍然会保留。 */
   stroke?: string;
-  // 描边宽度。0 表示不显示描边。
+  /** 描边宽度。0 表示不显示描边。 */
   strokeWidth?: number;
-  // 描边样式：实线、虚线或点线。
+  /** 描边样式：实线、虚线或点线。 */
   strokeStyle?: CanvasStrokeStyle;
-  // 描边相对路径的位置，圆角弧线默认用 center。
+  /** 描边相对路径的位置，圆角弧线默认用 center。 */
   strokeAlign?: CanvasStrokeAlign;
-  // 描边端点形状，圆角弧线默认用 round。
+  /** 描边端点形状，圆角弧线默认用 round。 */
   strokeCap?: CanvasStrokeCap;
   /** 动画列表；一个节点可以有多条动画，渲染时映射为 Leafer animation 数组。 */
   animationList?: CanvasAnimationItem[];
@@ -145,45 +151,67 @@ export interface EllipseNode extends CanvasNodeBase {
   width: number;
   /** 椭圆外接矩形高度。 */
   height: number;
-  // 椭圆绘制模式：普通椭圆、圆环、扇形、弧线。
+  /** 椭圆绘制模式：普通椭圆、圆环、扇形、弧线。 */
   ellipseMode?: CanvasEllipseMode;
-  // 扇形和弧线的起始角度，单位是度。
+  /** 扇形和弧线的起始角度，单位是度。 */
   startAngle?: number;
-  // 扇形和弧线的结束角度，单位是度。
+  /** 扇形和弧线的结束角度，单位是度。 */
   endAngle?: number;
-  // 圆环内半径比例，0 到 1。
+  /** 圆环内半径比例，0 到 1。 */
   innerRadius?: number;
-  // false 时只画开放弧线，不自动闭合到圆心。
+  /** false 时只画开放弧线，不自动闭合到圆心。 */
   closed?: boolean;
-  // 扇形圆环的圆角半径。
+  /** 扇形圆环的圆角半径。 */
   cornerRadius?: number;
 }
 
+/** 线条节点。 */
 export interface LineNode extends CanvasNodeBase {
+  /** 节点类型固定为线条。 */
   kind: "line";
+  /** 线条包围盒宽度，通常表示线条长度。 */
   width: number;
+  /** 线条包围盒高度，直线通常为 0，曲线会使用非 0 高度。 */
   height: number;
+  /** Leafer 折线路径点位数组，按 x、y 成对排列。 */
   points?: number[];
+  /** 折线拐角圆角半径。 */
   cornerRadius?: number;
+  /** 曲线开关或曲率数值；false 表示普通直线。 */
   curve?: boolean | number;
 }
 
+/** 多边形节点。 */
 export interface PolygonNode extends CanvasNodeBase {
+  /** 节点类型固定为多边形。 */
   kind: "polygon";
+  /** 多边形外接矩形宽度。 */
   width: number;
+  /** 多边形外接矩形高度。 */
   height: number;
+  /** 多边形绘制模式；triangle 会按三角形素材处理。 */
   polygonMode?: CanvasPolygonMode;
+  /** 多边形边数。 */
   sides: number;
+  /** 多边形顶点圆角半径。 */
   cornerRadius?: number;
 }
 
+/** 星形节点。 */
 export interface StarNode extends CanvasNodeBase {
+  /** 节点类型固定为星形。 */
   kind: "star";
+  /** 星形外接矩形宽度。 */
   width: number;
+  /** 星形外接矩形高度。 */
   height: number;
+  /** 星形角数。 */
   corners: number;
+  /** 星形内径比例，0 到 1。 */
   innerRadius?: number;
+  /** 星形起始角度，单位是度。 */
   startAngle?: number;
+  /** 星形顶点圆角半径。 */
   cornerRadius?: number;
 }
 

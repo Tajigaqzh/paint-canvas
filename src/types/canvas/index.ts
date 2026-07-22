@@ -1,6 +1,7 @@
-import type { Patch } from "immer";
+import type { Patch } from "mutative";
 import type { CanvasMaterialKind, CanvasNode, LineNode } from "../elementNode";
 
+/** 当前画布交互工具。 */
 export type CanvasToolMode = "select" | "brush" | "eraser";
 
 /** 画布固定设计尺寸。DOM 会等比缩放，数据始终按这个坐标系存储。 */
@@ -57,10 +58,11 @@ export interface CanvasHistoryState {
   limit: number;
 }
 
+/** 单个节点的批量更新描述，用于一次性提交多节点变更。 */
 export interface CanvasNodeUpdate {
-  // 要更新的节点 ID。
+  /** 要更新的节点 ID。 */
   id: string;
-  // 要合并到节点上的属性。
+  /** 要合并到节点上的属性。 */
   data: Partial<CanvasNode>;
 }
 
@@ -108,6 +110,6 @@ export interface CanvasStore extends CanvasDocument {
   undo(): void;
   /** 更新节点属性，进入历史栈；元素和 group 的基础字段都通过这里写入。 */
   updateNode(id: string, data: Partial<CanvasNode>): void;
-  // 批量更新节点属性，并作为一次历史记录提交。
+  /** 批量更新节点属性，并作为一次历史记录提交。 */
   updateNodes(updates: CanvasNodeUpdate[]): void;
 }
