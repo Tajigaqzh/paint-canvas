@@ -3,6 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import Home from "./index";
 
 vi.mock("@leafer-in/editor", () => ({
+  EditorEvent: {
+    SELECT: "editor.select",
+  },
   InnerEditorEvent: {
     CLOSE: "innerEditor.close",
   },
@@ -19,6 +22,10 @@ vi.mock("leafer-ui", () => {
     constructor(data: Record<string, unknown>) {
       Object.assign(this, data);
     }
+
+    add() {}
+
+    destroy() {}
 
     on() {}
 
@@ -48,7 +55,12 @@ vi.mock("leafer-ui", () => {
       END: "drag.end",
     },
     Ellipse: MockUI,
+    Frame: MockUI,
+    Group: MockUI,
+    Line: MockUI,
+    Polygon: MockUI,
     Rect: MockUI,
+    Star: MockUI,
     Text: MockUI,
   };
 });

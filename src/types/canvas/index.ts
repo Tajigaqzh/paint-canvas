@@ -1,6 +1,7 @@
-import type { Patch } from "immer";
+import type { Patch } from "mutative";
 import type { CanvasMaterialKind, CanvasNode, LineNode } from "../elementNode";
 
+/** 当前画布交互工具。 */
 export type CanvasToolMode = "select" | "brush" | "eraser";
 
 /** 画布固定设计尺寸。DOM 会等比缩放，数据始终按这个坐标系存储。 */
@@ -57,11 +58,22 @@ export interface CanvasHistoryState {
   limit: number;
 }
 
+/** 单个节点的批量更新描述，用于一次性提交多节点变更。 */
 export interface CanvasNodeUpdate {
-  // 要更新的节点 ID。
+  /** 要更新的节点 ID。 */
   id: string;
-  // 要合并到节点上的属性。
+  /** 要合并到节点上的属性。 */
   data: Partial<CanvasNode>;
+}
+
+/** 橡皮擦写到单条笔迹上的路径；路径只在该笔迹自己的 Leafer Group 内生效。 */
+export interface CanvasLineEraserUpdate {
+  /** 被擦除的 line 节点 ID。 */
+  id: string;
+  /** 本次新增的橡皮擦轨迹，按 x/y 成对保存，坐标相对 line 节点左上角。 */
+  points: number[];
+  /** 本次橡皮擦轨迹宽度，保留用户当时使用的橡皮擦尺寸。 */
+  strokeWidth: number;
 }
 
 /** 画布 store 对外暴露的状态和动作。 */
@@ -82,6 +94,8 @@ export interface CanvasStore extends CanvasDocument {
   addDrawLine(line: Omit<LineNode, "id" | "name">): void;
   /** 添加一个根层级节点，并自动选中新节点。 */
   addNode(kind: CanvasMaterialKind): void;
+  /** 提交一次橡皮擦结果：普通节点删除，笔迹节点追加组内 eraser 路径。 */
+  applyEraserResult(deletedIds: string[], lineErasers: CanvasLineEraserUpdate[]): void;
   /** 将节点在同级图层中上移一层。 */
   bringForward(id?: string): void;
   /** 将当前同父级的多选节点包进一个 group 节点。 */
@@ -108,6 +122,6 @@ export interface CanvasStore extends CanvasDocument {
   undo(): void;
   /** 更新节点属性，进入历史栈；元素和 group 的基础字段都通过这里写入。 */
   updateNode(id: string, data: Partial<CanvasNode>): void;
-  // 批量更新节点属性，并作为一次历史记录提交。
+  /** 批量更新节点属性，并作为一次历史记录提交。 */
   updateNodes(updates: CanvasNodeUpdate[]): void;
 }

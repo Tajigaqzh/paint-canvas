@@ -26,12 +26,12 @@ dependencies:
   antd:
     specifier: ^6.5.1
     version: 6.5.1(react-dom@19.2.7)(react@19.2.7)
-  immer:
-    specifier: ^11.1.15
-    version: 11.1.15
   leafer-ui:
     specifier: ^2.2.3
     version: 2.2.3
+  mutative:
+    specifier: ^1.3.0
+    version: 1.3.0
   nanoid:
     specifier: ^6.0.0
     version: 6.0.0
@@ -46,7 +46,7 @@ dependencies:
     version: 7.18.1(react-dom@19.2.7)(react@19.2.7)
   zustand:
     specifier: ^5.0.14
-    version: 5.0.14(@types/react@19.2.17)(immer@11.1.15)(react@19.2.7)
+    version: 5.0.14(@types/react@19.2.17)(react@19.2.7)
 
 devDependencies:
   '@babel/core':
@@ -3233,10 +3233,6 @@ packages:
       safer-buffer: 2.1.2
     dev: true
 
-  /immer@11.1.15:
-    resolution: {integrity: sha512-VrNANlmnWQnh5COXIIOQXM9oOJw7naGKlBT74ZOOR6lpVXc3gFEu9FJLDFcpCJ2j+NWr8TIwtWD//T6ZX6TKiQ==}
-    dev: false
-
   /indent-string@4.0.0:
     resolution: {integrity: sha512-EdDDZu4A2OyIK7Lr/2zG+w5jmbuk1DVBnEwREQvBzspBJkCEbRa8GxU1lghYcaGJCnRWibjDXlq779X1/y5xwg==}
     engines: {node: '>=8'}
@@ -3708,6 +3704,11 @@ packages:
   /ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
     dev: true
+
+  /mutative@1.3.0:
+    resolution: {integrity: sha512-8MJj6URmOZAV70dpFe1YnSppRTKC4DsMkXQiBDFayLcDI4ljGokHxmpqaBQuDWa4iAxWaJJ1PS8vAmbntjjKmQ==}
+    engines: {node: '>=14.0'}
+    dev: false
 
   /nanoid@3.3.16:
     resolution: {integrity: sha512-bzlKTyNJ7+LdGIIwy8ijFpIqEQIvafahV7eYykJ8Cvh42EdJeODoJ6gUJXpQJvej1BddH8OqTXZNE/KfbWAu8Q==}
@@ -4572,7 +4573,7 @@ packages:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
     dev: true
 
-  /zustand@5.0.14(@types/react@19.2.17)(immer@11.1.15)(react@19.2.7):
+  /zustand@5.0.14(@types/react@19.2.17)(react@19.2.7):
     resolution: {integrity: sha512-/8tAspM5LMPr28b3fwLYrtdj77ECpfZviaP75CMTnwO8ISyaE4GDIG/9rDDYq/cH9D2Xw2A2RXglLInmVBQB/g==}
     engines: {node: '>=12.20.0'}
     peerDependencies:
@@ -4591,6 +4592,5 @@ packages:
         optional: true
     dependencies:
       '@types/react': 19.2.17
-      immer: 11.1.15
       react: 19.2.7
     dev: false

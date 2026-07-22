@@ -13,6 +13,18 @@ type VisibleStrokeNode = CanvasNode & {
   strokeWidth: number;
 };
 
+/** worker 内绘制橡皮擦路径时临时使用的最小描边节点结构。 */
+type EraserStrokeNode = {
+  /** 橡皮擦路径在 destination-out 下只使用 alpha，具体颜色不影响结果。 */
+  stroke: string;
+  /** 橡皮擦端点保持 round，和主画布 Leafer eraser Line 一致。 */
+  strokeCap?: CanvasNode["strokeCap"];
+  /** 橡皮擦路径样式，当前始终为 solid。 */
+  strokeStyle?: CanvasNode["strokeStyle"];
+  /** 橡皮擦宽度。 */
+  strokeWidth: number;
+};
+
 /**
  * 将节点上的圆角配置统一转换成四个角的数组。
  * 这里兼容 Leafer 的 1/2/3/4 值写法，返回顺序固定为：
@@ -122,7 +134,7 @@ const renderRoundRect = (
  * 将业务里的描边样式转换为 Canvas 2D 的虚线数组。
  * 返回空数组表示实线。
  */
-const getStrokeDashPattern = (node: CanvasNode) => {
+const getStrokeDashPattern = (node: CanvasNode | EraserStrokeNode) => {
   const width = Math.max(node.strokeWidth ?? 0, 0);
 
   if (width <= 0) return [];
@@ -136,14 +148,14 @@ const getStrokeDashPattern = (node: CanvasNode) => {
  * 判断节点是否真的需要描边。
  * 只有 stroke 有颜色并且 strokeWidth 大于 0 时，Canvas 2D 才需要执行描边。
  */
-const hasVisibleStroke = (node: CanvasNode): node is VisibleStrokeNode =>
+const hasVisibleStroke = (node: CanvasNode | EraserStrokeNode): node is VisibleStrokeNode =>
   Boolean(node.stroke && (node.strokeWidth ?? 0) > 0);
 
 /**
  * 将 Leafer 风格的 strokeCap 转换为 Canvas 2D 的 lineCap。
  * 业务里的 none 对应 Canvas 里的 butt。
  */
-const getCanvasLineCap = (node: CanvasNode): CanvasLineCap => {
+const getCanvasLineCap = (node: CanvasNode | EraserStrokeNode): CanvasLineCap => {
   if (node.strokeCap === "round") return "round";
   if (node.strokeCap === "square") return "square";
 
@@ -159,7 +171,7 @@ const getCanvasLineCap = (node: CanvasNode): CanvasLineCap => {
  */
 const withStrokeStyle = (
   context: OffscreenCanvasRenderingContext2D,
-  node: CanvasNode,
+  node: CanvasNode | EraserStrokeNode,
   render: () => void,
 ) => {
   if (!hasVisibleStroke(node)) return;
@@ -177,7 +189,10 @@ const withStrokeStyle = (
  * 对当前路径执行描边。
  * 当前路径由调用方提前 beginPath 并构造好，这里只负责套用节点的描边外观。
  */
-const strokeCurrentPath = (context: OffscreenCanvasRenderingContext2D, node: CanvasNode) => {
+const strokeCurrentPath = (
+  context: OffscreenCanvasRenderingContext2D,
+  node: CanvasNode | EraserStrokeNode,
+) => {
   withStrokeStyle(context, node, () => {
     context.stroke();
   });
@@ -315,12 +330,12 @@ const renderEllipseNode = (
  * 它先读取 points 形成折线，再用 curve 参数把折线的每个中间点平滑成贝塞尔曲线。
  * 所以缩略图要复刻 Leafer 的 points 平滑算法，不能用一个简单 quadraticCurveTo 近似。
  */
-const renderLineNode = (
+/** 构造 line 的当前路径；原始笔迹和橡皮擦轨迹都复用这一套折线/曲线逻辑。 */
+const renderLinePath = (
   context: OffscreenCanvasRenderingContext2D,
-  node: Extract<CanvasNode, { kind: "line" }>,
+  points: number[],
+  curve: Extract<CanvasNode, { kind: "line" }>["curve"],
 ) => {
-  const points = node.points?.length ? node.points : [0, 0, node.width, 0];
-
   context.beginPath();
   context.moveTo(points[0] ?? 0, points[1] ?? 0);
 
@@ -335,8 +350,8 @@ const renderLineNode = (
    * 从而得到进入 b 的控制点 c1，以及离开 b 的控制点 c2。
    * 这样相邻线段越长，控制柄越长，曲线过渡就会更自然。
    */
-  if (node.curve && points.length > 5) {
-    const curve = node.curve === true ? 0.5 : node.curve;
+  if (curve && points.length > 5) {
+    const curveValue = curve === true ? 0.5 : curve;
     let c2X = points[0] ?? 0;
     let c2Y = points[1] ?? 0;
     let hasCurveSegment = false;
@@ -357,8 +372,8 @@ const renderLineNode = (
 
       const distance = ba + cb;
 
-      ba = (curve * ba) / distance;
-      cb = (curve * cb) / distance;
+      ba = (curveValue * ba) / distance;
+      cb = (curveValue * cb) / distance;
       cX -= aX;
       cY -= aY;
 
@@ -401,8 +416,98 @@ const renderLineNode = (
       context.lineTo(points[index] ?? 0, points[index + 1] ?? 0);
     }
   }
+};
 
-  strokeOpenPath(context, node);
+/**
+ * 计算 line 和 eraser 轨迹共同需要的局部绘制范围。
+ * 不能直接使用 node.width / height，因为描边半宽和用户拖出线条外的 eraser 路径都可能超出节点包围盒。
+ */
+const getLineRenderBounds = (node: Extract<CanvasNode, { kind: "line" }>) => {
+  const points = node.points?.length ? node.points : [0, 0, node.width, 0];
+  let minX = 0;
+  let minY = 0;
+  let maxX = node.width;
+  let maxY = node.height;
+  const expandByPoint = (x: number, y: number, padding: number) => {
+    minX = Math.min(minX, x - padding);
+    minY = Math.min(minY, y - padding);
+    maxX = Math.max(maxX, x + padding);
+    maxY = Math.max(maxY, y + padding);
+  };
+
+  for (let index = 0; index < points.length; index += 2) {
+    expandByPoint(
+      points[index] ?? 0,
+      points[index + 1] ?? 0,
+      Math.max(node.strokeWidth ?? 0, 0) / 2,
+    );
+  }
+
+  node.eraserPaths?.forEach((eraserPath) => {
+    const padding = Math.max(eraserPath.strokeWidth, 0) / 2;
+
+    for (let index = 0; index < eraserPath.points.length; index += 2) {
+      expandByPoint(eraserPath.points[index] ?? 0, eraserPath.points[index + 1] ?? 0, padding);
+    }
+  });
+
+  // 额外 2px 留给抗锯齿和小数坐标，避免离屏层边缘裁掉半透明像素。
+  minX = Math.floor(minX - 2);
+  minY = Math.floor(minY - 2);
+  maxX = Math.ceil(maxX + 2);
+  maxY = Math.ceil(maxY + 2);
+
+  return {
+    height: Math.max(maxY - minY, 1),
+    minX,
+    minY,
+    width: Math.max(maxX - minX, 1),
+  };
+};
+
+/**
+ * 在透明离屏层里绘制一条 line，并只在这条 line 的像素上应用 eraserPaths。
+ * 这样 destination-out 不会碰到主缩略图里的白色画板背景，避免出现灰色透明轨迹。
+ */
+const renderLineNode = (
+  context: OffscreenCanvasRenderingContext2D,
+  node: Extract<CanvasNode, { kind: "line" }>,
+) => {
+  const eraserPaths = node.eraserPaths ?? [];
+  const bounds = getLineRenderBounds(node);
+  const points = node.points?.length ? node.points : [0, 0, node.width, 0];
+
+  if (eraserPaths.length === 0) {
+    renderLinePath(context, points, node.curve);
+    strokeOpenPath(context, node);
+    return;
+  }
+
+  const layer = new OffscreenCanvas(bounds.width, bounds.height);
+  const layerContext = layer.getContext("2d");
+
+  if (!layerContext) return;
+
+  layerContext.translate(-bounds.minX, -bounds.minY);
+  renderLinePath(layerContext, points, node.curve);
+  strokeOpenPath(layerContext, node);
+
+  layerContext.save();
+  layerContext.globalCompositeOperation = "destination-out";
+  eraserPaths.forEach((eraserPath) => {
+    if (eraserPath.points.length < 2 || eraserPath.strokeWidth <= 0) return;
+
+    renderLinePath(layerContext, eraserPath.points, false);
+    strokeCurrentPath(layerContext, {
+      stroke: "#000000",
+      strokeCap: "round",
+      strokeStyle: "solid",
+      strokeWidth: eraserPath.strokeWidth,
+    });
+  });
+  layerContext.restore();
+
+  context.drawImage(layer, bounds.minX, bounds.minY);
 };
 
 /**
