@@ -165,6 +165,14 @@ export interface EllipseNode extends CanvasNodeBase {
   cornerRadius?: number;
 }
 
+/** 单条橡皮擦轨迹，配合 Leafer 的 eraser 属性在 line 自己的 Group 内擦除笔迹。 */
+export interface LineEraserPath {
+  /** Leafer eraser 轨迹点，按 x、y 成对排列，坐标相对所属 line 节点左上角。 */
+  points: number[];
+  /** 橡皮擦轨迹宽度；渲染为 eraser Line 的 strokeWidth。 */
+  strokeWidth: number;
+}
+
 /** 线条节点。 */
 export interface LineNode extends CanvasNodeBase {
   /** 节点类型固定为线条。 */
@@ -179,6 +187,8 @@ export interface LineNode extends CanvasNodeBase {
   cornerRadius?: number;
   /** 曲线开关或曲率数值；false 表示普通直线。 */
   curve?: boolean | number;
+  /** 该线条内部的橡皮擦轨迹；渲染时作为 eraser Line 放在线条自己的 Group 内。 */
+  eraserPaths?: LineEraserPath[];
 }
 
 /** 多边形节点。 */

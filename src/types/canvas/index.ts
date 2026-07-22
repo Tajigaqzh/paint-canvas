@@ -66,6 +66,16 @@ export interface CanvasNodeUpdate {
   data: Partial<CanvasNode>;
 }
 
+/** 橡皮擦写到单条笔迹上的路径；路径只在该笔迹自己的 Leafer Group 内生效。 */
+export interface CanvasLineEraserUpdate {
+  /** 被擦除的 line 节点 ID。 */
+  id: string;
+  /** 本次新增的橡皮擦轨迹，按 x/y 成对保存，坐标相对 line 节点左上角。 */
+  points: number[];
+  /** 本次橡皮擦轨迹宽度，保留用户当时使用的橡皮擦尺寸。 */
+  strokeWidth: number;
+}
+
 /** 画布 store 对外暴露的状态和动作。 */
 export interface CanvasStore extends CanvasDocument {
   /** 当前正在编辑的页面，派生自 activePageId。 */
@@ -84,6 +94,8 @@ export interface CanvasStore extends CanvasDocument {
   addDrawLine(line: Omit<LineNode, "id" | "name">): void;
   /** 添加一个根层级节点，并自动选中新节点。 */
   addNode(kind: CanvasMaterialKind): void;
+  /** 提交一次橡皮擦结果：普通节点删除，笔迹节点追加组内 eraser 路径。 */
+  applyEraserResult(deletedIds: string[], lineErasers: CanvasLineEraserUpdate[]): void;
   /** 将节点在同级图层中上移一层。 */
   bringForward(id?: string): void;
   /** 将当前同父级的多选节点包进一个 group 节点。 */

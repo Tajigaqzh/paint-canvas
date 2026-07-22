@@ -4,6 +4,7 @@ import { create } from "zustand";
 import type {
   CanvasDocument,
   CanvasHistoryEntry,
+  CanvasLineEraserUpdate,
   CanvasMaterialKind,
   CanvasNode,
   CanvasNodeUpdate,
@@ -470,6 +471,41 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         page.rootIds.push(node.id);
         page.selectedIds = [node.id];
         page.activeId = node.id;
+      });
+    },
+    applyEraserResult(deletedIds: string[], lineErasers: CanvasLineEraserUpdate[]) {
+      if (deletedIds.length === 0 && lineErasers.length === 0) return;
+
+      commit((draft) => {
+        const page = getActivePage(draft);
+        const deletedSet = new Set(deletedIds);
+
+        /**
+         * 普通图形仍然按整节点删除。
+         * line 节点不走这里，因为 line 会追加 eraser 轨迹，只擦掉笔迹自身的一部分。
+         */
+        deletedIds.forEach((id) => {
+          removeNodeFromPage(page, id);
+        });
+
+        lineErasers.forEach(({ id, points, strokeWidth }) => {
+          const node = page.nodeMap[id];
+
+          if (!node || node.kind !== "line" || points.length < 2) return;
+
+          /**
+           * Leafer 的 eraser 只作用在同一个 Group 内的下层兄弟元素。
+           * 因此这里不拆分 line，也不画白色遮挡层，只把本次擦除轨迹记录到 line 节点自己身上。
+           */
+          node.eraserPaths = [...(node.eraserPaths ?? []), { points: [...points], strokeWidth }];
+        });
+
+        /**
+         * 橡皮擦操作本身不产生选区。
+         * 如果擦掉的是当前选中的节点，这里同步清理 activeId / selectedIds。
+         */
+        page.selectedIds = page.selectedIds.filter((id) => !deletedSet.has(id));
+        page.activeId = page.selectedIds.at(-1);
       });
     },
     bringForward(id = get().activePage.activeId) {
