@@ -93,6 +93,28 @@ describe("useCanvasStore", () => {
     expect(useCanvasStore.getState().activePage.selectedIds.length).toBe(1);
   });
 
+  it("addNode 不传 position 时按根节点数量错位", () => {
+    const index = useCanvasStore.getState().activePage.rootIds.length;
+    useCanvasStore.getState().addNode("rect");
+    const id = useCanvasStore.getState().activePage.activeId;
+    const node = useCanvasStore.getState().activePage.nodeMap[id!];
+    expect(node.x).toBe(180 + index * 24);
+  });
+
+  it("addNode 传入 position 时 x/y 为落点", () => {
+    useCanvasStore.getState().addNode("rect", { x: 500, y: 400 });
+    const id = useCanvasStore.getState().activePage.activeId;
+    const node = useCanvasStore.getState().activePage.nodeMap[id!];
+    expect(node).toMatchObject({ x: 500, y: 400 });
+  });
+
+  it("addNode 传入原点 position 时 x/y 为 0", () => {
+    useCanvasStore.getState().addNode("text", { x: 0, y: 0 });
+    const id = useCanvasStore.getState().activePage.activeId;
+    const node = useCanvasStore.getState().activePage.nodeMap[id!];
+    expect(node).toMatchObject({ x: 0, y: 0 });
+  });
+
   it("selectNode 空 id 清空选区", () => {
     useCanvasStore.getState().addNode("rect");
     useCanvasStore.getState().selectNode();

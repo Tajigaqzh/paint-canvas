@@ -9,6 +9,11 @@ import MaterialPanel from "./components/MaterialPanel";
 import PageThumbnailStrip from "./components/PageThumbnailStrip";
 import PropertyPanel from "./components/PropertyPanel";
 import { useLeaferCanvas } from "./hooks/useLeaferCanvas";
+import {
+  getDraggingMaterialKind,
+  mapMaterialDropPoint,
+  setDraggingMaterialKind,
+} from "./materialDrop";
 import "./index.less";
 
 const CANVAS_STORAGE_KEY = "paint-canvas:document";
@@ -133,6 +138,38 @@ function Home() {
     });
   };
 
+  const handleCanvasDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!getDraggingMaterialKind()) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  };
+
+  const handleCanvasDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const kind = getDraggingMaterialKind();
+    setDraggingMaterialKind(undefined);
+
+    if (!kind) return;
+
+    const view = canvasViewRef.current;
+
+    if (!view) return;
+
+    if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return;
+
+    const point = mapMaterialDropPoint(
+      event.clientX,
+      event.clientY,
+      view,
+      fittedCanvasSize,
+      viewport,
+    );
+
+    if (!point) return;
+
+    addNode(kind, point);
+  };
+
   return (
     <div className="canvas-maker" onClick={closeContextMenu}>
       <header className="canvas-maker__header">
@@ -179,6 +216,8 @@ function Home() {
               className="canvas-maker__canvas"
               data-tool={activeTool}
               ref={canvasViewRef}
+              onDragOver={handleCanvasDragOver}
+              onDrop={handleCanvasDrop}
               style={{
                 cursor: activeTool === "eraser" ? eraserCursor : undefined,
                 height: fittedCanvasSize.height,

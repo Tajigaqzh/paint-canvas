@@ -5,12 +5,12 @@ export default defineConfig({
   fullyParallel: true,
   reporter: "html",
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: "http://localhost:5174",
     trace: "on-first-retry",
   },
   webServer: {
     command: "pnpm dev",
-    url: "http://localhost:5173",
+    url: "http://localhost:5174",
     reuseExistingServer: !process.env.CI,
   },
   projects: [

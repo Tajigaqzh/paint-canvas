@@ -42,7 +42,8 @@ describe("getStrokeDashPattern", () => {
 
 describe("getNodePaintInput", () => {
   it("矩形带上 fill", () => {
-    expect(getNodePaintInput(rect({ fill: "#abc" })).fill).toBe("#abc");
+    const input = getNodePaintInput(rect({ fill: "#abc" }));
+    expect("fill" in input ? input.fill : undefined).toBe("#abc");
   });
 
   it("图片节点不带 fill", () => {

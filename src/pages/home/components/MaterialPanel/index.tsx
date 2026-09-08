@@ -8,6 +8,7 @@ import { Button, Tabs } from "antd";
 import type { ReactNode } from "react";
 import { TEST_MATERIAL_IMAGE_URL } from "@/constants/materialImages";
 import type { CanvasMaterialKind } from "@/types";
+import { MATERIAL_DRAG_MIME, setDraggingMaterialKind } from "../../materialDrop";
 
 const RectMaterialIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 48 48">
@@ -204,10 +205,18 @@ function MaterialPanel({ collapsed, onAddNode, onToggle }: MaterialPanelProps) {
           {materials.map((material) => (
             <button
               className="material-item"
+              draggable
               key={material.key}
               title={material.title}
               type="button"
               onClick={() => onAddNode(material.key)}
+              onDragEnd={() => setDraggingMaterialKind(undefined)}
+              onDragStart={(event) => {
+                setDraggingMaterialKind(material.key);
+                event.dataTransfer.effectAllowed = "copy";
+                event.dataTransfer.setData(MATERIAL_DRAG_MIME, material.key);
+                event.dataTransfer.setData("text/plain", material.key);
+              }}
             >
               <span className="material-item__icon">{material.icon}</span>
             </button>
@@ -225,12 +234,21 @@ function MaterialPanel({ collapsed, onAddNode, onToggle }: MaterialPanelProps) {
             <button
               className="material-item"
               data-preview={"previewUrl" in material ? "image" : undefined}
+              draggable={material.key === "image"}
               key={material.key}
               title={material.title}
               type="button"
               disabled={material.key !== "image"}
               onClick={() => {
                 if (material.key === "image") onAddNode("image");
+              }}
+              onDragEnd={() => setDraggingMaterialKind(undefined)}
+              onDragStart={(event) => {
+                if (material.key !== "image") return;
+                setDraggingMaterialKind("image");
+                event.dataTransfer.effectAllowed = "copy";
+                event.dataTransfer.setData(MATERIAL_DRAG_MIME, "image");
+                event.dataTransfer.setData("text/plain", "image");
               }}
             >
               {"previewUrl" in material ? (

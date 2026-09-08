@@ -481,10 +481,19 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         page.activeId = undefined;
       });
     },
-    addNode(kind) {
+    addNode(kind, position) {
       commit((draft) => {
         const page = getActivePage(draft);
         const node = createNode(kind, page.rootIds.length);
+
+        /**
+         * 素材拖放到白板上时，store 的 x/y 就是节点 origin（默认 center），
+         * 因此直接用落点；点击添加仍走 createNode 的错位坐标。
+         */
+        if (position) {
+          node.x = position.x;
+          node.y = position.y;
+        }
 
         /** 新增节点默认放到当前页面根层级最上方，并立即作为当前选中节点。 */
         page.nodeMap[node.id] = node;

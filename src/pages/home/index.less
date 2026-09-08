@@ -263,7 +263,7 @@
   align-items: center;
   justify-content: center;
   gap: 14px;
-  cursor: pointer;
+  cursor: grab;
 
   &:hover {
     border-color: #9ca3af;
@@ -273,6 +273,10 @@
   &:disabled {
     cursor: not-allowed;
     opacity: 0.62;
+  }
+
+  &:active:not(:disabled) {
+    cursor: grabbing;
   }
 
   &[data-preview="image"] {

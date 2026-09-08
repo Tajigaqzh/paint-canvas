@@ -92,8 +92,8 @@ export interface CanvasStore extends CanvasDocument {
   addPage(): void;
   /** 添加一条自由绘制笔迹。 */
   addDrawLine(line: Omit<LineNode, "id" | "name">): void;
-  /** 添加一个根层级节点，并自动选中新节点。 */
-  addNode(kind: CanvasMaterialKind): void;
+  /** 添加一个根层级节点，并自动选中新节点；传入 position 时按画板坐标落点。 */
+  addNode(kind: CanvasMaterialKind, position?: { x: number; y: number }): void;
   /** 提交一次橡皮擦结果：普通节点删除，笔迹节点追加组内 eraser 路径。 */
   applyEraserResult(deletedIds: string[], lineErasers: CanvasLineEraserUpdate[]): void;
   /** 将节点在同级图层中上移一层。 */
