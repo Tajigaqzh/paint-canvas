@@ -1,6 +1,7 @@
 import { apply, create as createMutative } from "mutative";
 import { nanoid } from "nanoid";
 import { create } from "zustand";
+import { TEST_MATERIAL_IMAGE_URL } from "@/constants/materialImages";
 import type {
   CanvasDocument,
   CanvasHistoryEntry,
@@ -287,6 +288,25 @@ const createNode = (kind: CanvasMaterialKind, index: number): CanvasNode => {
       strokeWidth: 0,
       text: "双击编辑文本",
       transformOrigin: "center",
+      x: baseX,
+      y: baseY,
+    };
+  }
+
+  if (kind === "image") {
+    return {
+      animationList: [],
+      height: 240,
+      id,
+      kind,
+      name: `图片 ${serial}`,
+      rotation: 0,
+      src: TEST_MATERIAL_IMAGE_URL,
+      stroke: "#0f172a",
+      strokeStyle: "solid",
+      strokeWidth: 0,
+      transformOrigin: "center",
+      width: 360,
       x: baseX,
       y: baseY,
     };

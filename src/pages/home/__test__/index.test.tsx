@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import Home from "./index";
+import Home from "../index";
 
+vi.mock("@leafer-in/animate", () => ({}));
 vi.mock("@leafer-in/editor", () => ({
   EditorEvent: {
     SELECT: "editor.select",
@@ -57,6 +58,7 @@ vi.mock("leafer-ui", () => {
     Ellipse: MockUI,
     Frame: MockUI,
     Group: MockUI,
+    Image: MockUI,
     Line: MockUI,
     Polygon: MockUI,
     Rect: MockUI,

@@ -1,21 +1,21 @@
 import { useEffect, useRef } from "react";
 import type { Frame, Group } from "leafer-ui";
-import type { CanvasNode } from "@/types";
 import type {
+  CanvasNode,
   EditableLeaferApp,
   ManagedNodeUI,
   ParentNodeUI,
   ToolDrawingState,
   UseLeaferCanvasOptions,
-} from "../shared/types";
+} from "@/types";
 
 /**
- * 创建 useLeaferCanvas 各子模块共享的稳定 runtime refs。
+ * 创建 useLeaferCanvas 各子模块共享的稳定 refs。
  *
  * Leafer 原生事件不走 React 生命周期，必须通过这些 refs 读取最新页面数据、
  * 当前工具配置和 store action，同时保持 LeaferApp / UI Map 不随 render 重建。
  */
-export const useLeaferCanvasRuntime = ({
+export const useRuntime = ({
   onAddDrawLine,
   onApplyEraserResult,
   onSelectNode,

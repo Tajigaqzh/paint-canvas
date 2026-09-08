@@ -1,12 +1,20 @@
-import { DeleteOutlined, LeftOutlined, PlusOutlined, RightOutlined } from "@ant-design/icons";
-import { Button, Divider, Empty, Form, Input, InputNumber, Select, Space } from "antd";
+import { useState } from "react";
+import { DeleteOutlined, HolderOutlined, LeftOutlined, PlusOutlined, RightOutlined } from "@ant-design/icons";
+import { Button, Checkbox, Divider, Empty, Form, Input, InputNumber, Select, Space } from "antd";
 import type {
   CanvasAnimationItem,
   CanvasAnimationPreset,
+  CanvasFadeInDirection,
   CanvasNode,
   CanvasStrokeStyle,
   CanvasTransformOrigin,
 } from "@/types";
+import {
+  applyAnimationListRules,
+  canSelectAnimationPreset,
+  canUseInfiniteLoop,
+  reorderAnimations,
+} from "./animationOrder";
 import CircleProperty from "./nodeProperty/CircleProperty";
 import LineProperty from "./nodeProperty/LineProperty";
 import PolygonProperty from "./nodeProperty/PolygonProperty";
@@ -55,6 +63,7 @@ const animationPresetOptions: Array<{
   value: CanvasAnimationPreset;
 }> = [
   { label: "淡入", value: "fadeIn" },
+  { label: "淡出", value: "fadeOut" },
   { label: "右移", value: "slideRight" },
   { label: "旋转", value: "rotate" },
 ];
@@ -74,17 +83,54 @@ const transformOriginOptions: Array<{
   { label: "右下", value: "bottom-right" },
 ];
 
+const fadeInDirectionOptions: Array<{
+  label: string;
+  value: CanvasFadeInDirection;
+}> = [
+  { label: "从当前位置", value: "current" },
+  { label: "从左边", value: "left" },
+  { label: "从上边", value: "top" },
+  { label: "从下边", value: "bottom" },
+];
+
+const fadeOutDirectionOptions: Array<{
+  label: string;
+  value: CanvasFadeInDirection;
+}> = [
+  { label: "在当前位置", value: "current" },
+  { label: "向左边", value: "left" },
+  { label: "向上边", value: "top" },
+  { label: "向下边", value: "bottom" },
+];
+
+const getFadeOffset = (direction: CanvasFadeInDirection, distance: number) => {
+  if (direction === "left") return { offsetX: -distance };
+  if (direction === "top") return { offsetY: -distance };
+  if (direction === "bottom") return { offsetY: distance };
+
+  return {};
+};
+
 const createAnimationData = (
-  preset: CanvasAnimationPreset,
-  duration: number,
-  delay: number,
-  loop: number,
+  item: Pick<
+    CanvasAnimationItem,
+    | "delay"
+    | "duration"
+    | "fadeInDirection"
+    | "fadeInDistance"
+    | "loop"
+    | "preset"
+    | "slideFromX"
+    | "slideToX"
+  >,
 ): CanvasAnimationItem["animation"] => {
+  const { delay, duration, loop, preset } = item;
+
   if (preset === "rotate") {
     return {
       delay,
       duration,
-      keyframes: [{ style: { rotation: 0 } }, { style: { rotation: 360 }, duration }],
+      keyframes: [{ style: { rotation: 0 } }, { style: { rotation: 360 } }],
       loop,
     };
   }
@@ -93,43 +139,94 @@ const createAnimationData = (
     return {
       delay,
       duration,
+      keyframes: [
+        { style: { offsetX: item.slideFromX ?? 0 } },
+        { style: { offsetX: item.slideToX ?? 80 } },
+      ],
       loop,
-      style: { x: 80 },
     };
   }
 
+  if (preset === "fadeOut") {
+    const fadeOutDirection = item.fadeInDirection ?? "current";
+    const fadeOutDistance = item.fadeInDistance ?? 80;
+    const fadeOutOffset = getFadeOffset(fadeOutDirection, fadeOutDistance);
+
+    return {
+      delay,
+      duration,
+      keyframes: [
+        { style: { opacity: 1, offsetX: 0, offsetY: 0 } },
+        { style: { opacity: 0, ...fadeOutOffset } },
+      ],
+      loop,
+    };
+  }
+
+  const fadeInDirection = item.fadeInDirection ?? "current";
+  const fadeInDistance = item.fadeInDistance ?? 80;
+  const fadeInOffset = getFadeOffset(fadeInDirection, fadeInDistance);
+
   return {
     delay,
     duration,
+    keyframes: [
+      { style: { opacity: 0, ...fadeInOffset } },
+      { style: { opacity: 1, offsetX: 0, offsetY: 0 } },
+    ],
     loop,
-    style: { opacity: 1 },
   };
 };
 
-const createAnimationItem = (): CanvasAnimationItem => {
-  const preset = "fadeIn";
-  const duration = 600;
-  const delay = 0;
-  const loop = 0;
+const getAnimationName = (preset: CanvasAnimationPreset) => {
+  if (preset === "fadeOut") return "淡出动画";
+  if (preset === "slideRight") return "右移动画";
+  if (preset === "rotate") return "旋转动画";
+
+  return "淡入动画";
+};
+
+const createAnimationItem = (list: CanvasAnimationItem[]): CanvasAnimationItem => {
+  const preset: CanvasAnimationPreset = list.some((item) => item.preset === "fadeIn")
+    ? "slideRight"
+    : "fadeIn";
+  const item: Omit<CanvasAnimationItem, "animation"> = {
+    delay: 0,
+    duration: 600,
+    fadeInDirection: "current",
+    fadeInDistance: 80,
+    id: `animation-${Date.now()}`,
+    loop: 0,
+    name: getAnimationName(preset),
+    preset,
+  };
 
   return {
-    animation: createAnimationData(preset, duration, delay, loop),
-    delay,
-    duration,
-    id: `animation-${Date.now()}`,
-    loop,
-    name: "淡入动画",
-    preset,
-    seek: 0,
+    ...item,
+    animation: createAnimationData(item),
   };
 };
 
 const patchAnimationItem = (item: CanvasAnimationItem, data: Partial<CanvasAnimationItem>) => {
-  const next = { ...item, ...data };
+  const next: CanvasAnimationItem = { ...item, ...data };
+
+  if (next.preset === "slideRight") {
+    next.slideFromX = next.slideFromX ?? 0;
+    next.slideToX = next.slideToX ?? 80;
+  }
+
+  if (next.preset === "fadeIn" || next.preset === "fadeOut") {
+    next.fadeInDirection = next.fadeInDirection ?? "current";
+    next.fadeInDistance = next.fadeInDistance ?? 80;
+  }
+
+  if (data.preset && data.preset !== item.preset && item.name === getAnimationName(item.preset)) {
+    next.name = getAnimationName(next.preset);
+  }
 
   return {
     ...next,
-    animation: createAnimationData(next.preset, next.duration, next.delay, next.loop),
+    animation: createAnimationData(next),
   };
 };
 
@@ -141,6 +238,15 @@ function PropertyPanel({
   onUngroup,
   onUpdateNode,
 }: PropertyPanelProps) {
+  const [draggingAnimationId, setDraggingAnimationId] = useState<string>();
+  const animationList = node?.animationList ?? [];
+
+  const commitAnimationList = (list: CanvasAnimationItem[]) => {
+    if (!node) return;
+
+    onUpdateNode(node.id, { animationList: applyAnimationListRules(list) });
+  };
+
   return (
     <aside className="canvas-maker__properties" data-collapsed={collapsed}>
       <div className="panel-title">
@@ -214,11 +320,21 @@ function PropertyPanel({
               )}
               {node.kind === "star" && <StarProperty node={node} onUpdateNode={onUpdateNode} />}
 
+              {node.kind === "image" && (
+                <label className="property-field">
+                  <span>图片地址</span>
+                  <Input
+                    value={node.src}
+                    onChange={(event) => onUpdateNode(node.id, { src: event.target.value })}
+                  />
+                </label>
+              )}
+
               {node.kind !== "group" && (
                 <div className="property-paint">
                   <span className="property-paint__label">外观</span>
                   <div className="property-grid property-grid--two">
-                    {node.kind !== "line" && (
+                    {node.kind !== "line" && node.kind !== "image" && (
                       <label className="property-field">
                         <span>填充</span>
                         <Input
@@ -293,30 +409,65 @@ function PropertyPanel({
                   icon={<PlusOutlined />}
                   size="small"
                   onClick={() =>
-                    onUpdateNode(node.id, {
-                      animationList: [...(node.animationList ?? []), createAnimationItem()],
-                    })
+                    commitAnimationList([
+                      ...animationList,
+                      createAnimationItem(animationList),
+                    ])
                   }
                 >
                   添加
                 </Button>
               </div>
+              <p className="property-animation__hint">
+                淡入最先播放，移动和旋转居中，淡出最后。可拖动手柄调整同阶段顺序。
+              </p>
 
-              {node.animationList?.length ? (
+              {animationList.length ? (
                 <div className="property-animation__list">
-                  {node.animationList.map((animation) => {
+                  {animationList.map((animation, index) => {
+                    const allowInfiniteLoop = canUseInfiniteLoop(animationList, animation.id);
                     const updateAnimation = (data: Partial<CanvasAnimationItem>) => {
-                      onUpdateNode(node.id, {
-                        animationList: node.animationList?.map((item) =>
+                      commitAnimationList(
+                        animationList.map((item) =>
                           item.id === animation.id ? patchAnimationItem(item, data) : item,
                         ),
-                      });
+                      );
                     };
 
                     return (
-                      <div className="property-animation__item" key={animation.id}>
+                      <div
+                        className="property-animation__item"
+                        data-dragging={draggingAnimationId === animation.id}
+                        key={animation.id}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          event.dataTransfer.dropEffect = "move";
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          const fromId = event.dataTransfer.getData("text/plain");
+                          const from = animationList.findIndex((item) => item.id === fromId);
+
+                          commitAnimationList(reorderAnimations(animationList, from, index));
+                          setDraggingAnimationId(undefined);
+                        }}
+                      >
                         <div className="property-animation__header">
+                          <span
+                            className="property-animation__drag"
+                            draggable
+                            title="拖动排序"
+                            onDragEnd={() => setDraggingAnimationId(undefined)}
+                            onDragStart={(event) => {
+                              event.dataTransfer.effectAllowed = "move";
+                              event.dataTransfer.setData("text/plain", animation.id);
+                              setDraggingAnimationId(animation.id);
+                            }}
+                          >
+                            <HolderOutlined />
+                          </span>
                           <Input
+                            size="small"
                             value={animation.name}
                             onChange={(event) => updateAnimation({ name: event.target.value })}
                           />
@@ -325,18 +476,23 @@ function PropertyPanel({
                             icon={<DeleteOutlined />}
                             size="small"
                             onClick={() =>
-                              onUpdateNode(node.id, {
-                                animationList: node.animationList?.filter(
-                                  (item) => item.id !== animation.id,
-                                ),
-                              })
+                              commitAnimationList(
+                                animationList.filter((item) => item.id !== animation.id),
+                              )
                             }
                           />
                         </div>
                         <Form layout="vertical" size="small">
                           <Form.Item label="类型">
                             <Select
-                              options={animationPresetOptions}
+                              options={animationPresetOptions.map((option) => ({
+                                ...option,
+                                disabled: !canSelectAnimationPreset(
+                                  animationList,
+                                  animation.id,
+                                  option.value,
+                                ),
+                              }))}
                               value={animation.preset}
                               onChange={(preset) => updateAnimation({ preset })}
                             />
@@ -357,27 +513,109 @@ function PropertyPanel({
                               <InputNumber
                                 min={0}
                                 value={animation.delay}
-                                onChange={(delay) => updateAnimation({ delay: Number(delay ?? 0) })}
+                                onChange={(delay) =>
+                                  updateAnimation({ delay: Number(delay ?? 0) })
+                                }
                               />
                             </Form.Item>
                           </div>
                           <div className="property-grid property-grid--two">
-                            <Form.Item label="循环">
+                            <Form.Item label="循环次数">
                               <InputNumber
-                                value={animation.loop}
-                                onChange={(loop) => updateAnimation({ loop: Number(loop ?? 0) })}
+                                disabled={animation.loop < 0}
+                                min={0}
+                                value={animation.loop < 0 ? 0 : animation.loop}
+                                onChange={(loop) =>
+                                  updateAnimation({ loop: Number(loop ?? 0) })
+                                }
                               />
                             </Form.Item>
-                            <Form.Item label="Seek">
-                              <InputNumber
-                                max={1}
-                                min={0}
-                                step={0.1}
-                                value={animation.seek}
-                                onChange={(seek) => updateAnimation({ seek: Number(seek ?? 0) })}
-                              />
+                            <Form.Item label="无限循环">
+                              <Checkbox
+                                checked={animation.loop < 0}
+                                disabled={!allowInfiniteLoop}
+                                onChange={(event) =>
+                                  updateAnimation({ loop: event.target.checked ? -1 : 0 })
+                                }
+                              >
+                                开启
+                              </Checkbox>
                             </Form.Item>
                           </div>
+                          {animation.preset === "fadeIn" ? (
+                            <>
+                              <Form.Item label="淡入方向">
+                                <Select
+                                  options={fadeInDirectionOptions}
+                                  value={animation.fadeInDirection ?? "current"}
+                                  onChange={(fadeInDirection) =>
+                                    updateAnimation({ fadeInDirection })
+                                  }
+                                />
+                              </Form.Item>
+                              {animation.fadeInDirection &&
+                              animation.fadeInDirection !== "current" ? (
+                                <Form.Item label="滑入距离">
+                                  <InputNumber
+                                    min={0}
+                                    value={animation.fadeInDistance ?? 80}
+                                    onChange={(fadeInDistance) =>
+                                      updateAnimation({
+                                        fadeInDistance: Number(fadeInDistance ?? 0),
+                                      })
+                                    }
+                                  />
+                                </Form.Item>
+                              ) : null}
+                            </>
+                          ) : null}
+                          {animation.preset === "fadeOut" ? (
+                            <>
+                              <Form.Item label="淡出方向">
+                                <Select
+                                  options={fadeOutDirectionOptions}
+                                  value={animation.fadeInDirection ?? "current"}
+                                  onChange={(fadeInDirection) =>
+                                    updateAnimation({ fadeInDirection })
+                                  }
+                                />
+                              </Form.Item>
+                              {animation.fadeInDirection &&
+                              animation.fadeInDirection !== "current" ? (
+                                <Form.Item label="滑出距离">
+                                  <InputNumber
+                                    min={0}
+                                    value={animation.fadeInDistance ?? 80}
+                                    onChange={(fadeInDistance) =>
+                                      updateAnimation({
+                                        fadeInDistance: Number(fadeInDistance ?? 0),
+                                      })
+                                    }
+                                  />
+                                </Form.Item>
+                              ) : null}
+                            </>
+                          ) : null}
+                          {animation.preset === "slideRight" ? (
+                            <div className="property-grid property-grid--two">
+                              <Form.Item label="起始 X">
+                                <InputNumber
+                                  value={animation.slideFromX ?? 0}
+                                  onChange={(slideFromX) =>
+                                    updateAnimation({ slideFromX: Number(slideFromX ?? 0) })
+                                  }
+                                />
+                              </Form.Item>
+                              <Form.Item label="结束 X">
+                                <InputNumber
+                                  value={animation.slideToX ?? 80}
+                                  onChange={(slideToX) =>
+                                    updateAnimation({ slideToX: Number(slideToX ?? 0) })
+                                  }
+                                />
+                              </Form.Item>
+                            </div>
+                          ) : null}
                         </Form>
                       </div>
                     );

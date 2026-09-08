@@ -26,11 +26,20 @@ export const getStrokeDashPattern = (node: CanvasNode) => {
  * 创建 UI 和后续增量 set 都会调用它，保证 fill / stroke / dashPattern 等样式
  * 在新增节点和更新节点时走同一套映射逻辑。
  */
-export const getNodePaintInput = (node: CanvasNode) => ({
-  dashPattern: getStrokeDashPattern(node),
-  fill: node.fill,
-  stroke: node.stroke,
-  strokeAlign: node.strokeAlign,
-  strokeCap: node.strokeCap,
-  strokeWidth: node.strokeWidth,
-});
+export const getNodePaintInput = (node: CanvasNode) => {
+  const paint = {
+    dashPattern: getStrokeDashPattern(node),
+    stroke: node.stroke,
+    strokeAlign: node.strokeAlign,
+    strokeCap: node.strokeCap,
+    strokeWidth: node.strokeWidth,
+  };
+
+  // 图片节点的画面来自缓存线程的 Blob，不要用 fill 色盖住 url。
+  if (node.kind === "image") return paint;
+
+  return {
+    ...paint,
+    fill: node.fill,
+  };
+};

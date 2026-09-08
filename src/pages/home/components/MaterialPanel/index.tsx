@@ -6,6 +6,7 @@ import {
 } from "@ant-design/icons";
 import { Button, Tabs } from "antd";
 import type { ReactNode } from "react";
+import { TEST_MATERIAL_IMAGE_URL } from "@/constants/materialImages";
 import type { CanvasMaterialKind } from "@/types";
 
 const RectMaterialIcon = () => (
@@ -175,18 +176,16 @@ const materials = [
 
 const imageMaterials = [
   {
-    key: "upload",
-    title: "上传图片",
-    description: "导入本地图片素材",
-    icon: <ImageMaterialIcon />,
+    key: "image",
+    title: "测试图片",
+    previewUrl: TEST_MATERIAL_IMAGE_URL,
   },
   {
-    key: "placeholder",
-    title: "图片占位",
-    description: "预留图片容器",
+    key: "upload",
+    title: "上传图片",
     icon: <ImageMaterialIcon />,
   },
-];
+] as const;
 
 type MaterialPanelProps = {
   /** 素材栏是否收起。 */
@@ -225,12 +224,25 @@ function MaterialPanel({ collapsed, onAddNode, onToggle }: MaterialPanelProps) {
           {imageMaterials.map((material) => (
             <button
               className="material-item"
+              data-preview={"previewUrl" in material ? "image" : undefined}
               key={material.key}
               title={material.title}
               type="button"
-              disabled
+              disabled={material.key !== "image"}
+              onClick={() => {
+                if (material.key === "image") onAddNode("image");
+              }}
             >
-              <span className="material-item__icon">{material.icon}</span>
+              {"previewUrl" in material ? (
+                <img
+                  alt={material.title}
+                  className="material-item__preview"
+                  referrerPolicy="no-referrer"
+                  src={material.previewUrl}
+                />
+              ) : (
+                <span className="material-item__icon">{material.icon}</span>
+              )}
             </button>
           ))}
         </div>

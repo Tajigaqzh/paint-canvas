@@ -30,6 +30,25 @@ flowchart TD
 
 这两个层次不能混在一起清理。我们只维护自己的 `stage / board / UI`，不能把整个 `app.tree` 清空。
 
+## 代码拆分
+
+`useLeaferCanvas` 只组装子模块。落点如下：
+
+| 职责 | 文件 |
+|---|---|
+| 共享 refs | `core/useRuntime.ts` |
+| 创建销毁 App、Editor 原生事件 | `core/useLeaferApp.ts` |
+| stage / board 缩放居中 | `core/useStageBoard.ts` |
+| 舞台与指针共用的坐标公式 | `geometry/boardLayout.ts` |
+| 橡皮擦命中 | `geometry/hitDetection.ts` |
+| 节点增量同步 | `tree/useNodeTreeSync.ts` → `tree/syncNodeTree.ts` |
+| brush / eraser 手势 | `tools/usePointerTools.ts` + `brush.ts` / `eraser.ts` |
+| 追加选择修饰键 | `tools/additiveSelect.ts` |
+| store.selectedIds → Editor | `selection/useEditorSelection.ts` |
+| UI 反查 nodeId | `ui/uiMap.ts` |
+
+详细目录说明见 `src/pages/home/hooks/README.md`。
+
 ## Hook 里的几类 effect
 
 ```mermaid
@@ -39,11 +58,11 @@ flowchart LR
   A --> A3[注册 DragEvent.END]
 
   B[工具指针 effect] --> B1[brush 绘制]
-  B --> B2[eraser 删除]
+  B --> B2[eraser 只擦 line 局部路径]
   B --> B3[select 模式放行给 Leafer Editor]
 
   C[舞台尺寸 effect] --> C1[首次创建 stage / board]
-  C --> C2[viewSize 变化时 set scale 和居中偏移]
+  C --> C2[viewSize 变化时用 boardLayout 更新 scale 和居中]
   C --> C3[viewport 变化时 set board 尺寸]
 
   D[节点增量同步 effect] --> D1[新增缺失 UI]
@@ -169,7 +188,7 @@ sequenceDiagram
   Store->>Store: 更新 selectedIds / activeId
 ```
 
-Leafer 的 `EditorEvent.SELECT` 给的是 UI 对象，不是业务 id。hook 用 `uiMapRef` 反查：
+Leafer 的 `EditorEvent.SELECT` 给的是 UI 对象，不是业务 id。`useLeaferApp` 用 `findNodeIdByUI` 反查：
 
 ```text
 Leafer UI -> nodeId -> selectNodes(ids)
@@ -217,14 +236,16 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  First[首次初始化] --> Create[创建 stage / board]
-  Create --> Add[app.tree.add(stage)]
-  Resize[viewSize / viewport 变化] --> StageSet[stage.set scale/x/y]
-  Resize --> BoardSet[board.set width/height]
-  Editor[Leafer Editor 内部层] --> Keep[保留不动]
+  Size[viewSize / viewport] --> Layout[getBoardLayout]
+  Layout --> First[首次创建 stage 与 board]
+  First --> Add["app.tree.add stage"]
+  Layout --> Later[之后 stage.set scale/x/y]
+  Layout --> BoardSet[board.set width/height]
+  Later --> Refresh[有选区时下一帧刷新选框]
+  Editor[Leafer Editor 内部层] --> Keep[保留不动 从不 tree.clear]
 ```
 
-这能避免破坏 Leafer Editor 的内部结构。
+`getBoardLayout` 和画笔/橡皮指针反算是同一套公式。缩放后刷新选区，是为了让多选框宽高跟上新的 stage 变换，不是重建节点。
 
 ## 当前同步保护
 
@@ -248,7 +269,7 @@ flowchart TD
 
 `useLeaferCanvas` 的原则是：
 
-- `stage/board` 初始化一次，尺寸变化只更新缩放和尺寸。
+- `stage/board` 初始化一次，尺寸变化只更新缩放和尺寸；缩放公式与指针反算共用 `boardLayout`。
 - `nodeMap/rootIds` 变化时，对节点 UI 做增量增删改和排序。
 - `selectedIds` 变化时，只同步 Leafer Editor 的选择框。
 - 不清空整个 `app.tree`，避免破坏 Leafer Editor 内部层。

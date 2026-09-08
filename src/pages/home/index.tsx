@@ -23,15 +23,15 @@ const createEraserCursor = (size: number) => {
 };
 
 function Home() {
-  const message = useAppMessage();
+  const message = useAppMessage(); // 消息提示
   const canvasViewRef = useRef<HTMLDivElement>(null);
   const canvasShellRef = useRef<HTMLDivElement>(null);
-  const canvasSize = useSize(canvasShellRef);
-  const [leftCollapsed, setLeftCollapsed] = useState(false);
-  const [rightCollapsed, setRightCollapsed] = useState(false);
-  const [activeTool, setActiveTool] = useState<CanvasToolMode>("select");
-  const [brushSize, setBrushSize] = useState(8);
-  const [eraserSize, setEraserSize] = useState(24);
+  const canvasSize = useSize(canvasShellRef); // 画布大小
+  const [leftCollapsed, setLeftCollapsed] = useState(false); // 左侧是否折叠
+  const [rightCollapsed, setRightCollapsed] = useState(false); // 右侧是否折叠
+  const [activeTool, setActiveTool] = useState<CanvasToolMode>("select"); // 激活的工具
+  const [brushSize, setBrushSize] = useState(8); // 笔刷粗细
+  const [eraserSize, setEraserSize] = useState(24); // 橡皮擦粗细
   const [contextMenu, setContextMenu] = useState({
     open: false,
     x: 0,

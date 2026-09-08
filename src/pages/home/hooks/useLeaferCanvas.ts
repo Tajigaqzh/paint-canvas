@@ -1,8 +1,8 @@
 import { useLeaferApp } from "./leaferCanvas/core/useLeaferApp";
-import { useLeaferCanvasRuntime } from "./leaferCanvas/core/useLeaferCanvasRuntime";
+import { useRuntime } from "./leaferCanvas/core/useRuntime";
 import { useStageBoard } from "./leaferCanvas/core/useStageBoard";
 import { useEditorSelection } from "./leaferCanvas/selection/useEditorSelection";
-import type { UseLeaferCanvasOptions } from "./leaferCanvas/shared/types";
+import type { UseLeaferCanvasOptions } from "@/types";
 import { usePointerTools } from "./leaferCanvas/tools/usePointerTools";
 import { useNodeTreeSync } from "./leaferCanvas/tree/useNodeTreeSync";
 import { useToolInteractivity } from "./leaferCanvas/tree/useToolInteractivity";
@@ -36,7 +36,8 @@ export function useLeaferCanvas({
   viewSize,
 }: UseLeaferCanvasOptions) {
   const { nodeMap, rootIds, selectedIds, viewport } = page;
-  const runtime = useLeaferCanvasRuntime({
+  // 共享 refs：LeaferApp、stage/board、uiMap、callback refs。
+  const runtime = useRuntime({
     onAddDrawLine,
     onApplyEraserResult,
     onSelectNode,
@@ -47,16 +48,19 @@ export function useLeaferCanvas({
     tool,
   });
 
+  // App 生命周期 + Editor 选择 / 拖拽 / 文本关闭事件。
   useLeaferApp({
     ...runtime,
     onUpdateNode,
     viewRef,
   });
+  // brush / eraser 自定义 pointer 手势。
   usePointerTools({
     ...runtime,
     viewRef,
     viewSize,
   });
+  // 等比缩放并居中的 stage + 白色 board。
   useStageBoard({
     appRef: runtime.appRef,
     boardRef: runtime.boardRef,
@@ -66,6 +70,7 @@ export function useLeaferCanvas({
     viewSize,
     viewport,
   });
+  // nodeMap / rootIds -> Leafer UI 增量同步。
   useNodeTreeSync({
     appRef: runtime.appRef,
     boardRef: runtime.boardRef,
@@ -79,12 +84,14 @@ export function useLeaferCanvas({
     uiMapRef: runtime.uiMapRef,
     uiParentMapRef: runtime.uiParentMapRef,
   });
+  // select 可编辑；brush / eraser 关闭 Editor 拖拽。
   useToolInteractivity({
     nodeMap,
     rootIds,
     tool,
     uiMapRef: runtime.uiMapRef,
   });
+  // store.selectedIds -> editor.select / cancel。
   useEditorSelection({
     appRef: runtime.appRef,
     isSyncingEditorSelectionRef: runtime.isSyncingEditorSelectionRef,

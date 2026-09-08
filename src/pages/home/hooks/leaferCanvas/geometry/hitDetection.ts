@@ -1,5 +1,4 @@
-import type { CanvasNode, CanvasPage, LineNode } from "@/types";
-import type { CanvasPoint, HitNodeResult, LineEraserPreview } from "../shared/types";
+import type { CanvasPage, CanvasPoint, HitNodeResult, LineEraserPreview, LineNode } from "@/types";
 
 /**
  * 计算两个业务坐标点之间的欧氏距离。
@@ -43,37 +42,13 @@ export const getPointToSegmentDistance = (
 };
 
 /**
- * 判断橡皮擦圆形范围是否碰到普通节点包围盒。
- *
- * 这个方法用于 rect / ellipse / polygon / text 等非 line 节点。
- * 普通节点当前仍然是“整节点擦除”，所以命中包围盒后会临时 destroy UI，
- * 松手时再把节点 id 提交给 store 删除。
- */
-export const isPointInNodeBounds = (
-  node: CanvasNode,
-  point: CanvasPoint,
-  radius: number,
-  offset: CanvasPoint,
-) => {
-  // 文本没有显式 width / height，按字号和文本长度估一个可擦除包围盒。
-  const width = "width" in node ? node.width : Math.max(node.text.length * node.fontSize, 1);
-  const height = "height" in node ? node.height : node.fontSize;
-  const left = node.x + offset.x - radius;
-  const top = node.y + offset.y - radius;
-  const right = node.x + offset.x + width + radius;
-  const bottom = node.y + offset.y + height + radius;
-
-  return point.x >= left && point.x <= right && point.y >= top && point.y <= bottom;
-};
-
-/**
  * 判断橡皮擦是否擦到一条 line 节点的真实路径。
  *
  * line 节点要实现“经过哪里擦哪里”，所以这里按 points 拆成多段线段检测。
  * 命中容差 = 橡皮擦半径 + 线条半宽，符合视觉上两条描边相交就算擦到的直觉。
  */
 export const isPointNearLineNode = (
-  node: Extract<CanvasNode, { kind: "line" }>,
+  node: LineNode,
   point: CanvasPoint,
   radius: number,
   offset: CanvasPoint,
@@ -101,11 +76,11 @@ export const isPointNearLineNode = (
 };
 
 /**
- * 从指定图层列表里找出橡皮擦当前命中的最上层节点。
+ * 从指定图层列表里找出橡皮擦当前命中的最上层 line 节点。
  *
  * rootIds / childrenIds 的后一个节点视觉上更靠上，所以这里从后往前遍历。
- * group 本身只作为层级容器，不直接被擦除；命中检测会递归进入它的 childrenIds，
- * 并通过 offset 累加父级位移，把组内局部节点换算到画板全局坐标。
+ * group 只作为层级容器，命中会递归 childrenIds；rect / ellipse / text 等图形直接跳过。
+ * offset 累加父级位移，把组内局部节点换算到画板全局坐标。
  */
 export const findHitNode = (
   page: CanvasPage,
@@ -130,14 +105,10 @@ export const findHitNode = (
       if (childHit) return childHit;
     }
 
-    // 线条要按路径距离命中，不能只看外接矩形。
+    // 橡皮擦只擦画笔线：按路径距离命中。rect / ellipse / text 等图形不参与擦除。
     if (node.kind === "line") {
       if (isPointNearLineNode(node, point, radius, offset)) return { id: node.id, offset };
-      continue;
     }
-
-    // 其它图形用包围盒命中，满足橡皮擦基础交互即可。
-    if (isPointInNodeBounds(node, point, radius, offset)) return { id: node.id, offset };
   }
 
   return undefined;

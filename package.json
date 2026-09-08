@@ -10,15 +10,21 @@
     "lint": "oxlint",
     "test": "vitest",
     "test:run": "vitest run",
+    "format": "oxfmt src",
     "e2e": "playwright test",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prepare": "husky"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",
+    "@leafer-in/animate": "^2.2.3",
+    "@leafer-in/color": "2.2.3",
     "@leafer-in/editor": "^2.2.3",
+    "@leafer-in/interface": "2.2.3",
     "@leafer-in/text-editor": "^2.2.3",
     "@leafer-ui/core": "^2.2.3",
     "@leafer-ui/draw": "^2.2.3",
+    "@leafer-ui/interface": "2.2.3",
     "ahooks": "^3.9.7",
     "antd": "^6.5.1",
     "leafer-ui": "^2.2.3",
@@ -31,6 +37,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
     "@playwright/test": "^1.61.1",
     "@rolldown/plugin-babel": "^0.2.3",
     "@tailwindcss/vite": "^4.3.3",
@@ -43,6 +51,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "babel-plugin-react-compiler": "^1.0.0",
     "express": "^5.2.1",
+    "husky": "^9.1.7",
     "jsdom": "^29.1.1",
     "less": "^4.7.0",
     "oxfmt": "^0.59.0",
@@ -51,5 +60,11 @@
     "typescript": "~6.0.2",
     "vite": "^8.1.1",
     "vitest": "^4.1.10"
+  },
+  "pnpm": {
+    "overrides": {
+      "@leafer-ui/interface": "2.2.3",
+      "@leafer/interface": "2.2.3"
+    }
   }
 }

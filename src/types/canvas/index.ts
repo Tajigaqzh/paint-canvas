@@ -1,5 +1,5 @@
 import type { Patch } from "mutative";
-import type { CanvasMaterialKind, CanvasNode, LineNode } from "../elementNode";
+import type { CanvasMaterialKind, CanvasNode, LineNode } from "@/types/elementNode";
 
 /** 当前画布交互工具。 */
 export type CanvasToolMode = "select" | "brush" | "eraser";
