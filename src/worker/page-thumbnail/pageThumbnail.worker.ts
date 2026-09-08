@@ -5,7 +5,11 @@
 import { ImageCachePortClient } from "@/worker/image-cache/client";
 import { closePageImages, loadPageImages } from "./images";
 import { renderPage } from "./render";
-import { IMAGE_CACHE_WORKER_BIND, type PageThumbnailWorkerRequest, type PageThumbnailWorkerResponse } from "./types";
+import {
+  IMAGE_CACHE_WORKER_BIND,
+  type PageThumbnailWorkerRequest,
+  type PageThumbnailWorkerResponse,
+} from "./types";
 
 type WorkerHost = {
   onmessage: ((event: MessageEvent<PageThumbnailWorkerRequest>) => void) | null;

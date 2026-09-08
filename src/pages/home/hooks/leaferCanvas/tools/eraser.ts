@@ -8,11 +8,7 @@ import type {
   ManagedNodeUI,
   ToolDrawingState,
 } from "@/types";
-import {
-  findHitNode,
-  getLineLocalPoint,
-  getPreviewLocalPoint,
-} from "../geometry/hitDetection";
+import { findHitNode, getLineLocalPoint, getPreviewLocalPoint } from "../geometry/hitDetection";
 import { createLineEraserUI, getLineEraserInput } from "../ui/lineUi";
 
 /**

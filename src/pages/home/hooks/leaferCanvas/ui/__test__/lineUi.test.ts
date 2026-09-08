@@ -3,9 +3,7 @@ import type { LineNode } from "@/types";
 import { getLineContentInput, getLineEraserInput } from "../lineUi";
 
 vi.mock("leafer-ui", () => ({
-  Line: class Line {
-    constructor(public input: Record<string, unknown>) {}
-  },
+  Line: vi.fn(),
 }));
 
 const line = (overrides: Partial<LineNode> = {}): LineNode => ({

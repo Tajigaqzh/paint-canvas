@@ -38,9 +38,7 @@ describe("getPointDistance", () => {
 
 describe("getPointToSegmentDistance", () => {
   it("点在线段上时为 0", () => {
-    expect(
-      getPointToSegmentDistance({ x: 5, y: 0 }, { x: 0, y: 0 }, { x: 10, y: 0 }),
-    ).toBe(0);
+    expect(getPointToSegmentDistance({ x: 5, y: 0 }, { x: 0, y: 0 }, { x: 10, y: 0 })).toBe(0);
   });
 
   it("线段退化为点时按点距离", () => {

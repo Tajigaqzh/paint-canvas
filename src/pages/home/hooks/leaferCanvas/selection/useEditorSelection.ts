@@ -1,5 +1,10 @@
 import { useEffect } from "react";
-import type { CanvasPage, EditableNodeUI, EditorSelectionHandle, UseLeaferCanvasOptions } from "@/types";
+import type {
+  CanvasPage,
+  EditableNodeUI,
+  EditorSelectionHandle,
+  UseLeaferCanvasOptions,
+} from "@/types";
 import type { useRuntime } from "../core/useRuntime";
 
 type Runtime = ReturnType<typeof useRuntime>;

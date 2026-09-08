@@ -11,12 +11,7 @@ import type { PageImages, RenderContext } from "./types";
  * 先按缩略图尺寸创建离屏画布，再把页面 viewport 等比缩放进去。
  * 绘制完成后 transferToImageBitmap()，把位图所有权转交给主线程显示。
  */
-export const renderPage = (
-  page: CanvasPage,
-  width: number,
-  height: number,
-  images: PageImages,
-) => {
+export const renderPage = (page: CanvasPage, width: number, height: number, images: PageImages) => {
   const canvas = new OffscreenCanvas(width, height);
   const context = canvas.getContext("2d");
 

@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { LineEraserPreview, ToolDrawingState } from "@/types";
 import { getLineEraserUpdates } from "../eraser";
 
+vi.mock("leafer-ui", () => ({
+  Line: vi.fn(),
+}));
+
 describe("getLineEraserUpdates", () => {
   it("过滤掉不足一个点对的路径，并带上 eraser 宽度", () => {
     const drawing = {

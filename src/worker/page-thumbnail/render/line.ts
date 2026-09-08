@@ -22,11 +22,7 @@ const strokeOpenPath = (context: RenderContext, node: CanvasNode) => {
  * 所以缩略图要复刻 Leafer 的 points 平滑算法，不能用一个简单 quadraticCurveTo 近似。
  */
 /** 构造 line 的当前路径；原始笔迹和橡皮擦轨迹都复用这一套折线/曲线逻辑。 */
-const renderLinePath = (
-  context: RenderContext,
-  points: number[],
-  curve: LineNode["curve"],
-) => {
+const renderLinePath = (context: RenderContext, points: number[], curve: LineNode["curve"]) => {
   context.beginPath();
   context.moveTo(points[0] ?? 0, points[1] ?? 0);
 

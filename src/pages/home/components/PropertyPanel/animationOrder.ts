@@ -10,7 +10,7 @@ export const getAnimationStage = (preset: CanvasAnimationPreset): AnimationStage
   return "move";
 };
 
-export const moveItem = <T,>(list: T[], from: number, to: number) => {
+export const moveItem = <T>(list: T[], from: number, to: number) => {
   const next = [...list];
   const [item] = next.splice(from, 1);
 

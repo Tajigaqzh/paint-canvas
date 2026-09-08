@@ -57,17 +57,26 @@ describe("loadPageImages", () => {
 
   it("client 成功时按 url 解码", async () => {
     const close = vi.fn();
-    vi.stubGlobal("createImageBitmap", vi.fn(async () => ({ close })));
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn(async () => ({ close })),
+    );
     const client = {
       getBlob: vi.fn(async () => ({ blob: new Blob(["x"]), source: "memory" as const })),
     };
-    const images = await loadPageImages(pageWith({ i: imageNode("i", "https://a") }), client as never);
+    const images = await loadPageImages(
+      pageWith({ i: imageNode("i", "https://a") }),
+      client as never,
+    );
     expect(images.has("https://a")).toBe(true);
     vi.unstubAllGlobals();
   });
 
   it("单张失败不阻断其它图", async () => {
-    vi.stubGlobal("createImageBitmap", vi.fn(async () => ({ close: vi.fn() })));
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn(async () => ({ close: vi.fn() })),
+    );
     const client = {
       getBlob: vi.fn(async (url: string) => {
         if (url === "https://bad") throw new Error("fail");

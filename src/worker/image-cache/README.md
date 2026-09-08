@@ -59,7 +59,6 @@ flowchart TD
   Write --> NetBlob["返回 Blob<br/>source: network"]
 ```
 
-
 1. **L1 内存 LRU**：`Map` 保存 `Blob`。命中时把条目挪到最新；超出条目数或总字节则淘汰最旧。只活在图片线程里，刷新页面会丢。
 2. **L2 IndexedDB**：同源共享，库名 `paint-canvas-image-blobs`。刷新后仍可用。命中后提升到 L1，并更新 `lastAccessedAt`。超限按访问时间淘汰。
 3. **L3 网络**：`fetch`。默认 `cache: "default"`、`credentials: "omit"`、`mode: "cors"`，可通过 `getImageBlob(url, fetchInit)` 覆盖。成功后再写入 L1 和 L2。浏览器 HTTP 缓存仍可作为这次 fetch 的底层优化。

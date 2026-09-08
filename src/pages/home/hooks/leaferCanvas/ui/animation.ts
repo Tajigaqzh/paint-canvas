@@ -15,7 +15,9 @@ const getLeaferLoop = (loop: number) => {
 };
 
 /** 把关键帧里的毫秒时长转成秒，纯样式关键帧原样透传。 */
-const toLeaferKeyframe = (keyframe: NonNullable<CanvasAnimationItem["animation"]["keyframes"]>[number]) => {
+const toLeaferKeyframe = (
+  keyframe: NonNullable<CanvasAnimationItem["animation"]["keyframes"]>[number],
+) => {
   if (!("style" in keyframe) || keyframe.style === undefined) {
     return keyframe;
   }

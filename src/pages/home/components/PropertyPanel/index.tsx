@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { DeleteOutlined, HolderOutlined, LeftOutlined, PlusOutlined, RightOutlined } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  HolderOutlined,
+  LeftOutlined,
+  PlusOutlined,
+  RightOutlined,
+} from "@ant-design/icons";
 import { Button, Checkbox, Divider, Empty, Form, Input, InputNumber, Select, Space } from "antd";
 import type {
   CanvasAnimationItem,
@@ -409,10 +415,7 @@ function PropertyPanel({
                   icon={<PlusOutlined />}
                   size="small"
                   onClick={() =>
-                    commitAnimationList([
-                      ...animationList,
-                      createAnimationItem(animationList),
-                    ])
+                    commitAnimationList([...animationList, createAnimationItem(animationList)])
                   }
                 >
                   添加
@@ -513,9 +516,7 @@ function PropertyPanel({
                               <InputNumber
                                 min={0}
                                 value={animation.delay}
-                                onChange={(delay) =>
-                                  updateAnimation({ delay: Number(delay ?? 0) })
-                                }
+                                onChange={(delay) => updateAnimation({ delay: Number(delay ?? 0) })}
                               />
                             </Form.Item>
                           </div>
@@ -525,9 +526,7 @@ function PropertyPanel({
                                 disabled={animation.loop < 0}
                                 min={0}
                                 value={animation.loop < 0 ? 0 : animation.loop}
-                                onChange={(loop) =>
-                                  updateAnimation({ loop: Number(loop ?? 0) })
-                                }
+                                onChange={(loop) => updateAnimation({ loop: Number(loop ?? 0) })}
                               />
                             </Form.Item>
                             <Form.Item label="无限循环">

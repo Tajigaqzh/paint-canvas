@@ -11,11 +11,7 @@ import {
 } from "../animationOrder";
 import type { CanvasAnimationItem, CanvasAnimationPreset } from "@/types";
 
-const item = (
-  id: string,
-  preset: CanvasAnimationPreset,
-  loop = 0,
-): CanvasAnimationItem => ({
+const item = (id: string, preset: CanvasAnimationPreset, loop = 0): CanvasAnimationItem => ({
   animation: { style: {} },
   delay: 0,
   duration: 200,
@@ -90,9 +86,9 @@ describe("canSelectAnimationPreset", () => {
   });
 
   it("已有淡入时其它项不能再选 fadeIn", () => {
-    expect(canSelectAnimationPreset([item("in", "fadeIn"), item("m", "rotate")], "m", "fadeIn")).toBe(
-      false,
-    );
+    expect(
+      canSelectAnimationPreset([item("in", "fadeIn"), item("m", "rotate")], "m", "fadeIn"),
+    ).toBe(false);
   });
 
   it("当前项已是 fadeIn 时仍可选 fadeIn", () => {
