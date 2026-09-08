@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import { Frame, Group } from "leafer-ui";
-import type { CanvasPage } from "@/types";
-import type { EditorSelectionHandle, UseLeaferCanvasOptions } from "../shared/types";
-import type { useLeaferCanvasRuntime } from "./useLeaferCanvasRuntime";
+import type { CanvasPage, EditorSelectionHandle, UseLeaferCanvasOptions } from "@/types";
+import { getBoardLayout } from "../geometry/boardLayout";
+import type { useRuntime } from "./useRuntime";
 
-type Runtime = ReturnType<typeof useLeaferCanvasRuntime>;
+type Runtime = ReturnType<typeof useRuntime>;
 
 type UseStageBoardParams = Pick<UseLeaferCanvasOptions, "viewRef" | "viewSize"> &
   Pick<Runtime, "appRef" | "boardRef" | "isSyncingEditorSelectionRef" | "stageRef"> & {
@@ -26,6 +26,9 @@ export const useStageBoard = ({
   viewSize,
   viewport,
 }: UseStageBoardParams) => {
+  const viewportHeight = viewport.height;
+  const viewportWidth = viewport.width;
+
   useEffect(() => {
     let selectionFrameId: number | undefined;
     let isRefreshingSelection = false;
@@ -61,24 +64,25 @@ export const useStageBoard = ({
     };
 
     // stage / board 是稳定容器：尺寸变化只更新缩放和白板尺寸，不重建节点 UI。
-    const viewWidth = viewSize?.width ?? viewRef.current?.clientWidth ?? viewport.width;
-    const viewHeight = viewSize?.height ?? viewRef.current?.clientHeight ?? viewport.height;
-    const scale = Math.min(viewWidth / viewport.width, viewHeight / viewport.height);
+    const viewWidth = viewSize?.width ?? viewRef.current?.clientWidth ?? viewportWidth;
+    const viewHeight = viewSize?.height ?? viewRef.current?.clientHeight ?? viewportHeight;
+    const layout = getBoardLayout(viewWidth, viewHeight, {
+      height: viewportHeight,
+      width: viewportWidth,
+    });
     const stageInput = {
-      // stage 缩放把 1920 x 1080 业务坐标映射到当前 DOM 像素尺寸。
-      scale,
-      // x/y 负责把缩放后的白色画板在 canvas 容器中居中。
-      x: Math.max((viewWidth - viewport.width * scale) / 2, 0),
-      y: Math.max((viewHeight - viewport.height * scale) / 2, 0),
+      scale: layout.scale,
+      x: layout.boardX,
+      y: layout.boardY,
     };
     const boardInput = {
       // board 不参与编辑，只作为白色画板和节点父容器。
       editable: false,
       fill: "#ffffff",
-      height: viewport.height,
+      height: viewportHeight,
       overflow: "hide" as const,
       stroke: "#d9dee8",
-      width: viewport.width,
+      width: viewportWidth,
       x: 0,
       y: 0,
     };
@@ -114,8 +118,8 @@ export const useStageBoard = ({
     boardRef,
     isSyncingEditorSelectionRef,
     stageRef,
-    viewport.height,
-    viewport.width,
+    viewportHeight,
+    viewportWidth,
     viewRef,
     viewSize?.height,
     viewSize?.width,

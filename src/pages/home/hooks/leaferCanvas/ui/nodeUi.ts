@@ -1,8 +1,9 @@
-import { Ellipse, Group, Polygon, Rect, Star, Text, type IUI } from "leafer-ui";
-import type { CanvasNode } from "@/types";
+import "@leafer-in/animate";
+import { Ellipse, Group, Image, Polygon, Rect, Star, Text, type IUI } from "leafer-ui";
+import type { CanvasNode, ManagedNodeUI, NodeUIInput } from "@/types";
+import { getLeaferAnimation } from "./animation";
 import { syncLineGroupContent } from "./lineUi";
 import { getNodePaintInput } from "./paint";
-import type { ManagedNodeUI, NodeUIInput } from "../shared/types";
 
 /**
  * 将 store 中的可序列化节点转换为 Leafer UI 可直接 set / new 的属性。
@@ -92,6 +93,15 @@ export const getNodeUIInput = (node: CanvasNode): NodeUIInput => {
     };
   }
 
+  // 图片节点只同步几何；远程 src 由 syncImageSource 换成 blob object URL。
+  if (node.kind === "image") {
+    return {
+      ...baseInput,
+      height: node.height,
+      width: node.width,
+    };
+  }
+
   // 剩余节点类型是矩形，支持宽高和圆角。
   return {
     ...baseInput,
@@ -108,24 +118,33 @@ export const getNodeUIInput = (node: CanvasNode): NodeUIInput => {
  * 后续会复用旧 UI 并调用 set() 增量更新，避免拖拽、编辑、图层变化导致整画布重建。
  */
 export const createNodeUI = (node: CanvasNode): ManagedNodeUI | null => {
+  const input = getNodeUIInput(node);
+  const animation = getLeaferAnimation(node.animationList);
+
+  // 没有动画时不要带上 animation 字段。
+  // Leafer 在 add() 时只要看到 this.animation 就会调 __runAnimation，空值也会误触发。
+  if (animation) {
+    input.animation = animation;
+  }
+
   // group 是唯一可能继续承载子节点的业务节点，因此创建为 Leafer Group。
   if (node.kind === "group") {
-    return new Group(getNodeUIInput(node)) as ManagedNodeUI;
+    return new Group(input) as ManagedNodeUI;
   }
 
   // 椭圆族统一由 Leafer Ellipse 表达。
   if (node.kind === "ellipse") {
-    return new Ellipse(getNodeUIInput(node)) as ManagedNodeUI;
+    return new Ellipse(input) as ManagedNodeUI;
   }
 
   // 文本节点由 Leafer Text 表达，并交给 @leafer-in/text-editor 做双击编辑。
   if (node.kind === "text") {
-    return new Text(getNodeUIInput(node)) as ManagedNodeUI;
+    return new Text(input) as ManagedNodeUI;
   }
 
   // 自由线条和普通线条用 Group 表达：原线条 + 同组 eraser 轨迹。
   if (node.kind === "line") {
-    const group = new Group(getNodeUIInput(node)) as ManagedNodeUI;
+    const group = new Group(input) as ManagedNodeUI;
 
     syncLineGroupContent(group, node);
 
@@ -134,16 +153,21 @@ export const createNodeUI = (node: CanvasNode): ManagedNodeUI | null => {
 
   // 三角形和多边形都由 Leafer Polygon 表达。
   if (node.kind === "polygon") {
-    return new Polygon(getNodeUIInput(node)) as ManagedNodeUI;
+    return new Polygon(input) as ManagedNodeUI;
   }
 
   // 星形节点由 Leafer Star 表达。
   if (node.kind === "star") {
-    return new Star(getNodeUIInput(node)) as ManagedNodeUI;
+    return new Star(input) as ManagedNodeUI;
+  }
+
+  // 图片走 Leafer Image；远程 src 先换成 Blob，再 createObjectURL 赋给 url。
+  if (node.kind === "image") {
+    return new Image(input) as ManagedNodeUI;
   }
 
   // 当前剩余节点只可能是 rect。
-  return new Rect(getNodeUIInput(node)) as ManagedNodeUI;
+  return new Rect(input) as ManagedNodeUI;
 };
 
 /**

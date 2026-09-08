@@ -1,7 +1,6 @@
 import { Line } from "leafer-ui";
-import type { LineNode } from "@/types";
+import type { LineGroupUI, LineNode, ManagedNodeUI, NodeUIInput } from "@/types";
 import { getNodePaintInput } from "./paint";
-import type { LineGroupUI, ManagedNodeUI, NodeUIInput } from "../shared/types";
 
 /**
  * 生成原始 line 子节点的渲染输入。

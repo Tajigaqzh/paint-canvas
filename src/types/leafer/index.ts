@@ -2,14 +2,12 @@ import type { RefObject } from "react";
 import type { App as LeaferApp, Frame, Group, IUI, Line } from "leafer-ui";
 import type {
   CanvasLineEraserUpdate,
-  CanvasNode,
   CanvasNodeUpdate,
   CanvasPage,
   CanvasToolMode,
-  EditableNodeUI,
-  EditorHandle,
-  LineNode,
-} from "@/types";
+} from "@/types/canvas";
+import type { EditableNodeUI, EditorHandle } from "@/types/edit";
+import type { CanvasNode, LineNode } from "@/types/elementNode";
 
 /** 注册 @leafer-in/editor 后带有 editor 实例的 LeaferApp。 */
 export type EditableLeaferApp = LeaferApp & {
@@ -109,7 +107,8 @@ export type ToolDrawingState = {
 
 /** EditorHandle 的运行时对象还有 list，可用来判断当前 Editor 选择是否已经一致。 */
 export type EditorSelectionHandle = EditorHandle & {
-  list?: IUI[];
+  /** 不绑定具体 IUI 版本，避免 @leafer-ui/interface 双版本导致类型不能互相赋值。 */
+  list?: unknown[];
 };
 
 /** 能承载节点 UI 的 Leafer 父容器：根白板 Frame 或 group UI。 */
@@ -132,6 +131,8 @@ export type ManagedNodeUI = EditableNodeUI & {
   remove?(child?: IUI, destroy?: boolean): void;
   /** 增量同步节点属性时直接写入现有 Leafer UI。 */
   set(data: NodeUIInput): void;
+  /** Leafer Image 用来显示缓存线程返回的 blob object URL。 */
+  url?: string;
 };
 
 /**

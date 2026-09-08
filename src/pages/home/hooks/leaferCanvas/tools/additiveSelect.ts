@@ -1,4 +1,4 @@
-import type { PointerLikeEvent } from "../shared/types";
+import type { PointerLikeEvent } from "@/types";
 
 /**
  * 判断一次点击是否是“追加/切换选择”。

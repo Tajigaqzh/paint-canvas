@@ -1,20 +1,27 @@
 import { useEffect } from "react";
+import "@leafer-in/animate";
 import "@leafer-in/editor";
 import "@leafer-in/text-editor";
 import { EditorEvent, InnerEditorEvent } from "@leafer-in/editor";
 import { App as LeaferApp, DragEvent, type IUI } from "leafer-ui";
-import type { CanvasNodeUpdate } from "@/types";
-import { getNodePatchFromUI, hasNodePatchChange } from "../ui/nodeUi";
 import type {
+  CanvasNodeUpdate,
   EditableLeaferApp,
   EditorSelectEvent,
   InnerEditorCloseEvent,
   LeaferEventTarget,
   UseLeaferCanvasOptions,
-} from "../shared/types";
-import type { useLeaferCanvasRuntime } from "./useLeaferCanvasRuntime";
+} from "@/types";
+import { getNodePatchFromUI, hasNodePatchChange } from "../ui/nodeUi";
+import { disposeAllImageSources } from "../ui/imageUi";
+import { findNodeIdByUI } from "../ui/uiMap";
+import type { useRuntime } from "./useRuntime";
 
-type Runtime = ReturnType<typeof useLeaferCanvasRuntime>;
+/** EditorEvent.SELECT 兼容 list 与 value 两种负载。 */
+const getEditorSelectList = (event: EditorSelectEvent): IUI[] =>
+  event.list ?? (Array.isArray(event.value) ? event.value : event.value ? [event.value] : []);
+
+type Runtime = ReturnType<typeof useRuntime>;
 
 type UseLeaferAppParams = Pick<UseLeaferCanvasOptions, "onUpdateNode" | "viewRef"> & Runtime;
 
@@ -69,14 +76,6 @@ const setupLeaferApp = ({
   // 保存 app 实例，后续 effect 通过它增量同步 stage、节点和选区。
   appRef.current = app;
   /**
-   * 根据 Leafer UI 反查业务节点 id。
-   *
-   * EditorEvent.SELECT 给的是 UI 实例，不知道业务 id。
-   * uiMap 是本 hook 托管的 nodeId -> UI 索引，所以这里反向遍历得到 store 里的 id。
-   */
-  const getIdByUI = (target: IUI) => [...uiMap.entries()].find(([, ui]) => ui === target)?.[0];
-
-  /**
    * 根据当前 Leafer UI 状态生成单个节点的更新描述。
    *
    * 拖拽结束时，Leafer UI 已经被移动，但 pageRef.current 还是 store 中的旧值。
@@ -123,9 +122,9 @@ const setupLeaferApp = ({
     if (isSyncingEditorSelectionRef.current) return;
 
     // list 是常规来源，value 是兼容某些 Leafer 事件形态的兜底来源。
-    const list =
-      event.list ?? (Array.isArray(event.value) ? event.value : event.value ? [event.value] : []);
-    const ids = list.map((item) => getIdByUI(item)).filter((id): id is string => Boolean(id));
+    const ids = getEditorSelectList(event)
+      .map((item) => findNodeIdByUI(uiMap, item))
+      .filter((id): id is string => Boolean(id));
 
     // 用户点击或框选产生的选择结果写回 store。
     onSelectNodesRef.current(ids);
@@ -137,15 +136,17 @@ const setupLeaferApp = ({
   (app as LeaferEventTarget).on?.(DragEvent.END, syncSelectedNodeTransforms, undefined, true);
   // 文本编辑完成后，把 Leafer 内部编辑器里的最终文本写回业务节点。
   app.editor?.on(InnerEditorEvent.CLOSE, (event: InnerEditorCloseEvent) => {
-    const matched = [...uiMap.entries()].find(([, ui]) => ui === event.editTarget);
+    const editTarget = event.editTarget;
+    const id = editTarget ? findNodeIdByUI(uiMap, editTarget) : undefined;
 
-    if (!matched || event.editTarget?.text === undefined) return;
+    if (!id || editTarget?.text === undefined) return;
 
-    onUpdateNode(matched[0], { text: String(event.editTarget.text) });
+    onUpdateNode(id, { text: String(editTarget.text) });
   });
 
   // 组件卸载或 viewRef 变化时销毁整个 LeaferApp 和所有托管索引。
   return () => {
+    disposeAllImageSources(uiMap);
     app.destroy();
     appRef.current = null;
     boardRef.current = null;

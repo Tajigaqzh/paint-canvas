@@ -6,7 +6,9 @@ import {
 } from "@ant-design/icons";
 import { Button, Tabs } from "antd";
 import type { ReactNode } from "react";
+import { TEST_MATERIAL_IMAGE_URL } from "@/constants/materialImages";
 import type { CanvasMaterialKind } from "@/types";
+import { MATERIAL_DRAG_MIME, setDraggingMaterialKind } from "../../materialDrop";
 
 const RectMaterialIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 48 48">
@@ -175,18 +177,16 @@ const materials = [
 
 const imageMaterials = [
   {
-    key: "upload",
-    title: "上传图片",
-    description: "导入本地图片素材",
-    icon: <ImageMaterialIcon />,
+    key: "image",
+    title: "测试图片",
+    previewUrl: TEST_MATERIAL_IMAGE_URL,
   },
   {
-    key: "placeholder",
-    title: "图片占位",
-    description: "预留图片容器",
+    key: "upload",
+    title: "上传图片",
     icon: <ImageMaterialIcon />,
   },
-];
+] as const;
 
 type MaterialPanelProps = {
   /** 素材栏是否收起。 */
@@ -205,10 +205,18 @@ function MaterialPanel({ collapsed, onAddNode, onToggle }: MaterialPanelProps) {
           {materials.map((material) => (
             <button
               className="material-item"
+              draggable
               key={material.key}
               title={material.title}
               type="button"
               onClick={() => onAddNode(material.key)}
+              onDragEnd={() => setDraggingMaterialKind(undefined)}
+              onDragStart={(event) => {
+                setDraggingMaterialKind(material.key);
+                event.dataTransfer.effectAllowed = "copy";
+                event.dataTransfer.setData(MATERIAL_DRAG_MIME, material.key);
+                event.dataTransfer.setData("text/plain", material.key);
+              }}
             >
               <span className="material-item__icon">{material.icon}</span>
             </button>
@@ -225,12 +233,34 @@ function MaterialPanel({ collapsed, onAddNode, onToggle }: MaterialPanelProps) {
           {imageMaterials.map((material) => (
             <button
               className="material-item"
+              data-preview={"previewUrl" in material ? "image" : undefined}
+              draggable={material.key === "image"}
               key={material.key}
               title={material.title}
               type="button"
-              disabled
+              disabled={material.key !== "image"}
+              onClick={() => {
+                if (material.key === "image") onAddNode("image");
+              }}
+              onDragEnd={() => setDraggingMaterialKind(undefined)}
+              onDragStart={(event) => {
+                if (material.key !== "image") return;
+                setDraggingMaterialKind("image");
+                event.dataTransfer.effectAllowed = "copy";
+                event.dataTransfer.setData(MATERIAL_DRAG_MIME, "image");
+                event.dataTransfer.setData("text/plain", "image");
+              }}
             >
-              <span className="material-item__icon">{material.icon}</span>
+              {"previewUrl" in material ? (
+                <img
+                  alt={material.title}
+                  className="material-item__preview"
+                  referrerPolicy="no-referrer"
+                  src={material.previewUrl}
+                />
+              ) : (
+                <span className="material-item__icon">{material.icon}</span>
+              )}
             </button>
           ))}
         </div>

@@ -2,7 +2,7 @@ import { PlusOutlined } from "@ant-design/icons";
 import { Button, Tooltip } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CanvasPage } from "@/types";
-import { CanvasThumbnailWorkerManager } from "@/worker/thumbnail/workerManager";
+import { PageThumbnailWorkerManager } from "@/worker/page-thumbnail";
 
 type PageThumbnailStripProps = {
   activePageId: string;
@@ -66,7 +66,7 @@ function PageThumbnailStrip({
   pageIds,
   pages,
 }: PageThumbnailStripProps) {
-  const managerRef = useRef<CanvasThumbnailWorkerManager | null>(null);
+  const managerRef = useRef<PageThumbnailWorkerManager | null>(null);
   const revisionRef = useRef(0);
   const thumbnailsRef = useRef<ThumbnailState>({});
   const [thumbnails, setThumbnails] = useState<ThumbnailState>({});
@@ -76,7 +76,7 @@ function PageThumbnailStrip({
   );
 
   useEffect(() => {
-    managerRef.current = new CanvasThumbnailWorkerManager();
+    managerRef.current = new PageThumbnailWorkerManager();
 
     return () => {
       managerRef.current?.terminate();

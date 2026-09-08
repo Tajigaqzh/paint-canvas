@@ -6,7 +6,7 @@ export type EditorHandle = {
   /** 监听 Leafer editor 插件事件。 */
   on(type: string, listener: (event: unknown) => void): void;
   /** 让 Leafer 编辑器显示单选或多选控制框。 */
-  select(target: IUI | IUI[]): void;
+  select(target: unknown): void;
 };
 
 export type EditableNodeUI = IUI & {

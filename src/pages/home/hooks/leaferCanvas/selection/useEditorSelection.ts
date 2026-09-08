@@ -1,9 +1,13 @@
 import { useEffect } from "react";
-import type { CanvasPage, EditableNodeUI } from "@/types";
-import type { EditorSelectionHandle, UseLeaferCanvasOptions } from "../shared/types";
-import type { useLeaferCanvasRuntime } from "../core/useLeaferCanvasRuntime";
+import type {
+  CanvasPage,
+  EditableNodeUI,
+  EditorSelectionHandle,
+  UseLeaferCanvasOptions,
+} from "@/types";
+import type { useRuntime } from "../core/useRuntime";
 
-type Runtime = ReturnType<typeof useLeaferCanvasRuntime>;
+type Runtime = ReturnType<typeof useRuntime>;
 
 type UseEditorSelectionParams = Pick<UseLeaferCanvasOptions, "tool"> &
   Pick<CanvasPage, "nodeMap" | "rootIds" | "selectedIds"> &

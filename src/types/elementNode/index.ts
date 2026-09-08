@@ -1,7 +1,15 @@
 import type { IUIInputData } from "leafer-ui";
 
 /** 画布节点类型。group 是真实层级节点，不是普通标签。 */
-export type CanvasNodeKind = "rect" | "ellipse" | "line" | "polygon" | "star" | "text" | "group";
+export type CanvasNodeKind =
+  | "rect"
+  | "ellipse"
+  | "line"
+  | "polygon"
+  | "star"
+  | "text"
+  | "image"
+  | "group";
 
 /** 左侧素材面板可创建的图形类型。部分素材会映射到同一个画布节点类型。 */
 export type CanvasMaterialKind =
@@ -16,10 +24,14 @@ export type CanvasMaterialKind =
   | "ring"
   | "sector"
   | "sector-ring"
-  | "arc";
+  | "arc"
+  | "image";
 
 /** 动画预设类型，右侧面板用它快速生成 Leafer animation 数据。 */
-export type CanvasAnimationPreset = "fadeIn" | "slideRight" | "rotate";
+export type CanvasAnimationPreset = "fadeIn" | "fadeOut" | "slideRight" | "rotate";
+
+/** 淡入方向；current 只做透明度变化，其它方向会从对应一侧滑入到原位。 */
+export type CanvasFadeInDirection = "current" | "left" | "top" | "bottom";
 
 /** 旋转/缩放基准点，对应 Leafer 的 origin 九宫格定位。 */
 export type CanvasTransformOrigin =
@@ -67,23 +79,32 @@ export interface CanvasAnimationItem {
   duration: number;
   /** 动画开始前等待时间，单位毫秒。 */
   delay: number;
-  /** 循环次数；0 表示不循环，-1 可作为无限循环的业务约定。 */
+  /** 循环次数；0 表示只播一次，大于 0 表示循环次数，-1 表示无限循环。 */
   loop: number;
-  /** 动画进度定位，0 到 1。后续接入播放控制时可用于 seek。 */
-  seek?: number;
+  /** 淡入/淡出方向；默认从当前位置只改变透明度。 */
+  fadeInDirection?: CanvasFadeInDirection;
+  /** 带方向淡入或淡出时的滑入/滑出距离，单位 px。 */
+  fadeInDistance?: number;
+  /** 右移动画起始水平偏移，相对元素当前 x，单位 px。 */
+  slideFromX?: number;
+  /** 右移动画结束水平偏移，相对元素当前 x，单位 px。 */
+  slideToX?: number;
   /** Leafer 原生 animation 数据，渲染时会透传给元素的 animation 属性。 */
   animation: {
     /** 单段目标样式动画。 */
     style?: IUIInputData;
     /** 关键帧动画。 */
-    keyframes?: Array<{
-      /** 当前关键帧要变化到的 Leafer 样式。 */
-      style: IUIInputData;
-      /** 当前关键帧持续时间，单位毫秒。 */
-      duration?: number;
-      /** 当前关键帧延时，单位毫秒。 */
-      delay?: number;
-    }>;
+    keyframes?: Array<
+      | IUIInputData
+      | {
+          /** 当前关键帧要变化到的 Leafer 样式。 */
+          style: IUIInputData;
+          /** 当前关键帧持续时间，单位毫秒。 */
+          duration?: number;
+          /** 当前关键帧延时，单位毫秒。 */
+          delay?: number;
+        }
+    >;
     /** 单条动画持续时间，单位毫秒。 */
     duration?: number;
     /** 单条动画延迟时间，单位毫秒。 */
@@ -97,8 +118,6 @@ export interface CanvasAnimationItem {
 export interface CanvasNodeBase {
   /** 节点唯一 ID，用于状态、历史、Leafer 实例映射。 */
   id: string;
-  /** 节点类型。 */
-  kind: CanvasNodeKind;
   /** 图层/属性面板展示名称。 */
   name: string;
   /** 父组 ID；没有父级时表示位于画布根层级。 */
@@ -225,6 +244,18 @@ export interface StarNode extends CanvasNodeBase {
   cornerRadius?: number;
 }
 
+/** 远程 URL 图片节点。src 只保存地址，像素由图片缓存线程提供。 */
+export interface ImageNode extends CanvasNodeBase {
+  /** 节点类型固定为图片。 */
+  kind: "image";
+  /** 图片显示宽度。 */
+  width: number;
+  /** 图片显示高度。 */
+  height: number;
+  /** 远程图片地址。 */
+  src: string;
+}
+
 /** 文本节点。 */
 export interface TextNode extends CanvasNodeBase {
   /** 节点类型固定为文本。 */
@@ -257,4 +288,5 @@ export type CanvasNode =
   | PolygonNode
   | StarNode
   | TextNode
+  | ImageNode
   | GroupNode;

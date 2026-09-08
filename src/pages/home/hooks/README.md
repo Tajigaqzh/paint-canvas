@@ -2,53 +2,60 @@
 
 `hooks` 目录承载 Home 页面中和 Leafer 画布绑定最紧的逻辑。当前核心入口是
 `useLeaferCanvas.ts`，它只负责组装子模块，不再直接包含大量节点渲染、指针事件和
-命中检测细节。
+命中检测细节。增量同步为什么不能 `app.tree.clear()`、选区如何防回环，见
+`docs/useLeaferCanvas-logic.md`。
 
 ## 目录结构
 
 ```text
 hooks/
+  README.md
   useLeaferCanvas.ts
   leaferCanvas/
     core/
       useLeaferApp.ts
-      useLeaferCanvasRuntime.ts
+      useRuntime.ts
       useStageBoard.ts
     geometry/
+      boardLayout.ts
       hitDetection.ts
     selection/
       useEditorSelection.ts
-    shared/
-      types.ts
     tools/
+      additiveSelect.ts
       brush.ts
-      interaction.ts
+      eraser.ts
       usePointerTools.ts
     tree/
+      syncNodeTree.ts
       useNodeTreeSync.ts
       useToolInteractivity.ts
     ui/
+      animation.ts
+      imageUi.ts
       lineUi.ts
       nodeUi.ts
       paint.ts
+      uiMap.ts
 ```
 
 ## 分层职责
 
 ```mermaid
 flowchart TD
-  Entry[useLeaferCanvas.ts<br/>统一入口] --> Core[core<br/>App 生命周期和舞台容器]
+  Entry[useLeaferCanvas.ts<br/>统一入口] --> Core[core<br/>共享 refs、App、舞台]
   Entry --> Tree[tree<br/>节点树增量同步]
   Entry --> Tools[tools<br/>画笔和橡皮擦指针工具]
   Entry --> Selection[selection<br/>选区同步]
 
-  Core --> Shared[shared/types.ts<br/>共享类型和运行时对象类型]
-  Tree --> UI[ui<br/>节点 UI 构造和属性映射]
-  Tools --> Geometry[geometry<br/>命中检测和坐标计算]
+  Core --> Types[src/types/leafer]
+  Tree --> UI[ui<br/>节点 UI 构造、样式和动画映射]
+  Core --> Geometry[geometry<br/>画板布局和命中检测]
+  Tools --> Geometry
   Tools --> UI
-  Selection --> Shared
-  UI --> Shared
-  Geometry --> Shared
+  Selection --> Types
+  UI --> Types
+  Geometry --> Types
 ```
 
 ### `useLeaferCanvas.ts`
@@ -62,29 +69,31 @@ import { useLeaferCanvas } from "./hooks/useLeaferCanvas";
 入口职责：
 
 - 解构当前页面的 `nodeMap`、`rootIds`、`selectedIds`、`viewport`。
-- 创建共享 runtime refs。
-- 调用各功能子 hook。
+- 调用 `useRuntime` 创建共享 refs。
+- 组装 `useLeaferApp`、`useStageBoard`、`useNodeTreeSync`、`usePointerTools`、`useToolInteractivity`、`useEditorSelection`。
 - 保持 `Home` 组件不感知内部拆分细节。
 
 ## `core`
 
-`core` 负责 Leafer 实例生命周期，以及稳定舞台容器。
+`core` 负责共享 refs、Leafer 实例生命周期，以及稳定舞台容器。
 
 ```mermaid
 flowchart LR
-  Runtime[useLeaferCanvasRuntime] --> App[useLeaferApp]
+  Runtime[useRuntime] --> App[useLeaferApp]
   Runtime --> Stage[useStageBoard]
   App --> LeaferApp[LeaferApp / Editor]
   Stage --> StageNode[stage: 缩放和居中]
   Stage --> BoardNode[board: 1920 x 1080 白色画板]
 ```
 
-### `useLeaferCanvasRuntime.ts`
+### `useRuntime.ts`
 
 创建所有子模块共享的稳定 refs：
 
 - `appRef`：LeaferApp 实例。
 - `stageRef` / `boardRef`：稳定画布容器。
+- `drawingRef`：brush / eraser 手势进行中的临时状态。
+- `isSyncingEditorSelectionRef`：程序化 select/cancel 时屏蔽 SELECT 回写。
 - `pageRef` / `toolRef`：供原生事件读取最新 React 状态。
 - `uiMapRef` / `uiKindMapRef` / `uiParentMapRef`：业务节点到 Leafer UI 的增量同步索引。
 - `onAddDrawLineRef` 等 callback refs：避免原生事件闭包捕获旧 store action。
@@ -93,17 +102,19 @@ flowchart LR
 
 负责创建和销毁 LeaferApp，并注册只需要绑定一次的原生事件：
 
-- `EditorEvent.SELECT`：用户点击、框选后同步回 store。
+- `EditorEvent.SELECT`：用户点击、框选后同步回 store；UI 反查 nodeId 走 `ui/uiMap.ts`。
 - `DragEvent.END`：拖拽结束后把 UI 上的最新位置写回 store。
 - `InnerEditorEvent.CLOSE`：文本编辑关闭后同步文本内容。
+- 卸载时 `disposeAllImageSources`，再 `app.destroy()`，并清空 uiMap 等索引。
 
 ### `useStageBoard.ts`
 
 维护稳定的 `stage` 和 `board`：
 
-- `stage` 负责缩放和居中。
+- `stage` 的缩放和居中偏移来自 `geometry/boardLayout.ts`，与指针反算同一套公式。
 - `board` 是白色业务画板，尺寸固定按 `viewport` 渲染。
 - 尺寸变化只调用 `set()`，不清空 `app.tree`，避免破坏 Editor 内部层。
+- 缩放变化后下一帧刷新 Editor 选区框。
 
 ## `tree`
 
@@ -111,7 +122,8 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  Store[CanvasPage<br/>nodeMap + rootIds] --> Sync[useNodeTreeSync]
+  Store[CanvasPage<br/>nodeMap + rootIds] --> Hook[useNodeTreeSync]
+  Hook --> Sync[syncNodeTree]
   Sync --> Create[新增缺失 UI]
   Sync --> Update[已有 UI 调 set]
   Sync --> Move[父级或顺序变化时移动 UI]
@@ -121,13 +133,17 @@ flowchart TD
 
 ### `useNodeTreeSync.ts`
 
-核心原则：
+hook 只在 `board` 就绪后调用 `syncCanvasPageToLeafer`。核心原则：
 
 - 新增节点只创建对应 UI。
 - 已有节点只更新属性，不重建整个画布。
 - `rootIds` / `childrenIds` 顺序变化只移动 UI。
 - group / ungroup 只移动父容器。
 - 不再使用 `app.tree.clear()`。
+
+### `syncNodeTree.ts`
+
+增量同步的纯逻辑：创建 / `set` / 换父级 / 按 index 重排 / 销毁不可达 UI。事件闭包只捕获 `nodeId`，拖拽结束从 `pageRef` 读最新节点。
 
 ### `useToolInteractivity.ts`
 
@@ -149,7 +165,7 @@ sequenceDiagram
   participant Leafer as Leafer UI
 
   User->>DOM: pointerdown
-  DOM->>Tools: 换算为业务坐标
+  DOM->>Tools: boardLayout 换成业务坐标
   alt brush
     Tools->>Leafer: 创建临时 Line
     User->>Tools: pointermove
@@ -158,7 +174,7 @@ sequenceDiagram
     Tools->>Store: addDrawLine
   else eraser
     Tools->>Tools: findHitNode
-    Tools->>Leafer: 普通节点临时销毁或 line eraser 预览
+    Tools->>Leafer: 命中 line 后更新 eraser 预览
     User->>Tools: pointerup
     Tools->>Store: applyEraserResult
   end
@@ -170,8 +186,9 @@ sequenceDiagram
 
 - `pointerdown` 只绑定在 canvas DOM 上。
 - `pointermove` / `pointerup` 绑定到 `window`，保证拖出画布也能结束手势。
+- client 坐标经 `getBoardLayout` / `mapClientPointToBoard` 换成 1920×1080 业务坐标。
 - brush 过程中只更新临时 Line，松手后一次性写 store。
-- eraser 对普通节点执行整节点擦除；对 line 节点写入局部 `eraserPaths`。
+- eraser 只擦 `line` 节点，写入局部 `eraserPaths`；矩形、椭圆、文本等图形不参与擦除。
 
 ### `brush.ts`
 
@@ -181,12 +198,13 @@ sequenceDiagram
 - `node.width` / `node.height` 是外接矩形尺寸。
 - `points` 转换为相对节点自身的局部坐标。
 
-### `interaction.ts`
+### `eraser.ts`
 
-封装选择修饰键判断：
+橡皮擦手势的纯函数：命中 line、更新临时预览路径、松手时生成 `eraserPaths` 提交数据。
 
-- 支持 `ctrlKey`、`metaKey`、`shiftKey`。
-- 同时兼容 Leafer 事件直接字段和 `origin` 原始 DOM 事件字段。
+### `additiveSelect.ts`
+
+判断点击是否追加/切换选择（Ctrl / Meta / Shift），兼容 Leafer 事件字段和 `origin` 上的 DOM 修饰键。节点 UI 的 `tap`（`syncNodeTree`）会用到它，不只是工具栏。
 
 ## `geometry`
 
@@ -194,12 +212,21 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-  Point[业务坐标点] --> Bounds[isPointInNodeBounds]
+  Client[浏览器 client 坐标] --> Layout[getBoardLayout / mapClientPointToBoard]
+  Layout --> Point[业务坐标点]
   Point --> LineHit[isPointNearLineNode]
-  Bounds --> Hit[findHitNode]
-  LineHit --> Hit
-  Hit --> Result[命中节点 id + 父级 offset]
+  LineHit --> Hit[findHitNode]
+  Hit --> Result[命中 line id + 父级 offset]
 ```
+
+### `boardLayout.ts`
+
+stage 缩放居中和指针反算共用：
+
+- `getBoardLayout`：按容器宽高算出 `scale`、`boardX`、`boardY`。
+- `mapClientPointToBoard`：client 坐标换成画板坐标；落在白板外返回 `undefined`。
+
+改缩放规则只改这里，避免舞台和画笔对不齐。
 
 ### `hitDetection.ts`
 
@@ -207,9 +234,8 @@ flowchart LR
 
 - 点到点距离。
 - 点到线段距离。
-- 普通节点包围盒命中。
 - line 节点路径命中。
-- group 递归命中。
+- group 递归命中，非 line 图形跳过。
 - 全局坐标到 line 局部坐标转换。
 
 ## `ui`
@@ -239,6 +265,14 @@ flowchart TD
 - `strokeAlign`
 - `dashPattern`
 
+### `animation.ts`
+
+把节点 `animationList` 转成 Leafer `animation`：
+
+- 面板时长/延时是毫秒，Leafer 使用秒。
+- 多条动画按列表顺序依次开始。
+- 创建节点时写入 animation；后续增量同步只有配置变化才重写，避免拖拽打断播放。
+
 ### `nodeUi.ts`
 
 处理节点级映射：
@@ -256,6 +290,14 @@ line 节点单独处理，因为它需要局部擦除：
 - 原始笔迹是 group 内的底层 `Line`。
 - eraser 轨迹是 group 内的上层 `Line`，使用 Leafer 的 `eraser: "pixel"`。
 - `eraserPaths` 会在同步时重建为持久 eraser 子节点。
+
+### `imageUi.ts`
+
+图片节点走 `src/worker/image-cache`：`getImageBlob` → `createObjectURL` → Leafer `Image.url`。换 `src` 或销毁前先清空 url 再 `revokeObjectURL`。
+
+### `uiMap.ts`
+
+`findNodeIdByUI`：Editor 事件给的是 UI 实例，用托管 `uiMap` 反查业务 `nodeId`。
 
 ## `selection`
 
@@ -295,7 +337,7 @@ Leafer Editor -> store.selectedIds
 ```mermaid
 flowchart TD
   Home[Home 组件] --> Entry[useLeaferCanvas]
-  Entry --> Runtime[useLeaferCanvasRuntime]
+  Entry --> Runtime[useRuntime]
   Runtime --> App[useLeaferApp]
   Runtime --> Stage[useStageBoard]
   Runtime --> Tree[useNodeTreeSync]
@@ -316,8 +358,12 @@ flowchart TD
 
 ## 维护约定
 
-- 新增节点类型时，优先改 `ui/nodeUi.ts`，必要时同步 `worker/thumbnail` 渲染逻辑。
+- 新增节点类型时，优先改 `ui/nodeUi.ts`，必要时同步 `worker/page-thumbnail` 渲染逻辑。
+- 图片节点：主画布 Leafer 和缩略图都通过 `src/worker/image-cache` 加载 `src`；素材面板只负责把 URL 写入节点，自己不请求图片。
 - 新增命中规则时，优先改 `geometry/hitDetection.ts`，避免把算法散落到 React hook 中。
-- 新增工具模式时，优先在 `tools/` 下拆独立文件，再由 `usePointerTools` 组合。
-- 修改 App 生命周期或 Editor 原生事件时，只改 `core/useLeaferApp.ts`。
+- 改舞台缩放或指针坐标换算时，只改 `geometry/boardLayout.ts`。
+- 新增工具模式时，优先在 `tools/` 下拆独立文件（与 `brush.ts` / `eraser.ts` 平行命名），再由 `usePointerTools` 组合。
+- 修改 App 生命周期或 Editor 原生事件时，只改 `core/useLeaferApp.ts`；共享 refs 只改 `core/useRuntime.ts`。
+- Leafer hook / UI 运行时类型放在 `src/types/leafer`，不要在 `leaferCanvas` 下再建 `shared` 类型目录。
 - 不要在任何模块里调用 `app.tree.clear()`；只维护本项目创建的 stage / board / node UI。
+- 原理和历史坑见 `docs/useLeaferCanvas-logic.md`；改完本目录结构后同步根 `README.md`。
