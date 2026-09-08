@@ -382,7 +382,9 @@ describe("getAnimationSignature", () => {
   });
 
   it("id 为空字符串时签名与非空不同", () => {
-    expect(getAnimationSignature([item({ id: "" })])).not.toBe(getAnimationSignature([item({ id: "a" })]));
+    expect(getAnimationSignature([item({ id: "" })])).not.toBe(
+      getAnimationSignature([item({ id: "a" })]),
+    );
   });
 
   it("一条和两条列表签名不同", () => {

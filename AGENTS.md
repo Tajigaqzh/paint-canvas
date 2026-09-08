@@ -39,17 +39,17 @@ pnpm e2e          # Playwright
 
 ## 改代码落点
 
-| 要改什么 | 优先改哪里 |
-|---|---|
-| 节点类型 / 字段 | `src/types/elementNode`，然后 `leaferCanvas/ui`、属性面板、`worker/page-thumbnail/render` |
-| 图片加载 | 只走 `src/worker/image-cache`；Leafer 侧 `ui/imageUi.ts` |
-| 命中检测 | `leaferCanvas/geometry/hitDetection.ts` |
-| 舞台缩放 / 指针坐标 | `leaferCanvas/geometry/boardLayout.ts`（`useStageBoard` 与 `usePointerTools` 共用） |
-| 画笔 / 橡皮 | `leaferCanvas/tools/`（`brush.ts` / `eraser.ts`），由 `usePointerTools` 组合 |
-| 共享 refs | `leaferCanvas/core/useRuntime.ts` |
-| App 生命周期、原生事件 | `leaferCanvas/core/useLeaferApp.ts` |
-| Leafer 运行时类型 | `src/types/leafer`，不要在 hook 下再建 `shared` |
-| 画布 hook 拆分 | 同步 `src/pages/home/hooks/README.md`、根 `README.md` 和 `docs/useLeaferCanvas-logic.md` |
+| 要改什么               | 优先改哪里                                                                                |
+| ---------------------- | ----------------------------------------------------------------------------------------- |
+| 节点类型 / 字段        | `src/types/elementNode`，然后 `leaferCanvas/ui`、属性面板、`worker/page-thumbnail/render` |
+| 图片加载               | 只走 `src/worker/image-cache`；Leafer 侧 `ui/imageUi.ts`                                  |
+| 命中检测               | `leaferCanvas/geometry/hitDetection.ts`                                                   |
+| 舞台缩放 / 指针坐标    | `leaferCanvas/geometry/boardLayout.ts`（`useStageBoard` 与 `usePointerTools` 共用）       |
+| 画笔 / 橡皮            | `leaferCanvas/tools/`（`brush.ts` / `eraser.ts`），由 `usePointerTools` 组合              |
+| 共享 refs              | `leaferCanvas/core/useRuntime.ts`                                                         |
+| App 生命周期、原生事件 | `leaferCanvas/core/useLeaferApp.ts`                                                       |
+| Leafer 运行时类型      | `src/types/leafer`，不要在 hook 下再建 `shared`                                           |
+| 画布 hook 拆分         | 同步 `src/pages/home/hooks/README.md`、根 `README.md` 和 `docs/useLeaferCanvas-logic.md`  |
 
 制作页入口只调 `useLeaferCanvas`，不要把 Leafer 细节散进 `Home`。
 
@@ -82,7 +82,7 @@ pnpm e2e          # Playwright
 
 ### 范围与文件
 
-- 单测框架：Vitest + jsdom，全局 setup 在 `src/test/setup.ts`（jest-dom、`matchMedia`、`ResizeObserver`、`Worker` mock）。
+- 单测框架：Vitest。`.test.ts` 默认 Node（`src/test/setup-node.ts`）；`.test.tsx` 以及需要 `window` / `document` 的 `.ts`（路由、Service Worker 注册）用 jsdom（`src/test/setup.ts`：jest-dom、`matchMedia`、`ResizeObserver`、`Worker` mock）。
 - 单测放在**源码所在目录的 `__test__/`** 下，文件名与实现文件同名，后缀用 `.test` 或 `.spec`（二选一即可）：`hitDetection.ts` → `__test__/hitDetection.test.ts` 或 `__test__/hitDetection.spec.ts`，页面 `index.tsx` → `__test__/index.test.tsx`。不要把测试文件和实现文件平铺在同一层。
 - **每个页面文件、每个 `.ts` / `.tsx` 实现文件都必须有对应单测。** 纯类型文件（只 `export type` / `interface`、无运行时代码）除外。
 - 改已有函数时同步补用例；新增文件时测试和实现一起交。相关改动完成后跑 `pnpm test:run`。
@@ -115,7 +115,6 @@ pnpm e2e          # Playwright
 - **image-cache**：`cache/resolveBlob`、LRU、IDB 封装可单测；协议层测 `get` / 错误回包。不要在单测里拉真 Dedicated Worker。
 - **page-thumbnail/render**：把纯函数（圆角、折线、bounds）抽测；OffscreenCanvas 在 jsdom 里 mock。
 - **imageUi**：测「换 src 会 revoke 旧 object URL」「destroy 前先清空 url」；`createObjectURL` 要 mock。
-
 
 ## 不要做的事
 
