@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { MagnifierLensCanvas } from "../magnifier";
-import { drawMagnifierLens, getMagnifierSample } from "../magnifier";
+import type { MagnifierLensCanvas } from "../src";
+import { drawMagnifierLens, getMagnifierSample } from "../src";
 
 const createContext = () => ({
   drawImage: vi.fn(),
@@ -11,37 +11,37 @@ const createContext = () => ({
 describe("getMagnifierSample", () => {
   it("按倍率反推取样边长，并以指针为取样中心", () => {
     expect(getMagnifierSample({ x: 120, y: 80 }, 200, 2, 1)).toEqual({
-      sx: 70,
-      sy: 30,
       sh: 100,
       sw: 100,
+      sx: 70,
+      sy: 30,
     });
   });
 
   it("倍率越高取样区域越小", () => {
     expect(getMagnifierSample({ x: 120, y: 80 }, 200, 4, 1)).toEqual({
-      sx: 95,
-      sy: 55,
       sh: 50,
       sw: 50,
+      sx: 95,
+      sy: 55,
     });
   });
 
   it("按设备像素比换算取样区域", () => {
     expect(getMagnifierSample({ x: 120, y: 80 }, 200, 2, 2)).toEqual({
-      sx: 140,
-      sy: 60,
       sh: 200,
       sw: 200,
+      sx: 140,
+      sy: 60,
     });
   });
 
   it("倍率为 0 时兜底成 1 倍，不出现除零", () => {
     expect(getMagnifierSample({ x: 120, y: 80 }, 200, 0, 1)).toEqual({
-      sx: 20,
-      sy: -20,
       sh: 200,
       sw: 200,
+      sx: 20,
+      sy: -20,
     });
   });
 
@@ -51,12 +51,12 @@ describe("getMagnifierSample", () => {
     );
   });
 
-  it("指针在画板外时取样越界不夹紧，交给 drawImage 裁切", () => {
+  it("指针在画布外时取样越界不夹紧，交给 drawImage 裁切", () => {
     expect(getMagnifierSample({ x: 10, y: 10 }, 200, 2, 1)).toEqual({
-      sx: -40,
-      sy: -40,
       sh: 100,
       sw: 100,
+      sx: -40,
+      sy: -40,
     });
   });
 });
@@ -71,7 +71,7 @@ describe("drawMagnifierLens", () => {
     } as unknown as MagnifierLensCanvas;
     const source = { height: 540, width: 960 } as unknown as CanvasImageSource;
 
-    drawMagnifierLens(lens, source, 200, { sx: 70, sy: 30, sh: 100, sw: 100 }, 1);
+    drawMagnifierLens(lens, source, 200, { sh: 100, sw: 100, sx: 70, sy: 30 }, 1);
 
     expect(context.fillRect).toHaveBeenCalledWith(0, 0, 200, 200);
     expect(context.drawImage).toHaveBeenCalledWith(source, 70, 30, 100, 100, 0, 0, 200, 200);
@@ -89,7 +89,7 @@ describe("drawMagnifierLens", () => {
       lens,
       {} as unknown as CanvasImageSource,
       200,
-      { sx: 0, sy: 0, sh: 100, sw: 100 },
+      { sh: 100, sw: 100, sx: 0, sy: 0 },
       2,
     );
 
@@ -124,7 +124,7 @@ describe("drawMagnifierLens", () => {
       lens,
       {} as unknown as CanvasImageSource,
       200,
-      { sx: 0, sy: 0, sh: 0, sw: 0 },
+      { sh: 0, sw: 0, sx: 0, sy: 0 },
       1,
     );
 
@@ -156,7 +156,7 @@ describe("drawMagnifierLens", () => {
       lens,
       {} as unknown as CanvasImageSource,
       120,
-      { sx: 0, sy: 0, sh: 0, sw: 0 },
+      { sh: 0, sw: 0, sx: 0, sy: 0 },
       1,
     );
 
@@ -172,7 +172,7 @@ describe("drawMagnifierLens", () => {
         lens,
         {} as unknown as CanvasImageSource,
         200,
-        { sx: 0, sy: 0, sh: 1, sw: 1 },
+        { sh: 1, sw: 1, sx: 0, sy: 0 },
         1,
       ),
     ).not.toThrow();

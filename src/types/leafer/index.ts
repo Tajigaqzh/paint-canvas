@@ -46,8 +46,8 @@ export type UseLeaferCanvasOptions = {
     /** 当前工具模式：select 使用 Leafer Editor，其它模式会拦截 pointer 事件。 */
     mode: CanvasToolMode;
   };
-  /** Home 渲染的放大镜镜片画布；定位和绘制由 hook 直接写 style，避免 pointermove 触发 React 重渲染。 */
-  magnifierCanvasRef: RefObject<HTMLCanvasElement | null>;
+  /** 放大镜镜片的定位容器；镜片元素由 leafer-x-magnifier 自己创建，React 侧只提供容器。 */
+  magnifierContainerRef: RefObject<HTMLElement | null>;
   /** 当前页面，是渲染 Leafer 的唯一数据源。 */
   page: CanvasPage;
   /** 画笔松手后提交一条完整笔迹。 */

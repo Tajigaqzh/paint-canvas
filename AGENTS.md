@@ -16,7 +16,8 @@ pnpm dev          # 开发，默认端口 5174
 pnpm build        # tsc -b && vite build
 pnpm lint         # oxlint
 pnpm format       # oxfmt 格式化 src
-pnpm test:run     # Vitest 单次
+pnpm test:run     # Vitest 单次（先跑制作页，再递归跑 packages/ 下的插件）
+pnpm build:plugins # 构建 packages/ 下的插件（dist + types）
 pnpm e2e          # Playwright
 ```
 
@@ -119,6 +120,13 @@ pnpm e2e          # Playwright
 - **page-thumbnail/render**：把纯函数（圆角、折线、bounds）抽测；OffscreenCanvas 在 jsdom 里 mock。
 - **imageUi**：测「换 src 会 revoke 旧 object URL」「destroy 前先清空 url」；`createObjectURL` 要 mock。
 
+## 插件包（`packages/`）
+
+- 自研 Leafer 插件放 `packages/leafer-x-*`，命名跟官方社区插件规范（包名 `leafer-x-*`，全局变量 `LeaferX.*`）。
+- **插件包内不出现 React / Vue / store**：只 import `@leafer-ui/core`、`@leafer-ui/interface`，对外只给命令式 API（`enabled` / `size` / 设置项）和事件，状态由宿主自己管。框架适配写在 `src/pages/home/hooks/leaferCanvas/core/` 的接线 hook 里。
+- 每个插件自带 `__tests__`（Vitest + jsdom）、`main.ts` 纯 HTML Demo、README（配置项 + 内置属性/方法）。
+- 工作区里宿主直接消费插件源码（`exports` 指向 `src`），`publishConfig` 在发布时切到 `dist` / `types`。
+
 ## 不要做的事
 
 - 不要引入第二套画布引擎或再拉一套状态库。
@@ -126,3 +134,4 @@ pnpm e2e          # Playwright
 - 不要在缩略图里 `fetch` 或 `new Worker` 图片缓存线程。
 - 不要把 Service Worker 重新接到制作页默认启动路径。
 - 不要提交 `.env`、密钥、无请求的空 commit。
+- 不要把框架（React / Vue）或状态库引进 `packages/leafer-x-*`。

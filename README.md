@@ -11,7 +11,7 @@
 - 图片节点：素材面板只写入测试图 URL；主画布和缩略图通过图片缓存线程取 Blob 再绘制。
 - 自由绘制：顶部工具栏支持选择、画笔、橡皮擦；画笔和橡皮擦都支持粗细选择。
 - 局部擦除：橡皮擦只擦 `line` 笔迹，通过 Leafer eraser 子节点记录局部擦除轨迹；矩形、椭圆、文本等图形不会被整节点删掉。
-- 放大镜：顶部工具栏可激活放大镜，指针悬停在画布上时用镜片局部放大；镜片直径和放大倍率都可选，取样直接来自 Leafer 渲染结果，笔迹和图片一起放大。
+- 放大镜：顶部工具栏可激活放大镜，指针悬停在画布上时用镜片局部放大；镜片直径和放大倍率都可选，取样直接来自 Leafer 渲染结果，笔迹和图片一起放大。能力由自研插件 `packages/leafer-x-magnifier` 提供，插件本身不依赖任何框架。
 - 对齐参考线与吸附：`select` 模式拖动节点时显示对齐参考线和吸附点，自动吸附到同级元素的边缘 / 中心，由 `leafer-x-easy-snap` 提供。
 - 标尺：画布左上角显示 1920 x 1080 业务坐标刻度，并高亮选中元素所在区间，由 `leafer-x-ruler` 提供。
 - 元素动画：属性面板可配置淡入、淡出、右移、旋转；淡入/淡出支持方向，右移支持起止偏移。多条动画按「淡入 → 移动/旋转 → 淡出」排序，可拖动手柄调整同阶段顺序，并按列表依次播放。
@@ -30,7 +30,8 @@
 - Vite 8
 - Ant Design 6
 - LeaferJS 2（含 `@leafer-in/editor`、`@leafer-in/text-editor`、`@leafer-in/animate`）
-- Leafer 插件：`leafer-x-ruler`（画布标尺）、`leafer-x-easy-snap`（拖拽吸附与对齐参考线）
+- Leafer 插件：`leafer-x-ruler`（画布标尺）、`leafer-x-easy-snap`（拖拽吸附与对齐参考线）、`leafer-x-magnifier`（放大镜，本仓库 workspace 内）
+- pnpm workspace：`packages/` 下放自研 Leafer 插件，制作页用 `workspace:*` 直接消费源码
 - Zustand 5
 - Mutative
 - Oxlint / Oxfmt
@@ -78,23 +79,22 @@ src/
         README.md                Home hooks 拆分说明
         useLeaferCanvas.ts       Leafer 画布 hook 统一入口
         leaferCanvas/
-          core/                  共享 refs、LeaferApp 生命周期、画布变换、标尺和吸附插件
+          core/                  共享 refs、LeaferApp 生命周期、画布变换、插件接线
             useRuntime.ts        子模块共享的 app / board / uiMap / callback refs
             useLeaferApp.ts      创建销毁 App，绑 Editor 选择 / 拖拽 / 文本事件
             useStageBoard.ts     app.tree 承载缩放与居中，board 是 1920 x 1080 白板
             useRuler.ts          leafer-x-ruler 接线：业务坐标标尺
             useSnap.ts           leafer-x-easy-snap 接线：对齐参考线和吸附
+            useMagnifier.ts      leafer-x-magnifier 接线：只同步工具状态
           geometry/              纯坐标算法，不依赖 React
             boardLayout.ts       画布变换与指针共用的缩放、居中、标尺让位、client→画板换算
             hitDetection.ts      橡皮擦命中 line
           selection/
             useEditorSelection.ts  store.selectedIds → editor.select / cancel
-          tools/                 画笔、橡皮擦、放大镜等自定义工具
-            usePointerTools.ts   绑 DOM pointer；select 交给 Editor，magnifier 放行
+          tools/                 画笔、橡皮擦等自定义工具
+            usePointerTools.ts   绑 DOM pointer；select 与 magnifier 放行
             brush.ts             采样点归一成 LineNode
             eraser.ts            line 局部擦除预览与提交数据
-            useMagnifier.ts      hover 取样、镜片定位与绘制
-            magnifier.ts         取样区域计算和 drawImage 放大
             additiveSelect.ts    Ctrl / Meta / Shift 追加选择
           tree/                  节点树增量同步和工具模式切换
             useNodeTreeSync.ts   board 就绪后触发同步
@@ -120,6 +120,13 @@ src/
     image-cache/                 图片 Dedicated Worker：协议、客户端、cache/ 三级缓存
     page-thumbnail/              页面缩略图绘制；images 向图片线程要 Blob
     registerImageCacheServiceWorker.ts
+
+packages/                       pnpm workspace：自研 Leafer 插件（不依赖任何框架）
+  leafer-x-magnifier/           放大镜插件：悬停时镜片局部放大画布
+    src/                        只允许引 @leafer-ui/core、@leafer-ui/interface
+    __tests__/                  Vitest（jsdom）
+    main.ts / index.html        纯 HTML Demo，验证无框架可用
+    README.md                   配置项、内置属性与方法、React / Vue 适配示例
 
 tests/
   e2e/                           Playwright 用例
@@ -195,6 +202,8 @@ flowchart LR
 - 改舞台缩放或指针坐标换算时，只改 `leaferCanvas/geometry/boardLayout.ts`，不要在 `useStageBoard` 和 `usePointerTools` 里各写一套公式。
 - 等比缩放和居中留在 `app.tree`：标尺按 `app.tree.scale` 校准刻度，换位置标尺会按屏幕像素标注；白板要让出 `BOARD_INSET` 的刻度条空间。
 - 新增工具模式时，优先在 `leaferCanvas/tools/` 拆独立逻辑（如 `brush.ts` / `eraser.ts`），再由 `usePointerTools` 组合。
+- 通用能力（画布交互类）优先做成 `packages/leafer-x-*` 插件：插件包内不出现 React / Vue / store，只提供命令式 API 与事件；框架适配留在 `leaferCanvas/core/` 的接线 hook 里。
+- `pnpm test:run` 会先跑制作页单测，再递归跑各插件的单测；插件单独跑用 `pnpm --filter leafer-x-magnifier test:run`。
 - 共享 refs 放在 `leaferCanvas/core/useRuntime.ts`；修改 Leafer App 生命周期或原生事件时，优先改 `leaferCanvas/core/useLeaferApp.ts`。
 - 节点树增删改细节在 `leaferCanvas/tree/syncNodeTree.ts`，hook 只负责在 board 就绪后触发。
 - Leafer hook / UI 运行时类型放到 `src/types/leafer`，不要在 `leaferCanvas` 下再加 `shared` 类型目录。

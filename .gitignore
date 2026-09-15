@@ -11,6 +11,7 @@ node_modules
 .codegraph
 dist
 dist-ssr
+packages/*/types
 playwright-report
 test-results
 *.local

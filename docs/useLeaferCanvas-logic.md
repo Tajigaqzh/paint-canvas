@@ -12,7 +12,6 @@ flowchart TD
   Home --> Toolbar[CanvasToolbar: 工具和粗细]
   Toolbar --> Home
   Home --> Cursor[DOM cursor: 橡皮擦图标随 eraserSize 生成]
-  Home --> Lens[DOM canvas: 放大镜镜片]
   Home --> Hook[useLeaferCanvas]
   Store --> Page[activePage: nodeMap / rootIds / selectedIds]
   Page --> Hook
@@ -47,7 +46,7 @@ flowchart TD
 | 橡皮擦命中 | `geometry/hitDetection.ts` |
 | 节点增量同步 | `tree/useNodeTreeSync.ts` → `tree/syncNodeTree.ts` |
 | brush / eraser 手势 | `tools/usePointerTools.ts` + `brush.ts` / `eraser.ts` |
-| 放大镜 hover 取样 | `tools/useMagnifier.ts` + `tools/magnifier.ts` |
+| 放大镜 | 插件 `leafer-x-magnifier`，接线在 `core/useMagnifier.ts` |
 | 追加选择修饰键 | `tools/additiveSelect.ts` |
 | store.selectedIds → Editor | `selection/useEditorSelection.ts` |
 | UI 反查 nodeId | `ui/uiMap.ts` |
@@ -180,33 +179,38 @@ flowchart LR
 
 ## 放大镜逻辑
 
-放大镜不是 Leafer 节点，而是 `Home` 渲染在 canvas shell 里的一个 DOM `<canvas>` 镜片，`useMagnifier` 负责取样和绘制：
+放大镜是自研插件 `packages/leafer-x-magnifier`，制作页只负责接线（`core/useMagnifier.ts`）。
 
 ```mermaid
 sequenceDiagram
-  participant User as 用户指针
-  participant View as canvas DOM
-  participant Hook as useMagnifier
+  participant Host as 制作页（React）
+  participant Hook as core/useMagnifier
+  participant Plugin as leafer-x-magnifier
   participant Source as Leafer 画布(tree 层)
   participant Lens as 镜片 DOM canvas
 
-  User->>View: pointermove
-  View->>Hook: 捕获阶段拿到事件
-  Hook->>Hook: toolRef 判断是否 magnifier
-  Hook->>Source: 读 getBoundingClientRect 定位取样点
-  Hook->>Lens: drawImage 放大取样区域
-  Hook->>Lens: 写 style: 尺寸、left/top、display
-  User->>View: pointerleave
-  View->>Hook: 收起镜片
+  Host->>Hook: tool.mode / magnifierSize / magnifierZoom
+  Hook->>Plugin: new Magnifier(app, { container })
+  Hook->>Plugin: set({ enabled, size, zoom })
+  Plugin->>Source: pointermove 时读 getBoundingClientRect 定位取样点
+  Plugin->>Lens: drawImage 放大取样区域，写 style（尺寸 / left / top / display）
 ```
 
-几个关键决定：
+插件与宿主的边界：
 
-- **取样来源是渲染结果**：直接对 `app.tree.canvas.view` 做 `drawImage`。这样笔迹、图片、动画当前帧都会被一起放大，不需要为了放大复制一份场景树；图片走 `object URL`，画布不会被跨域污染，读像素是安全的。
+- **插件不依赖任何框架，也不持有状态。** 包里没有 React / Vue / store，只提供命令式 API
+  （`enabled` / `size` / `zoom` / `set()`）和 DOM 行为；状态留在宿主里，React 用 store、Vue 用
+  `reactive`、纯 JS 用普通变量都可以（Vue 适配示例见插件 README）。
+- **镜片由插件自己创建。** 宿主只提供定位容器，React 侧不再渲染镜片 `<canvas>`；
+  构造插件不碰 DOM，第一次指针悬停才创建，方便在没有 `document` 的阶段先建实例。
+- **镜片不进 Leafer 场景树。** 它是普通 DOM canvas，所以不影响节点增量同步。
+
+插件内部实现上沿用了原来验证过的几点：
+
+- **取样来源是渲染结果**：直接对 `app.tree.canvas.view` 做 `drawImage`，笔迹、图片、动画当前帧都会被一起放大，不需要复制场景树；图片走 `object URL`，画布不会被跨域污染，读像素是安全的。
 - **必须取 tree 层**：带 `editor` 的 App 是多层 Leafer，`App` 自身的 `canvas` 不是业务内容，`sky` 层是 Editor 控制框。取错层会放大到空白或选择框。
-- **倍率相对屏幕**：`sourceLength = lensSize / zoom`，只和镜片直径有关，和画板自身的 `scale` 无关。用户在 3x 下看到的就是当前画面放大 3 倍。
-- **不夹紧取样区域**：指针永远是镜片和取样区域的共同中心，指针贴着画板边缘时越界部分交给 `drawImage` 裁掉，再靠白底补齐，不会露出镜片透明背景。
-- **绕开 React state**：`pointermove` 是高频事件，位置、尺寸、显隐全部直接写 `style`，避免每帧重渲染整个制作页。只有工具模式参与 React 依赖，用来在切走工具时立刻收起镜片。
+- **倍率相对屏幕**：`sourceLength = size / zoom`，只和镜片直径有关，和画板自身的 `scale` 无关。
+- **不夹紧取样区域**：指针永远是镜片和取样区域的共同中心，贴着画板边缘时越界部分交给 `drawImage` 裁掉，再靠白底补齐。
 - **镜片必须 `pointer-events: none`**：镜片始终压在指针下面，如果它能命中，会和画布的 `pointermove` / `pointerleave` 互相触发，出现闪烁。
 - **不接管手势**：`usePointerTools` 在 `magnifier` 模式下直接返回，既不画线也不擦除；节点可编辑性仍由 `useToolInteractivity` 关掉。
 

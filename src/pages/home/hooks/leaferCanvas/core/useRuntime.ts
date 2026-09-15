@@ -24,7 +24,7 @@ export const useRuntime = ({
   onUpdateNodes,
   page,
   tool,
-}: Omit<UseLeaferCanvasOptions, "magnifierCanvasRef" | "viewRef" | "viewSize">) => {
+}: Omit<UseLeaferCanvasOptions, "magnifierContainerRef" | "viewRef" | "viewSize">) => {
   // LeaferApp 生命周期只和 DOM 容器绑定，不能随着 React state 每次变化重建。
   const appRef = useRef<EditableLeaferApp | null>(null);
   // stage 的缩放和居中改由 app.tree 承载，这里只保留 board 白板容器。

@@ -5,7 +5,7 @@ import { useSnap } from "./leaferCanvas/core/useSnap";
 import { useStageBoard } from "./leaferCanvas/core/useStageBoard";
 import { useEditorSelection } from "./leaferCanvas/selection/useEditorSelection";
 import type { UseLeaferCanvasOptions } from "@/types";
-import { useMagnifier } from "./leaferCanvas/tools/useMagnifier";
+import { useMagnifier } from "./leaferCanvas/core/useMagnifier";
 import { usePointerTools } from "./leaferCanvas/tools/usePointerTools";
 import { useNodeTreeSync } from "./leaferCanvas/tree/useNodeTreeSync";
 import { useToolInteractivity } from "./leaferCanvas/tree/useToolInteractivity";
@@ -23,12 +23,12 @@ import { useToolInteractivity } from "./leaferCanvas/tree/useToolInteractivity";
  * 这个入口只负责组装各功能子模块：
  * 1. core：初始化 LeaferApp / Editor，并维护 stage 和 board。
  * 2. tree：按 nodeMap / rootIds 增量同步节点 UI。
- * 3. tools：接管 brush / eraser pointer 手势和 magnifier hover 手势。
+ * 3. tools：接管 brush / eraser pointer 手势。
  * 4. selection：同步 store.selectedIds 到 Leafer Editor。
- * 5. core/useSnap：select 模式下给节点拖拽接对齐参考线和吸附。
+ * 5. core/useRuler、core/useSnap、core/useMagnifier：第三方插件接线，只做状态同步。
  */
 export function useLeaferCanvas({
-  magnifierCanvasRef,
+  magnifierContainerRef,
   onAddDrawLine,
   onApplyEraserResult,
   onSelectNode,
@@ -65,13 +65,12 @@ export function useLeaferCanvas({
     viewRef,
     viewSize,
   });
-  // magnifier hover 手势：把画布局部放大到 Home 渲染的镜片画布。
+  // 放大镜：镜片由 leafer-x-magnifier 自己创建和绘制，这里只把工具状态同步过去。
   useMagnifier({
     appRef: runtime.appRef,
-    magnifierCanvasRef,
+    magnifierContainerRef,
     tool,
     toolRef: runtime.toolRef,
-    viewRef,
   });
   // 等比缩放并居中的画布舞台 + 白色 board。
   useStageBoard({

@@ -14,6 +14,7 @@ hooks/
   leaferCanvas/
     core/
       useLeaferApp.ts
+      useMagnifier.ts
       useRuler.ts
       useRuntime.ts
       useSnap.ts
@@ -27,8 +28,6 @@ hooks/
       additiveSelect.ts
       brush.ts
       eraser.ts
-      magnifier.ts
-      useMagnifier.ts
       usePointerTools.ts
     tree/
       syncNodeTree.ts
@@ -49,7 +48,7 @@ hooks/
 flowchart TD
   Entry[useLeaferCanvas.ts<br/>统一入口] --> Core[core<br/>共享 refs、App、舞台、吸附]
   Entry --> Tree[tree<br/>节点树增量同步]
-  Entry --> Tools[tools<br/>画笔、橡皮擦和放大镜]
+  Entry --> Tools[tools<br/>画笔、橡皮擦]
   Entry --> Selection[selection<br/>选区同步]
 
   Core --> Types[src/types/leafer]
@@ -74,7 +73,8 @@ import { useLeaferCanvas } from "./hooks/useLeaferCanvas";
 
 - 解构当前页面的 `nodeMap`、`rootIds`、`selectedIds`、`viewport`。
 - 调用 `useRuntime` 创建共享 refs。
-- 组装 `useLeaferApp`、`useStageBoard`、`useNodeTreeSync`、`usePointerTools`、`useMagnifier`、`useToolInteractivity`、`useEditorSelection`。
+- 组装 `useLeaferApp`、`useStageBoard`、`useNodeTreeSync`、`usePointerTools`、`useToolInteractivity`、`useEditorSelection`。
+- 组装三个插件接线：`useRuler`、`useSnap`、`useMagnifier`，它们只做「宿主状态 ↔ 插件命令式 API」的双向同步。
 - 保持 `Home` 组件不感知内部拆分细节。
 
 ## `core`
@@ -87,6 +87,7 @@ flowchart LR
   Runtime --> Stage[useStageBoard]
   Runtime --> Snap[useSnap]
   Runtime --> Ruler[useRuler]
+  Runtime --> Magnifier[useMagnifier]
   App --> LeaferApp[LeaferApp / Editor]
   Stage --> TreeNode["app.tree: 等比缩放 + 居中"]
   Stage --> BoardNode[board: 1920 x 1080 白色画板]
@@ -215,19 +216,6 @@ sequenceDiagram
 - brush 过程中只更新临时 Line，松手后一次性写 store。
 - eraser 只擦 `line` 节点，写入局部 `eraserPaths`；矩形、椭圆、文本等图形不参与擦除。
 - `select`（交给 Editor）和 `magnifier`（hover 工具）直接返回，不启动手势。
-
-### `useMagnifier.ts`
-
-放大镜的 hover 手势：指针停在画板上时，把画布局部放大到 `Home` 渲染的镜片 DOM canvas 里。
-
-- 取样来源是 `app.tree.canvas.view`：带 editor 的 App 是多层画布，tree 层才是业务内容。
-- 镜片尺寸、`left/top`、`display` 全部直接写 `style`；`pointermove` 高频，不走 React state。
-- 只有 `tool.mode` 参与 React 依赖，用来在切走放大镜时立刻收起镜片。
-- `usePointerTools` 在 magnifier 模式下不接管手势，两边互不干扰。
-
-### `magnifier.ts`
-
-放大镜的纯函数：`getMagnifierSample` 按倍率反推取样区域（单位是源画布设备像素），`drawMagnifierLens` 先铺白底再 `drawImage` 放大到镜片。倍率是相对当前屏幕显示，取样区域始终以指针为中心。
 
 ### `brush.ts`
 
@@ -406,7 +394,8 @@ flowchart TD
 - 改舞台缩放或指针坐标换算时，只改 `geometry/boardLayout.ts`。
 - 等比缩放必须留在 `app.tree`：标尺按 `app.tree.scale` 校准刻度，挪到 `board` 或更内层标尺会按屏幕像素标注。
 - 新增 Leafer 插件时先确认没有装出第二份 `@leafer-ui/core`；插件用 `pnpm.overrides` 复用同一份 core。
-- 新增工具模式时，优先在 `tools/` 下拆独立文件（与 `brush.ts` / `eraser.ts` 平行命名），再由 `usePointerTools` 组合；hover 类工具参考 `useMagnifier.ts`。
+- 新增工具模式时，优先在 `tools/` 下拆独立文件（与 `brush.ts` / `eraser.ts` 平行命名），再由 `usePointerTools` 组合。
+- 通用画布交互能力优先做成 `packages/leafer-x-*` 插件：插件包内不出现 React / Vue / store，只提供命令式 API 与事件；`core/` 下的接线 hook 负责把宿主状态同步过去（参考 `useMagnifier.ts`）。
 - 修改 App 生命周期或 Editor 原生事件时，只改 `core/useLeaferApp.ts`；共享 refs 只改 `core/useRuntime.ts`。
 - Leafer hook / UI 运行时类型放在 `src/types/leafer`，不要在 `leaferCanvas` 下再建 `shared` 类型目录。
 - 不要在任何模块里调用 `app.tree.clear()`；只维护本项目创建的 board / node UI。

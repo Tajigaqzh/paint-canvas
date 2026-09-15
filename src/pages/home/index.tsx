@@ -32,7 +32,6 @@ function Home() {
   const message = useAppMessage(); // 消息提示
   const canvasViewRef = useRef<HTMLDivElement>(null);
   const canvasShellRef = useRef<HTMLDivElement>(null);
-  const magnifierCanvasRef = useRef<HTMLCanvasElement>(null);
   const canvasShellSize = useSize(canvasShellRef); // 画布 shell 的 padding box 尺寸
   const [leftCollapsed, setLeftCollapsed] = useState(false); // 左侧是否折叠
   const [rightCollapsed, setRightCollapsed] = useState(false); // 右侧是否折叠
@@ -91,7 +90,7 @@ function Home() {
   const eraserCursor = useMemo(() => createEraserCursor(eraserSize), [eraserSize]);
 
   useLeaferCanvas({
-    magnifierCanvasRef,
+    magnifierContainerRef: canvasShellRef,
     onSelectNode: selectNode,
     onSelectNodes: selectNodes,
     onAddDrawLine: addDrawLine,
@@ -218,8 +217,6 @@ function Home() {
               onDrop={handleCanvasDrop}
               style={{ cursor: activeTool === "eraser" ? eraserCursor : undefined }}
             />
-            {/* 放大镜镜片：位置、尺寸和显隐都由 useMagnifier 直接写 style，避免 pointermove 触发 React 重渲染。 */}
-            <canvas className="canvas-maker__magnifier" ref={magnifierCanvasRef} />
           </div>
           <PageThumbnailStrip
             activePageId={activePageId}

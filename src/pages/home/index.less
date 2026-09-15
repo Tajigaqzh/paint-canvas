@@ -367,23 +367,6 @@
   }
 }
 
-// 放大镜镜片：absolute 定位挂在 canvas shell 里，top/left/width/height 由 useMagnifier 写 style。
-.canvas-maker__magnifier {
-  position: absolute;
-  top: 0;
-  left: 0;
-  border: 2px solid rgba(31, 41, 55, 0.72);
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow:
-    0 12px 28px rgba(15, 23, 42, 0.26),
-    0 2px 6px rgba(15, 23, 42, 0.16);
-  // 镜片始终压在指针上，必须让指针事件穿透，否则会和画布的 pointermove / pointerleave 互相触发。
-  pointer-events: none;
-  display: none;
-  z-index: 6;
-}
-
 .page-thumbnail-strip {
   min-height: 122px;
   padding: 12px 16px;
