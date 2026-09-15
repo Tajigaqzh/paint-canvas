@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { Frame, Group } from "leafer-ui";
+import type { Frame } from "leafer-ui";
 import type {
   CanvasNode,
   EditableLeaferApp,
@@ -24,10 +24,10 @@ export const useRuntime = ({
   onUpdateNodes,
   page,
   tool,
-}: Omit<UseLeaferCanvasOptions, "viewRef" | "viewSize">) => {
+}: Omit<UseLeaferCanvasOptions, "magnifierCanvasRef" | "viewRef" | "viewSize">) => {
   // LeaferApp 生命周期只和 DOM 容器绑定，不能随着 React state 每次变化重建。
   const appRef = useRef<EditableLeaferApp | null>(null);
-  // board 是业务画板根容器，所有业务节点都挂在它或它的 group 子节点下面。
+  // stage 的缩放和居中改由 app.tree 承载，这里只保留 board 白板容器。
   const boardRef = useRef<Frame | null>(null);
   // brush / eraser 拖动过程中跨 pointermove / pointerup 共享的临时状态。
   const drawingRef = useRef<ToolDrawingState | null>(null);
@@ -42,8 +42,6 @@ export const useRuntime = ({
   const onSelectNodesRef = useRef(onSelectNodes);
   const onUpdateNodeRef = useRef(onUpdateNode);
   const onUpdateNodesRef = useRef(onUpdateNodes);
-  // stage 是缩放和居中容器，board 是 1920 x 1080 白色画板。
-  const stageRef = useRef<Group | null>(null);
   // toolRef 让 pointermove / pointerup 读取最新工具模式和笔刷尺寸。
   const toolRef = useRef(tool);
   // 增量同步索引：业务节点 id -> Leafer UI / 节点类型 / 当前父容器。
@@ -84,7 +82,6 @@ export const useRuntime = ({
     onUpdateNodeRef,
     onUpdateNodesRef,
     pageRef,
-    stageRef,
     toolRef,
     uiKindMapRef,
     uiMapRef,

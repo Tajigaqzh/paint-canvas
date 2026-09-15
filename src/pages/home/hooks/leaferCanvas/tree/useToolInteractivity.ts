@@ -11,8 +11,8 @@ type UseToolInteractivityParams = Pick<UseLeaferCanvasOptions, "tool"> &
 /**
  * 根据当前工具模式切换 Leafer 托管 UI 的编辑和拖拽能力。
  *
- * brush / eraser 模式下关闭 editable / draggable，避免 Editor hover 框和自定义工具冲突；
- * select 模式下恢复 Leafer Editor 的选择、拖拽和编辑能力。
+ * 只有 select 模式放开 editable / draggable；brush / eraser / magnifier 都关闭，
+ * 避免 Editor hover 框和自定义工具冲突，也避免放大镜悬停时误拖节点。
  */
 export const useToolInteractivity = ({
   nodeMap,
@@ -27,9 +27,10 @@ export const useToolInteractivity = ({
     const canUseEditor = tool.mode === "select";
 
     /**
-     * brush / eraser 都是自定义 pointer 工具。
+     * brush / eraser / magnifier 都是自定义工具，不靠 Leafer Editor 交互。
      * 如果节点仍保持 editable=true，Leafer Editor 即使没有选区，也会在 hover 时显示紫色可选框。
      * 因此非 select 模式下临时关闭托管 UI 的编辑和拖拽能力；自定义橡皮擦命中走 store 数据，不依赖 Leafer hit。
+     * 放大镜只是 hover 取样，同样不能让节点跟着指针被拖走。
      */
     uiMap.forEach((ui) => {
       ui.set({

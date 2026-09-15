@@ -19,7 +19,8 @@ type UsePointerToolsParams = Pick<UseLeaferCanvasOptions, "viewRef" | "viewSize"
 /**
  * 接管 brush / eraser 的 pointer 手势。
  *
- * select 完全交给 Leafer Editor；brush / eraser 在 DOM pointerdown 后绑定 window
+ * select 完全交给 Leafer Editor，magnifier 是 hover 工具（见 useMagnifier），
+ * 两者都不在这里启动手势；brush / eraser 在 DOM pointerdown 后绑定 window
  * 级 move/up，保证拖出画板时仍能结束绘制或擦除。坐标换算与 stage 共用 getBoardLayout。
  */
 export const usePointerTools = ({
@@ -65,7 +66,8 @@ export const usePointerTools = ({
     const handlePointerDown = (event: PointerEvent) => {
       const activeTool = toolRef.current;
 
-      if (activeTool.mode === "select") return;
+      // select 交给 Leafer Editor；放大镜是 hover 工具，不接管拖拽手势。
+      if (activeTool.mode === "select" || activeTool.mode === "magnifier") return;
 
       const point = getCanvasPoint(event);
 
@@ -99,7 +101,7 @@ export const usePointerTools = ({
 
         boardRef.current?.add(tempLine);
         drawing.tempLine = tempLine;
-      } else {
+      } else if (activeTool.mode === "eraser") {
         eraseAtPoint(drawing, pageRef.current, uiMap, point, activeTool.eraserSize);
       }
 

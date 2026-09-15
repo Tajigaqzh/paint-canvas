@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import { useAppMessage } from "@/hooks/useAppMessage";
 import { useCanvasStore } from "@/stores/canvasStore";
 import type { CanvasDocument, CanvasToolMode } from "@/types";
+import { getCanvasViewSize } from "./canvasFit";
 import CanvasContextMenu from "./components/CanvasContextMenu";
 import CanvasToolbar from "./components/CanvasToolbar";
 import MaterialPanel from "./components/MaterialPanel";
@@ -31,12 +32,15 @@ function Home() {
   const message = useAppMessage(); // 消息提示
   const canvasViewRef = useRef<HTMLDivElement>(null);
   const canvasShellRef = useRef<HTMLDivElement>(null);
-  const canvasSize = useSize(canvasShellRef); // 画布大小
+  const magnifierCanvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasShellSize = useSize(canvasShellRef); // 画布 shell 的 padding box 尺寸
   const [leftCollapsed, setLeftCollapsed] = useState(false); // 左侧是否折叠
   const [rightCollapsed, setRightCollapsed] = useState(false); // 右侧是否折叠
   const [activeTool, setActiveTool] = useState<CanvasToolMode>("select"); // 激活的工具
   const [brushSize, setBrushSize] = useState(8); // 笔刷粗细
   const [eraserSize, setEraserSize] = useState(24); // 橡皮擦粗细
+  const [magnifierSize, setMagnifierSize] = useState(200); // 放大镜镜片直径
+  const [magnifierZoom, setMagnifierZoom] = useState(3); // 放大镜放大倍数
   const [contextMenu, setContextMenu] = useState({
     open: false,
     x: 0,
@@ -79,27 +83,15 @@ function Home() {
     [activePageId, pageIds, pages],
   );
   const activeNode = activeId ? nodeMap[activeId] : undefined;
-  const fittedCanvasSize = useMemo(() => {
-    const shellWidth = canvasSize?.width ?? 0;
-    const shellHeight = canvasSize?.height ?? 0;
-
-    if (shellWidth <= 0 || shellHeight <= 0) {
-      return {
-        height: 540,
-        width: 960,
-      };
-    }
-
-    const width = Math.min(shellWidth, shellHeight * (viewport.width / viewport.height));
-
-    return {
-      height: width * (viewport.height / viewport.width),
-      width,
-    };
-  }, [canvasSize?.height, canvasSize?.width, viewport.height, viewport.width]);
+  // shell 带内边距，Leafer 只挂在内容区，视图尺寸必须扣掉 padding，见 canvasFit.ts。
+  const canvasViewSize = useMemo(
+    () => getCanvasViewSize(canvasShellSize, canvasShellRef.current),
+    [canvasShellSize],
+  );
   const eraserCursor = useMemo(() => createEraserCursor(eraserSize), [eraserSize]);
 
   useLeaferCanvas({
+    magnifierCanvasRef,
     onSelectNode: selectNode,
     onSelectNodes: selectNodes,
     onAddDrawLine: addDrawLine,
@@ -110,10 +102,12 @@ function Home() {
     tool: {
       brushSize,
       eraserSize,
+      magnifierSize,
+      magnifierZoom,
       mode: activeTool,
     },
     viewRef: canvasViewRef,
-    viewSize: fittedCanvasSize,
+    viewSize: canvasViewSize,
   });
 
   const closeContextMenu = () => {
@@ -161,7 +155,7 @@ function Home() {
       event.clientX,
       event.clientY,
       view,
-      fittedCanvasSize,
+      canvasViewSize,
       viewport,
     );
 
@@ -184,8 +178,12 @@ function Home() {
           canRedo={canRedo}
           canUndo={canUndo}
           eraserSize={eraserSize}
+          magnifierSize={magnifierSize}
+          magnifierZoom={magnifierZoom}
           onChangeBrushSize={setBrushSize}
           onChangeEraserSize={setEraserSize}
+          onChangeMagnifierSize={setMagnifierSize}
+          onChangeMagnifierZoom={setMagnifierZoom}
           onChangeTool={setActiveTool}
           onRedo={redo}
           onSave={saveDocument}
@@ -218,12 +216,10 @@ function Home() {
               ref={canvasViewRef}
               onDragOver={handleCanvasDragOver}
               onDrop={handleCanvasDrop}
-              style={{
-                cursor: activeTool === "eraser" ? eraserCursor : undefined,
-                height: fittedCanvasSize.height,
-                width: fittedCanvasSize.width,
-              }}
+              style={{ cursor: activeTool === "eraser" ? eraserCursor : undefined }}
             />
+            {/* 放大镜镜片：位置、尺寸和显隐都由 useMagnifier 直接写 style，避免 pointermove 触发 React 重渲染。 */}
+            <canvas className="canvas-maker__magnifier" ref={magnifierCanvasRef} />
           </div>
           <PageThumbnailStrip
             activePageId={activePageId}

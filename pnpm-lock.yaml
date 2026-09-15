@@ -45,6 +45,12 @@ dependencies:
   leafer-ui:
     specifier: ^2.2.3
     version: 2.2.3
+  leafer-x-easy-snap:
+    specifier: ^1.11.0
+    version: 1.11.0
+  leafer-x-ruler:
+    specifier: ^2.0.1
+    version: 2.0.1(@leafer-in/interface@2.2.3)(@leafer-in/resize@2.2.3)(@leafer-ui/core@2.2.3)(@leafer-ui/draw@2.2.3)
   mutative:
     specifier: ^1.3.0
     version: 1.3.0
@@ -3780,6 +3786,25 @@ packages:
       '@leafer/core': 2.2.3
       '@leafer/interface': 2.2.3
       '@leafer/partner': 2.2.3
+    dev: false
+
+  /leafer-x-easy-snap@1.11.0:
+    resolution: {integrity: sha512-gR/G+6iVbzCz8MLOf9WjGFF5IEkObDjKMbmBiiHSh4vyQoZsoaukV26ETJcfmtmqKf47Hx4ZOxiyZazSuXMZVw==}
+    dev: false
+
+  /leafer-x-ruler@2.0.1(@leafer-in/interface@2.2.3)(@leafer-in/resize@2.2.3)(@leafer-ui/core@2.2.3)(@leafer-ui/draw@2.2.3):
+    resolution: {integrity: sha512-5l3bpcEz7XXtK3gtvjAGOuQzdhGald1nWLB9l1HLQ1W1UuyMamAYIWqk182OHinOafh4P3OGKfrgz9tAB26WpA==}
+    peerDependencies:
+      '@leafer-ui/core': ^1.2.2 || ^2.0.0
+    dependencies:
+      '@leafer-in/editor': 2.2.3(@leafer-in/interface@2.2.3)(@leafer-in/resize@2.2.3)(@leafer-ui/core@2.2.3)(@leafer-ui/draw@2.2.3)(@leafer-ui/interface@2.2.3)
+      '@leafer-in/text-editor': 2.2.3(@leafer-in/editor@2.2.3)(@leafer-in/interface@2.2.3)(@leafer-ui/core@2.2.3)(@leafer-ui/interface@2.2.3)
+      '@leafer-ui/core': 2.2.3
+      '@leafer-ui/interface': 2.2.3
+    transitivePeerDependencies:
+      - '@leafer-in/interface'
+      - '@leafer-in/resize'
+      - '@leafer-ui/draw'
     dev: false
 
   /less@4.7.0:

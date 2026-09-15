@@ -33,15 +33,21 @@ export type PointerLikeEvent = {
 
 /** Home 组件传入 hook 的全部依赖；hook 本身不直接读 zustand，便于保持边界清晰。 */
 export type UseLeaferCanvasOptions = {
-  /** 当前工具配置；select 走 Leafer 编辑器，brush / eraser 走自定义指针事件。 */
+  /** 当前工具配置；select 走 Leafer 编辑器，brush / eraser / magnifier 走自定义指针事件。 */
   tool: {
     /** 画笔真实落到 line 节点上的描边宽度，单位是业务画板坐标 px。 */
     brushSize: number;
     /** 橡皮擦真实写入 eraserPaths 的擦除宽度；cursor 视觉大小不在 hook 内生成。 */
     eraserSize: number;
+    /** 放大镜镜片直径，单位是 DOM CSS 像素；镜片本身不是 Leafer 节点。 */
+    magnifierSize: number;
+    /** 放大镜相对当前画布显示的放大倍数，1 表示和屏幕上看到的一样大。 */
+    magnifierZoom: number;
     /** 当前工具模式：select 使用 Leafer Editor，其它模式会拦截 pointer 事件。 */
     mode: CanvasToolMode;
   };
+  /** Home 渲染的放大镜镜片画布；定位和绘制由 hook 直接写 style，避免 pointermove 触发 React 重渲染。 */
+  magnifierCanvasRef: RefObject<HTMLCanvasElement | null>;
   /** 当前页面，是渲染 Leafer 的唯一数据源。 */
   page: CanvasPage;
   /** 画笔松手后提交一条完整笔迹。 */
@@ -58,7 +64,7 @@ export type UseLeaferCanvasOptions = {
   onUpdateNodes: (updates: CanvasNodeUpdate[]) => void;
   /** Leafer 挂载的 DOM 容器。 */
   viewRef: RefObject<HTMLDivElement | null>;
-  /** 当前白色画板在页面里的实际像素尺寸，用于重新计算 1920 x 1080 的缩放比例。 */
+  /** Leafer 挂载容器的实际像素尺寸（画布 shell 的内容区，不含内边距），用于重算画板缩放、居中和标尺让位。 */
   viewSize?: {
     height: number;
     width: number;

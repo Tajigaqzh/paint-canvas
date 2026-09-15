@@ -6,7 +6,7 @@
 
 `paint-canvas` 是画布制作工具：React 19 + TypeScript + Vite 8 + Ant Design 6 + LeaferJS 2 + Zustand。制作页用固定 **1920×1080** 业务坐标管理多页面文档，Leafer 只负责渲染和交互，`canvasStore` 才是唯一数据源。
 
-包管理用 **pnpm**。Leafer 相关包钉在 **2.2.3**（`pnpm.overrides` 里的 `@leafer-ui/interface`、`@leafer/interface`），不要随便升版本。
+包管理用 **pnpm**。Leafer 相关包钉在 **2.2.3**（`pnpm.overrides` 里的 `@leafer-ui/interface`、`@leafer/interface`），不要随便升版本；`leafer-x-*` 插件也靠这两个 override 复用同一份 core，新增插件前先确认没有装出第二份 Leafer 实例。
 
 ## 常用命令
 
@@ -32,7 +32,7 @@ pnpm e2e          # Playwright
 
 1. **Store 是真源，Leafer 是渲染缓存。** 节点增删改、选区、历史都走 `src/stores/canvasStore.ts`。不要把业务状态只写在 Leafer UI 上。
 2. **增量同步，禁止 `app.tree.clear()`。** 会打掉 Editor 内部选择层。按 `nodeId` 增删改 UI。
-3. **坐标系。** `board` 固定 1920×1080；`stage` 只做缩放和居中。业务数据不要改成跟 DOM 像素绑定。
+3. **坐标系。** `board` 固定 1920×1080 且自身不缩放；等比缩放和居中挂在 **`app.tree`** 上（标尺插件硬编码读 `app.tree.scale` / `app.tree.worldTransform`）。`getBoardLayout` 会先扣掉 `BOARD_INSET` 的标尺刻度条空间，指针反算、舞台变换、标尺 `ruleSize` 共用这套公式。业务数据不要改成跟 DOM 像素绑定。
 4. **选区。** 用户操作由 Leafer Editor 写回 `selectedIds`；程序化 `editor.select()` 必须带同步标记，避免回写死循环。窗口尺寸变化后要刷新 Editor 选区。
 5. **历史。** 用 `mutative` patches，不要整页快照。拖拽类高频操作注意历史条数上限。
 6. **动画。** 用 `@leafer-in/animate` 写到 Leafer `animation`。创建节点时带上；之后增量 `set` 不要每次重写 `animation`，否则拖拽会打断播放。多条动画顺序见 `PropertyPanel/animationOrder.ts`。
@@ -46,6 +46,9 @@ pnpm e2e          # Playwright
 | 命中检测               | `leaferCanvas/geometry/hitDetection.ts`                                                   |
 | 舞台缩放 / 指针坐标    | `leaferCanvas/geometry/boardLayout.ts`（`useStageBoard` 与 `usePointerTools` 共用）       |
 | 画笔 / 橡皮            | `leaferCanvas/tools/`（`brush.ts` / `eraser.ts`），由 `usePointerTools` 组合              |
+| 放大镜                 | `leaferCanvas/tools/`（`magnifier.ts` / `useMagnifier.ts`），取样自 `app.tree` 画布       |
+| 标尺                   | `leaferCanvas/core/useRuler.ts`（`leafer-x-ruler` 接线；刻度条宽度 = `boardLayout.BOARD_INSET`） |
+| 对齐参考线 / 吸附      | `leaferCanvas/core/useSnap.ts`（`leafer-x-easy-snap` 接线；`parentContainer` 必须是 board，`snapSize` 要按 tree 缩放换算） |
 | 共享 refs              | `leaferCanvas/core/useRuntime.ts`                                                         |
 | App 生命周期、原生事件 | `leaferCanvas/core/useLeaferApp.ts`                                                       |
 | Leafer 运行时类型      | `src/types/leafer`，不要在 hook 下再建 `shared`                                           |

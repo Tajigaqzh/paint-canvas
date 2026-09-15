@@ -15,6 +15,22 @@ vi.mock("@leafer-in/editor", () => ({
 }));
 vi.mock("@leafer-in/text-editor", () => ({}));
 
+// 吸附插件构造时会校验 App 实例，页面用例里的 MockApp 不满足，这里只保留可调用的空壳。
+vi.mock("leafer-x-easy-snap", () => ({
+  Snap: class {
+    enable() {}
+  },
+}));
+
+// 标尺插件会往 app 上加 Leafer 层，MockApp 没有 addLeafer，这里同样只留空壳。
+vi.mock("leafer-x-ruler", () => ({
+  Ruler: class {
+    dispose() {}
+    enabled = true;
+    rulerLeafer = { canvas: { hittable: true } };
+  },
+}));
+
 vi.mock("leafer-ui", () => {
   class MockUI {
     x = 0;
@@ -47,6 +63,7 @@ vi.mock("leafer-ui", () => {
     tree = {
       add: vi.fn(),
       clear: vi.fn(),
+      set: vi.fn(),
     };
 
     destroy() {}
@@ -121,11 +138,12 @@ describe("Home", () => {
     mockCanvasRect();
     setDraggingMaterialKind("rect");
     const canvas = document.querySelector(".canvas-maker__canvas") as HTMLElement;
+    // 白板要给左上角标尺刻度条让位，所以白板中心不等于视图中心。
     const dropEvent = new MouseEvent("drop", {
       bubbles: true,
       cancelable: true,
-      clientX: 480,
-      clientY: 270,
+      clientX: 490,
+      clientY: 280,
     });
     Object.defineProperty(dropEvent, "dataTransfer", {
       value: { dropEffect: "copy" },

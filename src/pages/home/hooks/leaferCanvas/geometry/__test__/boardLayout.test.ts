@@ -1,18 +1,41 @@
 import { describe, expect, it } from "vitest";
-import { getBoardLayout, isPointInViewport, mapClientPointToBoard } from "../boardLayout";
+import {
+  BOARD_INSET,
+  getBoardLayout,
+  isPointInViewport,
+  mapClientPointToBoard,
+} from "../boardLayout";
 
 const viewport = { height: 1080, width: 1920 };
+/** 容器尺寸 = 业务画板尺寸 + 标尺刻度条占用空间。 */
+const viewWithInset = {
+  height: viewport.height + BOARD_INSET,
+  width: viewport.width + BOARD_INSET,
+};
 
 describe("getBoardLayout", () => {
-  it("容器正好是 1920x1080 时 scale 为 1 且无偏移", () => {
-    expect(getBoardLayout(1920, 1080, viewport)).toEqual({ boardX: 0, boardY: 0, scale: 1 });
+  it("容器正好放得下画板和标尺时 scale 为 1，白板让出左上角刻度条", () => {
+    expect(getBoardLayout(viewWithInset.width, viewWithInset.height, viewport)).toEqual({
+      boardX: BOARD_INSET,
+      boardY: BOARD_INSET,
+      scale: 1,
+    });
   });
 
-  it("更窄的容器按宽度缩放并垂直居中", () => {
-    const layout = getBoardLayout(960, 1080, viewport);
+  it("更窄的容器按宽度缩放，并在刻度条右侧垂直居中", () => {
+    const layout = getBoardLayout(960 + BOARD_INSET, viewWithInset.height, viewport);
+
     expect(layout.scale).toBe(0.5);
-    expect(layout.boardX).toBe(0);
-    expect(layout.boardY).toBe(Math.max((1080 - 1080 * 0.5) / 2, 0));
+    expect(layout.boardX).toBe(BOARD_INSET);
+    expect(layout.boardY).toBe(BOARD_INSET + (1080 - 1080 * 0.5) / 2);
+  });
+
+  it("容器比刻度条还小时不会出现负的可用空间", () => {
+    expect(getBoardLayout(10, 10, viewport)).toEqual({
+      boardX: BOARD_INSET,
+      boardY: BOARD_INSET,
+      scale: 0,
+    });
   });
 });
 

@@ -14,7 +14,9 @@ hooks/
   leaferCanvas/
     core/
       useLeaferApp.ts
+      useRuler.ts
       useRuntime.ts
+      useSnap.ts
       useStageBoard.ts
     geometry/
       boardLayout.ts
@@ -25,6 +27,8 @@ hooks/
       additiveSelect.ts
       brush.ts
       eraser.ts
+      magnifier.ts
+      useMagnifier.ts
       usePointerTools.ts
     tree/
       syncNodeTree.ts
@@ -43,9 +47,9 @@ hooks/
 
 ```mermaid
 flowchart TD
-  Entry[useLeaferCanvas.ts<br/>统一入口] --> Core[core<br/>共享 refs、App、舞台]
+  Entry[useLeaferCanvas.ts<br/>统一入口] --> Core[core<br/>共享 refs、App、舞台、吸附]
   Entry --> Tree[tree<br/>节点树增量同步]
-  Entry --> Tools[tools<br/>画笔和橡皮擦指针工具]
+  Entry --> Tools[tools<br/>画笔、橡皮擦和放大镜]
   Entry --> Selection[selection<br/>选区同步]
 
   Core --> Types[src/types/leafer]
@@ -70,20 +74,24 @@ import { useLeaferCanvas } from "./hooks/useLeaferCanvas";
 
 - 解构当前页面的 `nodeMap`、`rootIds`、`selectedIds`、`viewport`。
 - 调用 `useRuntime` 创建共享 refs。
-- 组装 `useLeaferApp`、`useStageBoard`、`useNodeTreeSync`、`usePointerTools`、`useToolInteractivity`、`useEditorSelection`。
+- 组装 `useLeaferApp`、`useStageBoard`、`useNodeTreeSync`、`usePointerTools`、`useMagnifier`、`useToolInteractivity`、`useEditorSelection`。
 - 保持 `Home` 组件不感知内部拆分细节。
 
 ## `core`
 
-`core` 负责共享 refs、Leafer 实例生命周期，以及稳定舞台容器。
+`core` 负责共享 refs、Leafer 实例生命周期、画布变换，以及挂在 App 上的第三方插件（标尺、吸附）。
 
 ```mermaid
 flowchart LR
   Runtime[useRuntime] --> App[useLeaferApp]
   Runtime --> Stage[useStageBoard]
+  Runtime --> Snap[useSnap]
+  Runtime --> Ruler[useRuler]
   App --> LeaferApp[LeaferApp / Editor]
-  Stage --> StageNode[stage: 缩放和居中]
+  Stage --> TreeNode["app.tree: 等比缩放 + 居中"]
   Stage --> BoardNode[board: 1920 x 1080 白色画板]
+  TreeNode --> Ruler
+  BoardNode --> Snap
 ```
 
 ### `useRuntime.ts`
@@ -91,7 +99,7 @@ flowchart LR
 创建所有子模块共享的稳定 refs：
 
 - `appRef`：LeaferApp 实例。
-- `stageRef` / `boardRef`：稳定画布容器。
+- `boardRef`：稳定白板容器；画布缩放和居中直接写在 `app.tree` 上。
 - `drawingRef`：brush / eraser 手势进行中的临时状态。
 - `isSyncingEditorSelectionRef`：程序化 select/cancel 时屏蔽 SELECT 回写。
 - `pageRef` / `toolRef`：供原生事件读取最新 React 状态。
@@ -109,12 +117,29 @@ flowchart LR
 
 ### `useStageBoard.ts`
 
-维护稳定的 `stage` 和 `board`：
+维护画布变换和 `board`：
 
-- `stage` 的缩放和居中偏移来自 `geometry/boardLayout.ts`，与指针反算同一套公式。
-- `board` 是白色业务画板，尺寸固定按 `viewport` 渲染。
+- 等比缩放和居中挂在 `app.tree` 上，偏移来自 `geometry/boardLayout.ts`，与指针反算同一套公式。
+- `board` 是 1920 x 1080 白色业务画板，自身不缩放；描边、圆角、投影按屏幕像素给，写进 Leafer 前除以显示缩放。
 - 尺寸变化只调用 `set()`，不清空 `app.tree`，避免破坏 Editor 内部层。
-- 缩放变化后下一帧刷新 Editor 选区框。
+- 变换变化后下一帧刷新 Editor 选区框。
+
+### `useRuler.ts`
+
+接入 `leafer-x-ruler`，画布视图左上角的标尺：
+
+- 刻度条宽度取 `geometry/boardLayout.ts` 的 `BOARD_INSET`，白板会让出这块空间，不会被刻度条压住。
+- 刻度按 `app.tree.scale` 反向换算，所以显示的是 1920×1080 业务坐标，不是屏幕像素。
+- 标尺层盖在整个视图上，创建后要把 `rulerLeafer.canvas.hittable` 关掉，否则会挡住 Leafer Editor 的点击和拖拽。
+
+### `useSnap.ts`
+
+接入 `leafer-x-easy-snap`，负责 select 模式拖拽节点时的对齐参考线和自动吸附：
+
+- `parentContainer` 必须传 `board`：插件只收集 `[parentContainer, ...parentContainer.children]`，不递归，传 app.tree 就只剩 board 一个候选元素。
+- 插件用 `getBounds('box', app.tree)` 取包围盒，量出来是 tree 局部坐标（= 画板像素），所以 `snapSize` 要按 `app.tree.scale` 换算成屏幕像素。
+- 辅助线由插件画到 `app.sky`，不进入 `board.children`，不影响节点增量同步。
+- 只有 select 模式能拖节点，其它工具直接 `enable(false)`，避免多挂一组 editor / pointer 监听。
 
 ## `tree`
 
@@ -189,6 +214,20 @@ sequenceDiagram
 - client 坐标经 `getBoardLayout` / `mapClientPointToBoard` 换成 1920×1080 业务坐标。
 - brush 过程中只更新临时 Line，松手后一次性写 store。
 - eraser 只擦 `line` 节点，写入局部 `eraserPaths`；矩形、椭圆、文本等图形不参与擦除。
+- `select`（交给 Editor）和 `magnifier`（hover 工具）直接返回，不启动手势。
+
+### `useMagnifier.ts`
+
+放大镜的 hover 手势：指针停在画板上时，把画布局部放大到 `Home` 渲染的镜片 DOM canvas 里。
+
+- 取样来源是 `app.tree.canvas.view`：带 editor 的 App 是多层画布，tree 层才是业务内容。
+- 镜片尺寸、`left/top`、`display` 全部直接写 `style`；`pointermove` 高频，不走 React state。
+- 只有 `tool.mode` 参与 React 依赖，用来在切走放大镜时立刻收起镜片。
+- `usePointerTools` 在 magnifier 模式下不接管手势，两边互不干扰。
+
+### `magnifier.ts`
+
+放大镜的纯函数：`getMagnifierSample` 按倍率反推取样区域（单位是源画布设备像素），`drawMagnifierLens` 先铺白底再 `drawImage` 放大到镜片。倍率是相对当前屏幕显示，取样区域始终以指针为中心。
 
 ### `brush.ts`
 
@@ -221,7 +260,7 @@ flowchart LR
 
 ### `boardLayout.ts`
 
-stage 缩放居中和指针反算共用：
+画布缩放居中和指针反算共用：
 
 - `getBoardLayout`：按容器宽高算出 `scale`、`boardX`、`boardY`。
 - `mapClientPointToBoard`：client 坐标换成画板坐标；落在白板外返回 `undefined`。
@@ -342,6 +381,9 @@ flowchart TD
   Runtime --> Stage[useStageBoard]
   Runtime --> Tree[useNodeTreeSync]
   Runtime --> Tool[usePointerTools]
+  Runtime --> Magnifier[useMagnifier]
+  Runtime --> Snap[useSnap]
+  Runtime --> Ruler[useRuler]
   Runtime --> Mode[useToolInteractivity]
   Runtime --> Selection[useEditorSelection]
 
@@ -362,8 +404,10 @@ flowchart TD
 - 图片节点：主画布 Leafer 和缩略图都通过 `src/worker/image-cache` 加载 `src`；素材面板只负责把 URL 写入节点，自己不请求图片。
 - 新增命中规则时，优先改 `geometry/hitDetection.ts`，避免把算法散落到 React hook 中。
 - 改舞台缩放或指针坐标换算时，只改 `geometry/boardLayout.ts`。
-- 新增工具模式时，优先在 `tools/` 下拆独立文件（与 `brush.ts` / `eraser.ts` 平行命名），再由 `usePointerTools` 组合。
+- 等比缩放必须留在 `app.tree`：标尺按 `app.tree.scale` 校准刻度，挪到 `board` 或更内层标尺会按屏幕像素标注。
+- 新增 Leafer 插件时先确认没有装出第二份 `@leafer-ui/core`；插件用 `pnpm.overrides` 复用同一份 core。
+- 新增工具模式时，优先在 `tools/` 下拆独立文件（与 `brush.ts` / `eraser.ts` 平行命名），再由 `usePointerTools` 组合；hover 类工具参考 `useMagnifier.ts`。
 - 修改 App 生命周期或 Editor 原生事件时，只改 `core/useLeaferApp.ts`；共享 refs 只改 `core/useRuntime.ts`。
 - Leafer hook / UI 运行时类型放在 `src/types/leafer`，不要在 `leaferCanvas` 下再建 `shared` 类型目录。
-- 不要在任何模块里调用 `app.tree.clear()`；只维护本项目创建的 stage / board / node UI。
+- 不要在任何模块里调用 `app.tree.clear()`；只维护本项目创建的 board / node UI。
 - 原理和历史坑见 `docs/useLeaferCanvas-logic.md`；改完本目录结构后同步根 `README.md`。
