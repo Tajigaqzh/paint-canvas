@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    # 推送主分支会触发构建；向主分支合并 PR 实质上是向 main 推送一个新提交，
+    # 同样走这条 push 事件，因此一个触发器就能覆盖“推送 main”和“合并进 main”两种场景。
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: 前端检查与构建
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          # 必须与 pnpm-lock.yaml 的 lockfileVersion（6.0，pnpm 8 格式）一致，
+          # 否则 pnpm install --frozen-lockfile 会因锁文件格式不匹配而失败
+          version: 8.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test:run
+
+      - name: Build workspace plugins
+        run: pnpm build:plugins
+
+      - name: Build app
+        run: pnpm build
