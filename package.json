@@ -29,6 +29,7 @@
     "ahooks": "^3.9.7",
     "antd": "^6.5.1",
     "leafer-ui": "^2.2.3",
+    "leafer-x-brush-eraser": "workspace:*",
     "leafer-x-easy-snap": "^1.11.0",
     "leafer-x-magnifier": "workspace:*",
     "leafer-x-ruler": "^2.0.1",

@@ -10,8 +10,10 @@ lerna-debug.log*
 node_modules
 .codegraph
 dist
+
+# 临时验证脚本
+/tmp-*.mjs
 dist-ssr
-packages/*/types
 playwright-report
 test-results
 *.local

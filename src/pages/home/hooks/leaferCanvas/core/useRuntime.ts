@@ -5,7 +5,6 @@ import type {
   EditableLeaferApp,
   ManagedNodeUI,
   ParentNodeUI,
-  ToolDrawingState,
   UseLeaferCanvasOptions,
 } from "@/types";
 
@@ -29,8 +28,6 @@ export const useRuntime = ({
   const appRef = useRef<EditableLeaferApp | null>(null);
   // stage 的缩放和居中改由 app.tree 承载，这里只保留 board 白板容器。
   const boardRef = useRef<Frame | null>(null);
-  // brush / eraser 拖动过程中跨 pointermove / pointerup 共享的临时状态。
-  const drawingRef = useRef<ToolDrawingState | null>(null);
   // 标记当前 EditorEvent.SELECT 是否由代码主动 select/cancel 触发，避免循环写 store。
   const isSyncingEditorSelectionRef = useRef(false);
   // 以下 callback ref 解决 Leafer 事件监听只注册一次，但回调需要永远拿到最新 store action 的问题。
@@ -73,7 +70,6 @@ export const useRuntime = ({
   return {
     appRef,
     boardRef,
-    drawingRef,
     isSyncingEditorSelectionRef,
     onAddDrawLineRef,
     onApplyEraserResultRef,

@@ -48,6 +48,9 @@ importers:
       leafer-ui:
         specifier: ^2.2.3
         version: 2.2.3
+      leafer-x-brush-eraser:
+        specifier: workspace:*
+        version: link:packages/leafer-x-brush-eraser
       leafer-x-easy-snap:
         specifier: ^1.11.0
         version: 1.11.0
@@ -139,6 +142,31 @@ importers:
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+      vite:
+        specifier: ^8.1.1
+        version: 8.1.5(@types/node@24.13.3)(less@4.7.0)
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@24.13.3)(jsdom@29.1.1)(vite@8.1.5)
+
+  packages/leafer-x-brush-eraser:
+    dependencies:
+      '@leafer-ui/interface':
+        specifier: 2.2.3
+        version: 2.2.3
+    devDependencies:
+      '@leafer-ui/core':
+        specifier: ^2.2.3
+        version: 2.2.3
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1
+      leafer-ui:
+        specifier: ^2.2.3
+        version: 2.2.3
       typescript:
         specifier: ~6.0.2
         version: 6.0.3

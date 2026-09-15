@@ -44,9 +44,8 @@ pnpm e2e          # Playwright
 | ---------------------- | ----------------------------------------------------------------------------------------- |
 | 节点类型 / 字段        | `src/types/elementNode`，然后 `leaferCanvas/ui`、属性面板、`worker/page-thumbnail/render` |
 | 图片加载               | 只走 `src/worker/image-cache`；Leafer 侧 `ui/imageUi.ts`                                  |
-| 命中检测               | `leaferCanvas/geometry/hitDetection.ts`                                                   |
 | 舞台缩放 / 指针坐标    | `leaferCanvas/geometry/boardLayout.ts`（`useStageBoard` 与 `usePointerTools` 共用）       |
-| 画笔 / 橡皮            | `leaferCanvas/tools/`（`brush.ts` / `eraser.ts`），由 `usePointerTools` 组合              |
+| 画笔 / 橡皮擦          | 插件 `packages/leafer-x-brush-eraser`；接线在 `leaferCanvas/tools/`（`useBrushTool` / `useEraserTool`） |
 | 放大镜                 | `leaferCanvas/tools/`（`magnifier.ts` / `useMagnifier.ts`），取样自 `app.tree` 画布       |
 | 标尺                   | `leaferCanvas/core/useRuler.ts`（`leafer-x-ruler` 接线；刻度条宽度 = `boardLayout.BOARD_INSET`） |
 | 对齐参考线 / 吸附      | `leaferCanvas/core/useSnap.ts`（`leafer-x-easy-snap` 接线；`parentContainer` 必须是 board，`snapSize` 要按 tree 缩放换算） |
@@ -87,7 +86,7 @@ pnpm e2e          # Playwright
 ### 范围与文件
 
 - 单测框架：Vitest。`.test.ts` 默认 Node（`src/test/setup-node.ts`）；`.test.tsx` 以及需要 `window` / `document` 的 `.ts`（路由、Service Worker 注册）用 jsdom（`src/test/setup.ts`：jest-dom、`matchMedia`、`ResizeObserver`、`Worker` mock）。
-- 单测放在**源码所在目录的 `__test__/`** 下，文件名与实现文件同名，后缀用 `.test` 或 `.spec`（二选一即可）：`hitDetection.ts` → `__test__/hitDetection.test.ts` 或 `__test__/hitDetection.spec.ts`，页面 `index.tsx` → `__test__/index.test.tsx`。不要把测试文件和实现文件平铺在同一层。
+- 单测放在**源码所在目录的 `__test__/`** 下，文件名与实现文件同名，后缀用 `.test` 或 `.spec`（二选一即可）：`boardLayout.ts` → `__test__/boardLayout.test.ts` 或 `__test__/boardLayout.spec.ts`，页面 `index.tsx` → `__test__/index.test.tsx`。不要把测试文件和实现文件平铺在同一层。
 - **每个页面文件、每个 `.ts` / `.tsx` 实现文件都必须有对应单测。** 纯类型文件（只 `export type` / `interface`、无运行时代码）除外。
 - 改已有函数时同步补用例；新增文件时测试和实现一起交。相关改动完成后跑 `pnpm test:run`。
 - e2e（`tests/e2e`）只覆盖跨面板的整页流程，**不能代替** 方法级单测。
@@ -125,7 +124,8 @@ pnpm e2e          # Playwright
 - 自研 Leafer 插件放 `packages/leafer-x-*`，命名跟官方社区插件规范（包名 `leafer-x-*`，全局变量 `LeaferX.*`）。
 - **插件包内不出现 React / Vue / store**：只 import `@leafer-ui/core`、`@leafer-ui/interface`，对外只给命令式 API（`enabled` / `size` / 设置项）和事件，状态由宿主自己管。框架适配写在 `src/pages/home/hooks/leaferCanvas/core/` 的接线 hook 里。
 - 每个插件自带 `__tests__`（Vitest + jsdom）、`main.ts` 纯 HTML Demo、README（配置项 + 内置属性/方法）。
-- 工作区里宿主直接消费插件源码（`exports` 指向 `src`），`publishConfig` 在发布时切到 `dist` / `types`。
+- 工作区里宿主直接消费插件源码（`exports` 指向 `src`），`publishConfig` 在发布时切到 `dist`（js 与 d.ts 同目录）。
+- 现有插件：`leafer-x-magnifier`（放大镜）、`leafer-x-brush-eraser`（画笔 / 橡皮擦）。
 
 ## 不要做的事
 

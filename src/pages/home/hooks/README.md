@@ -21,13 +21,14 @@ hooks/
       useStageBoard.ts
     geometry/
       boardLayout.ts
-      hitDetection.ts
     selection/
       useEditorSelection.ts
     tools/
       additiveSelect.ts
-      brush.ts
-      eraser.ts
+      eraserUpdates.ts
+      lineNodeInput.ts
+      useBrushTool.ts
+      useEraserTool.ts
       usePointerTools.ts
     tree/
       syncNodeTree.ts
@@ -101,7 +102,6 @@ flowchart LR
 
 - `appRef`：LeaferApp 实例。
 - `boardRef`：稳定白板容器；画布缩放和居中直接写在 `app.tree` 上。
-- `drawingRef`：brush / eraser 手势进行中的临时状态。
 - `isSyncingEditorSelectionRef`：程序化 select/cancel 时屏蔽 SELECT 回写。
 - `pageRef` / `toolRef`：供原生事件读取最新 React 状态。
 - `uiMapRef` / `uiKindMapRef` / `uiParentMapRef`：业务节点到 Leafer UI 的增量同步索引。
@@ -199,7 +199,7 @@ sequenceDiagram
     User->>Tools: pointerup
     Tools->>Store: addDrawLine
   else eraser
-    Tools->>Tools: findHitNode
+    Tools->>Tools: 插件内按 Leafer 选择器命中 line
     Tools->>Leafer: 命中 line 后更新 eraser 预览
     User->>Tools: pointerup
     Tools->>Store: applyEraserResult
@@ -208,26 +208,32 @@ sequenceDiagram
 
 ### `usePointerTools.ts`
 
-接管 `brush` 和 `eraser` 的完整 pointer 手势：
+组合 `leafer-x-brush-eraser` 的两个工具，只做「插件事件 -> store action」和「工具模式 -> 插件开关」。
 
-- `pointerdown` 只绑定在 canvas DOM 上。
-- `pointermove` / `pointerup` 绑定到 `window`，保证拖出画布也能结束手势。
-- client 坐标经 `getBoardLayout` / `mapClientPointToBoard` 换成 1920×1080 业务坐标。
-- brush 过程中只更新临时 Line，松手后一次性写 store。
-- eraser 只擦 `line` 节点，写入局部 `eraserPaths`；矩形、椭圆、文本等图形不参与擦除。
-- `select`（交给 Editor）和 `magnifier`（hover 工具）直接返回，不启动手势。
+- 手势采样、临时预览、命中检测都在插件里，制作页不再自己监听 pointer。
+- 两个插件都需要 `board` 当坐标空间和预览容器，所以 `usePointerTools` 必须晚于 `useStageBoard`。
+- `select` / `magnifier` 模式下两个插件都 `enabled = false`，不会接管手势。
 
-### `brush.ts`
+### `useBrushTool.ts`
 
-负责把 brush 采样到的全局点归一化为 `LineNode` 输入：
+创建 `Brush` 插件，把 `draw` 事件经 `lineNodeInput.ts` 转成 `store.addDrawLine` 的输入，并按模式 / 粗细同步插件状态。
 
-- `node.x` / `node.y` 是外接矩形左上角。
-- `node.width` / `node.height` 是外接矩形尺寸。
-- `points` 转换为相对节点自身的局部坐标。
+### `useEraserTool.ts`
 
-### `eraser.ts`
+创建 `Eraser` 插件，`erasable` 限定只擦 line 节点；监听 `end`（一次手势结束），把轨迹经 `eraserUpdates.ts` 转成 `store.applyEraserResult` 的入参，一次手势只提交一条历史。
 
-橡皮擦手势的纯函数：命中 line、更新临时预览路径、松手时生成 `eraserPaths` 提交数据。
+### `lineNodeInput.ts`
+
+笔迹事件 -> `LineNode` 输入：补上 `kind`、`animationList`、`curve`、`strokeCap` 等业务字段，几何和描边原样透传。
+
+### `eraserUpdates.ts`
+
+擦除轨迹 -> 节点级 eraser 更新：
+
+- `isErasableLineTarget`：命中项（line group 内部的图形子节点）先按父级反查业务节点，只有 `kind === "line"` 才允许擦。
+- `getLineEraserUpdates`：把轨迹按 `container`（line group）反查成 `{ id, points, strokeWidth }`。
+
+### `additiveSelect.ts`
 
 ### `additiveSelect.ts`
 
@@ -241,10 +247,11 @@ sequenceDiagram
 flowchart LR
   Client[浏览器 client 坐标] --> Layout[getBoardLayout / mapClientPointToBoard]
   Layout --> Point[业务坐标点]
-  Point --> LineHit[isPointNearLineNode]
-  LineHit --> Hit[findHitNode]
-  Hit --> Result[命中 line id + 父级 offset]
+  Point --> Store[store 节点坐标 / 拖放落点]
 ```
+
+橡皮擦的命中不再走这里：它由 `leafer-x-brush-eraser` 内部用 Leafer 选择器完成，
+制作页只用 `eraserUpdates.isErasableLineTarget` 做「是不是 line 节点」的过滤。
 
 ### `boardLayout.ts`
 
@@ -254,16 +261,6 @@ flowchart LR
 - `mapClientPointToBoard`：client 坐标换成画板坐标；落在白板外返回 `undefined`。
 
 改缩放规则只改这里，避免舞台和画笔对不齐。
-
-### `hitDetection.ts`
-
-包含：
-
-- 点到点距离。
-- 点到线段距离。
-- line 节点路径命中。
-- group 递归命中，非 line 图形跳过。
-- 全局坐标到 line 局部坐标转换。
 
 ## `ui`
 
@@ -317,6 +314,7 @@ line 节点单独处理，因为它需要局部擦除：
 - 原始笔迹是 group 内的底层 `Line`。
 - eraser 轨迹是 group 内的上层 `Line`，使用 Leafer 的 `eraser: "pixel"`。
 - `eraserPaths` 会在同步时重建为持久 eraser 子节点。
+- 场景标识：节点来源（`LineNode.source`）决定 className 前缀 —— 画笔笔迹是 `brush`（本体 `brush-path`、擦除轨迹 `brush-eraser`、占位 `brush-eraser-primer`），素材线条和没有该字段的老文档是 `line`。第三方遍历场景时靠它区分笔迹节点和内部渲染元素。
 
 ### `imageUi.ts`
 
@@ -390,11 +388,11 @@ flowchart TD
 
 - 新增节点类型时，优先改 `ui/nodeUi.ts`，必要时同步 `worker/page-thumbnail` 渲染逻辑。
 - 图片节点：主画布 Leafer 和缩略图都通过 `src/worker/image-cache` 加载 `src`；素材面板只负责把 URL 写入节点，自己不请求图片。
-- 新增命中规则时，优先改 `geometry/hitDetection.ts`，避免把算法散落到 React hook 中。
+- 橡皮擦命中规则：`erasable` 过滤放在 `tools/eraserUpdates.ts`，具体命中由插件用 Leafer 选择器完成。
 - 改舞台缩放或指针坐标换算时，只改 `geometry/boardLayout.ts`。
 - 等比缩放必须留在 `app.tree`：标尺按 `app.tree.scale` 校准刻度，挪到 `board` 或更内层标尺会按屏幕像素标注。
 - 新增 Leafer 插件时先确认没有装出第二份 `@leafer-ui/core`；插件用 `pnpm.overrides` 复用同一份 core。
-- 新增工具模式时，优先在 `tools/` 下拆独立文件（与 `brush.ts` / `eraser.ts` 平行命名），再由 `usePointerTools` 组合。
+- 新增工具模式时，优先做成 `packages/leafer-x-*` 插件，再由 `usePointerTools` 组合接线（参考 `useBrushTool.ts`）。
 - 通用画布交互能力优先做成 `packages/leafer-x-*` 插件：插件包内不出现 React / Vue / store，只提供命令式 API 与事件；`core/` 下的接线 hook 负责把宿主状态同步过去（参考 `useMagnifier.ts`）。
 - 修改 App 生命周期或 Editor 原生事件时，只改 `core/useLeaferApp.ts`；共享 refs 只改 `core/useRuntime.ts`。
 - Leafer hook / UI 运行时类型放在 `src/types/leafer`，不要在 `leaferCanvas` 下再建 `shared` 类型目录。

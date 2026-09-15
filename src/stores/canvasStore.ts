@@ -216,6 +216,7 @@ const createNode = (kind: CanvasMaterialKind, index: number): CanvasNode => {
       id,
       kind,
       name: `线条 ${serial}`,
+      source: "material",
       rotation: 0,
       stroke: "#32cd79",
       strokeCap: "round",
@@ -472,6 +473,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
           id: createId(),
           kind: "line",
           name: `笔迹 ${serial}`,
+          source: "brush",
           transformOrigin: line.transformOrigin ?? "top-left",
         };
 

@@ -9,8 +9,9 @@
 - 节点编辑：支持选择、框选、多选、拖拽、缩放、旋转和文本双击编辑。
 - 基础图形：支持矩形、圆形、椭圆、圆环、扇形、扇形圆环、圆角弧线、线条、三角形、正多边形、星形、文本和远程 URL 图片。
 - 图片节点：素材面板只写入测试图 URL；主画布和缩略图通过图片缓存线程取 Blob 再绘制。
-- 自由绘制：顶部工具栏支持选择、画笔、橡皮擦；画笔和橡皮擦都支持粗细选择。
-- 局部擦除：橡皮擦只擦 `line` 笔迹，通过 Leafer eraser 子节点记录局部擦除轨迹；矩形、椭圆、文本等图形不会被整节点删掉。
+- 自由绘制：顶部工具栏支持选择、画笔、橡皮擦；画笔和橡皮擦都支持粗细选择。能力由自研插件 `packages/leafer-x-brush-eraser` 提供。
+- 场景标识：笔迹节点在 Leafer 场景里带 `brush` 标识（内部元素是 `brush-path` / `brush-eraser`，素材线条是 `line`），便于按 className 遍历；
+- 局部擦除：橡皮擦只擦 `line` 笔迹（命中用 Leafer 选择器 + `erasable` 过滤），通过 Leafer eraser 子节点记录局部擦除轨迹；矩形、椭圆、文本等图形不会被整节点删掉。
 - 放大镜：顶部工具栏可激活放大镜，指针悬停在画布上时用镜片局部放大；镜片直径和放大倍率都可选，取样直接来自 Leafer 渲染结果，笔迹和图片一起放大。能力由自研插件 `packages/leafer-x-magnifier` 提供，插件本身不依赖任何框架。
 - 对齐参考线与吸附：`select` 模式拖动节点时显示对齐参考线和吸附点，自动吸附到同级元素的边缘 / 中心，由 `leafer-x-easy-snap` 提供。
 - 标尺：画布左上角显示 1920 x 1080 业务坐标刻度，并高亮选中元素所在区间，由 `leafer-x-ruler` 提供。
@@ -30,7 +31,7 @@
 - Vite 8
 - Ant Design 6
 - LeaferJS 2（含 `@leafer-in/editor`、`@leafer-in/text-editor`、`@leafer-in/animate`）
-- Leafer 插件：`leafer-x-ruler`（画布标尺）、`leafer-x-easy-snap`（拖拽吸附与对齐参考线）、`leafer-x-magnifier`（放大镜，本仓库 workspace 内）
+- Leafer 插件：`leafer-x-ruler`（画布标尺）、`leafer-x-easy-snap`（拖拽吸附与对齐参考线）；自研 workspace 插件：`leafer-x-magnifier`（放大镜）、`leafer-x-brush-eraser`（画笔 / 橡皮擦）
 - pnpm workspace：`packages/` 下放自研 Leafer 插件，制作页用 `workspace:*` 直接消费源码
 - Zustand 5
 - Mutative
@@ -88,13 +89,14 @@ src/
             useMagnifier.ts      leafer-x-magnifier 接线：只同步工具状态
           geometry/              纯坐标算法，不依赖 React
             boardLayout.ts       画布变换与指针共用的缩放、居中、标尺让位、client→画板换算
-            hitDetection.ts      橡皮擦命中 line
           selection/
             useEditorSelection.ts  store.selectedIds → editor.select / cancel
-          tools/                 画笔、橡皮擦等自定义工具
-            usePointerTools.ts   绑 DOM pointer；select 与 magnifier 放行
-            brush.ts             采样点归一成 LineNode
-            eraser.ts            line 局部擦除预览与提交数据
+          tools/                 画笔 / 橡皮擦插件接线（leafer-x-brush-eraser）
+            usePointerTools.ts   组合两个工具，按模式开关插件
+            useBrushTool.ts      draw 事件 -> store.addDrawLine
+            useEraserTool.ts     end 事件 -> store.applyEraserResult
+            lineNodeInput.ts     笔迹事件补成 line 节点输入
+            eraserUpdates.ts     擦除轨迹按 UI 反查成节点级 eraser 更新
             additiveSelect.ts    Ctrl / Meta / Shift 追加选择
           tree/                  节点树增量同步和工具模式切换
             useNodeTreeSync.ts   board 就绪后触发同步
@@ -198,10 +200,10 @@ flowchart LR
 
 - 新增节点类型时，同步检查 `types/elementNode`、`leaferCanvas/ui`、属性面板和 `worker/page-thumbnail`。
 - 图片 URL 只通过 `src/worker/image-cache` 加载，不要在主线程或缩略图 worker 里自行 `fetch`。
-- 新增命中规则时，优先放到 `leaferCanvas/geometry/hitDetection.ts`。
+- 橡皮擦命中用 Leafer 选择器（`leafer-x-brush-eraser` 内部），宿主只负责 `erasable` 过滤和把命中 UI 反查成业务节点。
 - 改舞台缩放或指针坐标换算时，只改 `leaferCanvas/geometry/boardLayout.ts`，不要在 `useStageBoard` 和 `usePointerTools` 里各写一套公式。
 - 等比缩放和居中留在 `app.tree`：标尺按 `app.tree.scale` 校准刻度，换位置标尺会按屏幕像素标注；白板要让出 `BOARD_INSET` 的刻度条空间。
-- 新增工具模式时，优先在 `leaferCanvas/tools/` 拆独立逻辑（如 `brush.ts` / `eraser.ts`），再由 `usePointerTools` 组合。
+- 新增工具模式时，优先做成 `packages/leafer-x-*` 插件，再由 `usePointerTools` 组合接线。
 - 通用能力（画布交互类）优先做成 `packages/leafer-x-*` 插件：插件包内不出现 React / Vue / store，只提供命令式 API 与事件；框架适配留在 `leaferCanvas/core/` 的接线 hook 里。
 - `pnpm test:run` 会先跑制作页单测，再递归跑各插件的单测；插件单独跑用 `pnpm --filter leafer-x-magnifier test:run`。
 - 共享 refs 放在 `leaferCanvas/core/useRuntime.ts`；修改 Leafer App 生命周期或原生事件时，优先改 `leaferCanvas/core/useLeaferApp.ts`。

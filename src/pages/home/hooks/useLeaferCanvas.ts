@@ -23,7 +23,7 @@ import { useToolInteractivity } from "./leaferCanvas/tree/useToolInteractivity";
  * 这个入口只负责组装各功能子模块：
  * 1. core：初始化 LeaferApp / Editor，并维护 stage 和 board。
  * 2. tree：按 nodeMap / rootIds 增量同步节点 UI。
- * 3. tools：接管 brush / eraser pointer 手势。
+ * 3. tools：把 leafer-x-brush-eraser 的画笔 / 橡皮擦事件接到 store action。
  * 4. selection：同步 store.selectedIds 到 Leafer Editor。
  * 5. core/useRuler、core/useSnap、core/useMagnifier：第三方插件接线，只做状态同步。
  */
@@ -59,19 +59,6 @@ export function useLeaferCanvas({
     onUpdateNode,
     viewRef,
   });
-  // brush / eraser 自定义 pointer 手势。
-  usePointerTools({
-    ...runtime,
-    viewRef,
-    viewSize,
-  });
-  // 放大镜：镜片由 leafer-x-magnifier 自己创建和绘制，这里只把工具状态同步过去。
-  useMagnifier({
-    appRef: runtime.appRef,
-    magnifierContainerRef,
-    tool,
-    toolRef: runtime.toolRef,
-  });
   // 等比缩放并居中的画布舞台 + 白色 board。
   useStageBoard({
     appRef: runtime.appRef,
@@ -80,6 +67,11 @@ export function useLeaferCanvas({
     viewRef,
     viewSize,
     viewport,
+  });
+  // 画笔 / 橡皮擦工具：两个插件都需要 board 当坐标空间和预览容器，所以放在 useStageBoard 之后。
+  usePointerTools({
+    ...runtime,
+    tool,
   });
   // 画布左上角的标尺；必须在 useStageBoard 之后，app.tree 的缩放要先挂上去。
   useRuler({
@@ -91,6 +83,13 @@ export function useLeaferCanvas({
     boardRef: runtime.boardRef,
     tool,
     viewSize,
+  });
+  // 放大镜：镜片由 leafer-x-magnifier 自己创建和绘制，这里只把工具状态同步过去。
+  useMagnifier({
+    appRef: runtime.appRef,
+    magnifierContainerRef,
+    tool,
+    toolRef: runtime.toolRef,
   });
   // nodeMap / rootIds -> Leafer UI 增量同步。
   useNodeTreeSync({

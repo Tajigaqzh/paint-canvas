@@ -1,12 +1,14 @@
 {
-  "name": "leafer-x-magnifier",
+  "name": "leafer-x-brush-eraser",
   "version": "0.1.0",
-  "description": "Leafer 放大镜插件：指针悬停时用镜片局部放大画布，取样直接来自 Leafer 渲染结果",
+  "description": "Leafer 自由绘制与橡皮擦插件：指针手势采集、实时预览，数据通过事件交回宿主",
   "keywords": [
+    "brush",
+    "eraser",
+    "freehand",
     "leafer",
     "leafer-ui",
-    "leafer-ui-plugins",
-    "magnifier"
+    "leafer-ui-plugins"
   ],
   "license": "MIT",
   "files": [

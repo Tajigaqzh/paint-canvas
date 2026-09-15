@@ -3,6 +3,23 @@ import type { LineGroupUI, LineNode, ManagedNodeUI, NodeUIInput } from "@/types"
 import { getNodePaintInput } from "./paint";
 
 /**
+ * 线条节点的场景标识前缀。
+ *
+ * 画笔手绘的笔迹用 brush，素材面板插入的线条用 line；老文档没有 source 字段时按 line 处理。
+ * 第三方遍历 Leafer 场景时靠它区分「笔迹节点」和内部渲染元素。
+ */
+export const getLineClassPrefix = (node: LineNode) => (node.source === "brush" ? "brush" : "line");
+
+/**
+ * 线条内部子元素的 className。
+ *
+ * 例如画笔笔迹：组是 `brush`，本体是 `brush-path`，擦除轨迹是 `brush-eraser`，
+ * eraser 占位是 `brush-eraser-primer`。
+ */
+export const getLineClass = (node: LineNode, part: "eraser" | "eraser-primer" | "path") =>
+  `${getLineClassPrefix(node)}-${part}`;
+
+/**
  * 生成原始 line 子节点的渲染输入。
  *
  * line group 自己持有 node.x / node.y 和包围盒；内部真实 Line 只表达局部路径，
@@ -10,6 +27,7 @@ import { getNodePaintInput } from "./paint";
  */
 export const getLineContentInput = (node: LineNode): NodeUIInput => ({
   ...getNodePaintInput(node),
+  className: getLineClass(node, "path"),
   cornerRadius: node.cornerRadius,
   curve: node.curve,
   draggable: false,
@@ -30,7 +48,12 @@ export const getLineContentInput = (node: LineNode): NodeUIInput => ({
  * `eraser: "pixel"` 会让这条 Line 按描边像素擦除同 group 内更底层的内容。
  * points 只有一个点时补成极短线段，避免路径不成段导致 Leafer 不渲染擦除效果。
  */
-export const getLineEraserInput = (points: number[], strokeWidth: number): NodeUIInput => ({
+export const getLineEraserInput = (
+  points: number[],
+  strokeWidth: number,
+  className?: string,
+): NodeUIInput => ({
+  className,
   draggable: false,
   editable: false,
   eraser: "pixel",
@@ -52,8 +75,8 @@ export const getLineEraserInput = (points: number[], strokeWidth: number): NodeU
  * 实时拖动预览和根据 store.eraserPaths 重建持久擦除层都走这个方法，
  * 这样主画布里“正在擦”和“已经擦过”的视觉规则保持一致。
  */
-export const createLineEraserUI = (points: number[], strokeWidth: number) =>
-  new Line(getLineEraserInput(points, strokeWidth));
+export const createLineEraserUI = (points: number[], strokeWidth: number, className?: string) =>
+  new Line(getLineEraserInput(points, strokeWidth, className));
 
 /**
  * 创建不可见 eraser 占位节点。
@@ -61,9 +84,9 @@ export const createLineEraserUI = (points: number[], strokeWidth: number) =>
  * 首次给 group 添加 eraser 子节点时，Leafer 可能需要初始化 eraser 合成流程。
  * 预先放一个不可见占位，可以避免用户第一次擦线时看到一帧灰底或普通描边。
  */
-export const createLineEraserPrimerUI = () =>
+export const createLineEraserPrimerUI = (className?: string) =>
   new Line({
-    ...getLineEraserInput([0, 0, 0.1, 0.1], 0),
+    ...getLineEraserInput([0, 0, 0.1, 0.1], 0, className),
     visible: 0,
   });
 
@@ -86,7 +109,7 @@ export const syncLineGroupContent = (ui: ManagedNodeUI, node: LineNode) => {
   }
 
   if (!group.__eraserPrimer) {
-    group.__eraserPrimer = createLineEraserPrimerUI();
+    group.__eraserPrimer = createLineEraserPrimerUI(getLineClass(node, "eraser-primer"));
     group.add?.(group.__eraserPrimer);
   }
 
@@ -95,7 +118,11 @@ export const syncLineGroupContent = (ui: ManagedNodeUI, node: LineNode) => {
     eraser.destroy();
   });
   group.__eraserContent = (node.eraserPaths ?? []).map((eraserPath) => {
-    const eraser = createLineEraserUI(eraserPath.points, eraserPath.strokeWidth);
+    const eraser = createLineEraserUI(
+      eraserPath.points,
+      eraserPath.strokeWidth,
+      getLineClass(node, "eraser"),
+    );
 
     group.add?.(eraser);
 

@@ -43,9 +43,8 @@ flowchart TD
 | 标尺 | `core/useRuler.ts`（`leafer-x-ruler`） |
 | 对齐参考线和吸附 | `core/useSnap.ts`（`leafer-x-easy-snap`） |
 | 舞台与指针共用的坐标公式 | `geometry/boardLayout.ts` |
-| 橡皮擦命中 | `geometry/hitDetection.ts` |
+| 画笔 / 橡皮擦 | 插件 `packages/leafer-x-brush-eraser`，接线在 `core/useBrushTool` / `useEraserTool` |
 | 节点增量同步 | `tree/useNodeTreeSync.ts` → `tree/syncNodeTree.ts` |
-| brush / eraser 手势 | `tools/usePointerTools.ts` + `brush.ts` / `eraser.ts` |
 | 放大镜 | 插件 `leafer-x-magnifier`，接线在 `core/useMagnifier.ts` |
 | 追加选择修饰键 | `tools/additiveSelect.ts` |
 | store.selectedIds → Editor | `selection/useEditorSelection.ts` |

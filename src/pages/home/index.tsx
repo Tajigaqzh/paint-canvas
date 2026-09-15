@@ -109,6 +109,9 @@ function Home() {
     viewSize: canvasViewSize,
   });
 
+  // 打组只在“编辑（select）”工具下可用：画笔时是连续绘制状态，选区不适合组织成组。
+  const canGroupInEditMode = canGroup && activeTool === "select";
+
   const closeContextMenu = () => {
     setContextMenu((value) => ({ ...value, open: false }));
   };
@@ -238,7 +241,7 @@ function Home() {
       </main>
 
       <CanvasContextMenu
-        canGroup={canGroup}
+        canGroup={canGroupInEditMode}
         canUngroup={canUngroup}
         open={contextMenu.open}
         selectedCount={selectedIds.length}
@@ -250,6 +253,8 @@ function Home() {
         }}
         onClose={closeContextMenu}
         onGroup={() => {
+          // 非编辑工具下不执行打组，避免绕过菜单 disabled 状态直接触发。
+          if (activeTool !== "select") return;
           groupSelected();
           closeContextMenu();
         }}

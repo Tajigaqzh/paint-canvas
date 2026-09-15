@@ -2,7 +2,7 @@ import "@leafer-in/animate";
 import { Ellipse, Group, Image, Polygon, Rect, Star, Text, type IUI } from "leafer-ui";
 import type { CanvasNode, ManagedNodeUI, NodeUIInput } from "@/types";
 import { getLeaferAnimation } from "./animation";
-import { syncLineGroupContent } from "./lineUi";
+import { getLineClassPrefix, syncLineGroupContent } from "./lineUi";
 import { getNodePaintInput } from "./paint";
 
 /**
@@ -60,6 +60,7 @@ export const getNodeUIInput = (node: CanvasNode): NodeUIInput => {
   if (node.kind === "line") {
     return {
       ...baseInput,
+      className: getLineClassPrefix(node),
       dashPattern: undefined,
       fill: "transparent",
       height: node.height,
