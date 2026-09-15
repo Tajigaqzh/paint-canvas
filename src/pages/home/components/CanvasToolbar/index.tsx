@@ -5,6 +5,7 @@ import {
   SaveOutlined,
   SelectOutlined,
   UndoOutlined,
+  ZoomInOutlined,
 } from "@ant-design/icons";
 import { Button, Select, Space, Tooltip } from "antd";
 import type { CanvasToolMode } from "@/types";
@@ -20,12 +21,20 @@ type CanvasToolbarProps = {
   canUndo: boolean;
   /** 当前橡皮擦粗细。 */
   eraserSize: number;
+  /** 当前放大镜镜片直径。 */
+  magnifierSize: number;
+  /** 当前放大镜放大倍数。 */
+  magnifierZoom: number;
   /** 切换画布交互工具。 */
   onChangeTool: (tool: CanvasToolMode) => void;
   /** 修改画笔粗细。 */
   onChangeBrushSize: (size: number) => void;
   /** 修改橡皮擦粗细。 */
   onChangeEraserSize: (size: number) => void;
+  /** 修改放大镜镜片直径。 */
+  onChangeMagnifierSize: (size: number) => void;
+  /** 修改放大镜放大倍数。 */
+  onChangeMagnifierZoom: (zoom: number) => void;
   /** 保存当前画布文档。 */
   onSave: () => void;
   /** 点击重做按钮时触发。 */
@@ -44,14 +53,28 @@ const eraserSizeOptions = [12, 20, 32, 48, 64].map((value) => ({
   value,
 }));
 
+const magnifierSizeOptions = [120, 160, 200, 260, 320].map((value) => ({
+  label: `${value}px`,
+  value,
+}));
+
+const magnifierZoomOptions = [2, 3, 4, 6, 8].map((value) => ({
+  label: `${value}x`,
+  value,
+}));
+
 function CanvasToolbar({
   activeTool,
   brushSize,
   canRedo,
   canUndo,
   eraserSize,
+  magnifierSize,
+  magnifierZoom,
   onChangeBrushSize,
   onChangeEraserSize,
+  onChangeMagnifierSize,
+  onChangeMagnifierZoom,
   onChangeTool,
   onRedo,
   onSave,
@@ -96,6 +119,29 @@ function CanvasToolbar({
           options={eraserSizeOptions}
           value={eraserSize}
           onChange={onChangeEraserSize}
+        />
+        <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title="放大镜">
+          <Button
+            icon={<ZoomInOutlined />}
+            type={activeTool === "magnifier" ? "primary" : "default"}
+            onClick={() => onChangeTool("magnifier")}
+          />
+        </Tooltip>
+        <Select
+          classNames={{ popup: { root: "canvas-maker__toolbar-size-dropdown" } }}
+          className="canvas-maker__toolbar-size canvas-maker__toolbar-size--wide"
+          disabled={activeTool !== "magnifier"}
+          options={magnifierSizeOptions}
+          value={magnifierSize}
+          onChange={onChangeMagnifierSize}
+        />
+        <Select
+          classNames={{ popup: { root: "canvas-maker__toolbar-size-dropdown" } }}
+          className="canvas-maker__toolbar-size"
+          disabled={activeTool !== "magnifier"}
+          options={magnifierZoomOptions}
+          value={magnifierZoom}
+          onChange={onChangeMagnifierZoom}
         />
       </Space.Compact>
 

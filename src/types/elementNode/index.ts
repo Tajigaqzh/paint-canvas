@@ -192,6 +192,14 @@ export interface LineEraserPath {
   strokeWidth: number;
 }
 
+/**
+ * 线条来源。
+ *
+ * 画笔手绘的笔迹是 brush，素材面板插入的线条是 material；
+ * 渲染时用它给 Leafer 元素打 Scene 标识，第三方遍历场景时能直接区分。
+ */
+export type LineSource = "brush" | "material";
+
 /** 线条节点。 */
 export interface LineNode extends CanvasNodeBase {
   /** 节点类型固定为线条。 */
@@ -208,6 +216,8 @@ export interface LineNode extends CanvasNodeBase {
   curve?: boolean | number;
   /** 该线条内部的橡皮擦轨迹；渲染时作为 eraser Line 放在线条自己的 Group 内。 */
   eraserPaths?: LineEraserPath[];
+  /** 线条来源；老文档没有这个字段时按 material 处理。 */
+  source?: LineSource;
 }
 
 /** 多边形节点。 */

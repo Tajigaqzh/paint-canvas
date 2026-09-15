@@ -2,7 +2,7 @@ import type { Patch } from "mutative";
 import type { CanvasMaterialKind, CanvasNode, LineNode } from "@/types/elementNode";
 
 /** 当前画布交互工具。 */
-export type CanvasToolMode = "select" | "brush" | "eraser";
+export type CanvasToolMode = "select" | "brush" | "eraser" | "magnifier";
 
 /** 画布固定设计尺寸。DOM 会等比缩放，数据始终按这个坐标系存储。 */
 export interface CanvasViewport {

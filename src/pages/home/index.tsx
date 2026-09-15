@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import { useAppMessage } from "@/hooks/useAppMessage";
 import { useCanvasStore } from "@/stores/canvasStore";
 import type { CanvasDocument, CanvasToolMode } from "@/types";
+import { getCanvasViewSize } from "./canvasFit";
 import CanvasContextMenu from "./components/CanvasContextMenu";
 import CanvasToolbar from "./components/CanvasToolbar";
 import MaterialPanel from "./components/MaterialPanel";
@@ -31,12 +32,14 @@ function Home() {
   const message = useAppMessage(); // 消息提示
   const canvasViewRef = useRef<HTMLDivElement>(null);
   const canvasShellRef = useRef<HTMLDivElement>(null);
-  const canvasSize = useSize(canvasShellRef); // 画布大小
+  const canvasShellSize = useSize(canvasShellRef); // 画布 shell 的 padding box 尺寸
   const [leftCollapsed, setLeftCollapsed] = useState(false); // 左侧是否折叠
   const [rightCollapsed, setRightCollapsed] = useState(false); // 右侧是否折叠
   const [activeTool, setActiveTool] = useState<CanvasToolMode>("select"); // 激活的工具
   const [brushSize, setBrushSize] = useState(8); // 笔刷粗细
   const [eraserSize, setEraserSize] = useState(24); // 橡皮擦粗细
+  const [magnifierSize, setMagnifierSize] = useState(200); // 放大镜镜片直径
+  const [magnifierZoom, setMagnifierZoom] = useState(3); // 放大镜放大倍数
   const [contextMenu, setContextMenu] = useState({
     open: false,
     x: 0,
@@ -79,27 +82,15 @@ function Home() {
     [activePageId, pageIds, pages],
   );
   const activeNode = activeId ? nodeMap[activeId] : undefined;
-  const fittedCanvasSize = useMemo(() => {
-    const shellWidth = canvasSize?.width ?? 0;
-    const shellHeight = canvasSize?.height ?? 0;
-
-    if (shellWidth <= 0 || shellHeight <= 0) {
-      return {
-        height: 540,
-        width: 960,
-      };
-    }
-
-    const width = Math.min(shellWidth, shellHeight * (viewport.width / viewport.height));
-
-    return {
-      height: width * (viewport.height / viewport.width),
-      width,
-    };
-  }, [canvasSize?.height, canvasSize?.width, viewport.height, viewport.width]);
+  // shell 带内边距，Leafer 只挂在内容区，视图尺寸必须扣掉 padding，见 canvasFit.ts。
+  const canvasViewSize = useMemo(
+    () => getCanvasViewSize(canvasShellSize, canvasShellRef.current),
+    [canvasShellSize],
+  );
   const eraserCursor = useMemo(() => createEraserCursor(eraserSize), [eraserSize]);
 
   useLeaferCanvas({
+    magnifierContainerRef: canvasShellRef,
     onSelectNode: selectNode,
     onSelectNodes: selectNodes,
     onAddDrawLine: addDrawLine,
@@ -110,11 +101,16 @@ function Home() {
     tool: {
       brushSize,
       eraserSize,
+      magnifierSize,
+      magnifierZoom,
       mode: activeTool,
     },
     viewRef: canvasViewRef,
-    viewSize: fittedCanvasSize,
+    viewSize: canvasViewSize,
   });
+
+  // 打组只在“编辑（select）”工具下可用：画笔时是连续绘制状态，选区不适合组织成组。
+  const canGroupInEditMode = canGroup && activeTool === "select";
 
   const closeContextMenu = () => {
     setContextMenu((value) => ({ ...value, open: false }));
@@ -161,7 +157,7 @@ function Home() {
       event.clientX,
       event.clientY,
       view,
-      fittedCanvasSize,
+      canvasViewSize,
       viewport,
     );
 
@@ -184,8 +180,12 @@ function Home() {
           canRedo={canRedo}
           canUndo={canUndo}
           eraserSize={eraserSize}
+          magnifierSize={magnifierSize}
+          magnifierZoom={magnifierZoom}
           onChangeBrushSize={setBrushSize}
           onChangeEraserSize={setEraserSize}
+          onChangeMagnifierSize={setMagnifierSize}
+          onChangeMagnifierZoom={setMagnifierZoom}
           onChangeTool={setActiveTool}
           onRedo={redo}
           onSave={saveDocument}
@@ -218,11 +218,7 @@ function Home() {
               ref={canvasViewRef}
               onDragOver={handleCanvasDragOver}
               onDrop={handleCanvasDrop}
-              style={{
-                cursor: activeTool === "eraser" ? eraserCursor : undefined,
-                height: fittedCanvasSize.height,
-                width: fittedCanvasSize.width,
-              }}
+              style={{ cursor: activeTool === "eraser" ? eraserCursor : undefined }}
             />
           </div>
           <PageThumbnailStrip
@@ -245,7 +241,7 @@ function Home() {
       </main>
 
       <CanvasContextMenu
-        canGroup={canGroup}
+        canGroup={canGroupInEditMode}
         canUngroup={canUngroup}
         open={contextMenu.open}
         selectedCount={selectedIds.length}
@@ -257,6 +253,8 @@ function Home() {
         }}
         onClose={closeContextMenu}
         onGroup={() => {
+          // 非编辑工具下不执行打组，避免绕过菜单 disabled 状态直接触发。
+          if (activeTool !== "select") return;
           groupSelected();
           closeContextMenu();
         }}

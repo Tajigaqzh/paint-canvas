@@ -6,7 +6,7 @@
 
 `paint-canvas` 是画布制作工具：React 19 + TypeScript + Vite 8 + Ant Design 6 + LeaferJS 2 + Zustand。制作页用固定 **1920×1080** 业务坐标管理多页面文档，Leafer 只负责渲染和交互，`canvasStore` 才是唯一数据源。
 
-包管理用 **pnpm**。Leafer 相关包钉在 **2.2.3**（`pnpm.overrides` 里的 `@leafer-ui/interface`、`@leafer/interface`），不要随便升版本。
+包管理用 **pnpm**。Leafer 相关包钉在 **2.2.3**（`pnpm.overrides` 里的 `@leafer-ui/interface`、`@leafer/interface`），不要随便升版本；`leafer-x-*` 插件也靠这两个 override 复用同一份 core，新增插件前先确认没有装出第二份 Leafer 实例。
 
 ## 常用命令
 
@@ -16,7 +16,8 @@ pnpm dev          # 开发，默认端口 5174
 pnpm build        # tsc -b && vite build
 pnpm lint         # oxlint
 pnpm format       # oxfmt 格式化 src
-pnpm test:run     # Vitest 单次
+pnpm test:run     # Vitest 单次（先跑制作页，再递归跑 packages/ 下的插件）
+pnpm build:plugins # 构建 packages/ 下的插件（dist + types）
 pnpm e2e          # Playwright
 ```
 
@@ -32,7 +33,7 @@ pnpm e2e          # Playwright
 
 1. **Store 是真源，Leafer 是渲染缓存。** 节点增删改、选区、历史都走 `src/stores/canvasStore.ts`。不要把业务状态只写在 Leafer UI 上。
 2. **增量同步，禁止 `app.tree.clear()`。** 会打掉 Editor 内部选择层。按 `nodeId` 增删改 UI。
-3. **坐标系。** `board` 固定 1920×1080；`stage` 只做缩放和居中。业务数据不要改成跟 DOM 像素绑定。
+3. **坐标系。** `board` 固定 1920×1080 且自身不缩放；等比缩放和居中挂在 **`app.tree`** 上（标尺插件硬编码读 `app.tree.scale` / `app.tree.worldTransform`）。`getBoardLayout` 会先扣掉 `BOARD_INSET` 的标尺刻度条空间，指针反算、舞台变换、标尺 `ruleSize` 共用这套公式。业务数据不要改成跟 DOM 像素绑定。
 4. **选区。** 用户操作由 Leafer Editor 写回 `selectedIds`；程序化 `editor.select()` 必须带同步标记，避免回写死循环。窗口尺寸变化后要刷新 Editor 选区。
 5. **历史。** 用 `mutative` patches，不要整页快照。拖拽类高频操作注意历史条数上限。
 6. **动画。** 用 `@leafer-in/animate` 写到 Leafer `animation`。创建节点时带上；之后增量 `set` 不要每次重写 `animation`，否则拖拽会打断播放。多条动画顺序见 `PropertyPanel/animationOrder.ts`。
@@ -43,9 +44,11 @@ pnpm e2e          # Playwright
 | ---------------------- | ----------------------------------------------------------------------------------------- |
 | 节点类型 / 字段        | `src/types/elementNode`，然后 `leaferCanvas/ui`、属性面板、`worker/page-thumbnail/render` |
 | 图片加载               | 只走 `src/worker/image-cache`；Leafer 侧 `ui/imageUi.ts`                                  |
-| 命中检测               | `leaferCanvas/geometry/hitDetection.ts`                                                   |
 | 舞台缩放 / 指针坐标    | `leaferCanvas/geometry/boardLayout.ts`（`useStageBoard` 与 `usePointerTools` 共用）       |
-| 画笔 / 橡皮            | `leaferCanvas/tools/`（`brush.ts` / `eraser.ts`），由 `usePointerTools` 组合              |
+| 画笔 / 橡皮擦          | 插件 `packages/leafer-x-brush-eraser`；接线在 `leaferCanvas/tools/`（`useBrushTool` / `useEraserTool`） |
+| 放大镜                 | `leaferCanvas/tools/`（`magnifier.ts` / `useMagnifier.ts`），取样自 `app.tree` 画布       |
+| 标尺                   | `leaferCanvas/core/useRuler.ts`（`leafer-x-ruler` 接线；刻度条宽度 = `boardLayout.BOARD_INSET`） |
+| 对齐参考线 / 吸附      | `leaferCanvas/core/useSnap.ts`（`leafer-x-easy-snap` 接线；`parentContainer` 必须是 board，`snapSize` 要按 tree 缩放换算） |
 | 共享 refs              | `leaferCanvas/core/useRuntime.ts`                                                         |
 | App 生命周期、原生事件 | `leaferCanvas/core/useLeaferApp.ts`                                                       |
 | Leafer 运行时类型      | `src/types/leafer`，不要在 hook 下再建 `shared`                                           |
@@ -83,7 +86,7 @@ pnpm e2e          # Playwright
 ### 范围与文件
 
 - 单测框架：Vitest。`.test.ts` 默认 Node（`src/test/setup-node.ts`）；`.test.tsx` 以及需要 `window` / `document` 的 `.ts`（路由、Service Worker 注册）用 jsdom（`src/test/setup.ts`：jest-dom、`matchMedia`、`ResizeObserver`、`Worker` mock）。
-- 单测放在**源码所在目录的 `__test__/`** 下，文件名与实现文件同名，后缀用 `.test` 或 `.spec`（二选一即可）：`hitDetection.ts` → `__test__/hitDetection.test.ts` 或 `__test__/hitDetection.spec.ts`，页面 `index.tsx` → `__test__/index.test.tsx`。不要把测试文件和实现文件平铺在同一层。
+- 单测放在**源码所在目录的 `__test__/`** 下，文件名与实现文件同名，后缀用 `.test` 或 `.spec`（二选一即可）：`boardLayout.ts` → `__test__/boardLayout.test.ts` 或 `__test__/boardLayout.spec.ts`，页面 `index.tsx` → `__test__/index.test.tsx`。不要把测试文件和实现文件平铺在同一层。
 - **每个页面文件、每个 `.ts` / `.tsx` 实现文件都必须有对应单测。** 纯类型文件（只 `export type` / `interface`、无运行时代码）除外。
 - 改已有函数时同步补用例；新增文件时测试和实现一起交。相关改动完成后跑 `pnpm test:run`。
 - e2e（`tests/e2e`）只覆盖跨面板的整页流程，**不能代替** 方法级单测。
@@ -116,6 +119,14 @@ pnpm e2e          # Playwright
 - **page-thumbnail/render**：把纯函数（圆角、折线、bounds）抽测；OffscreenCanvas 在 jsdom 里 mock。
 - **imageUi**：测「换 src 会 revoke 旧 object URL」「destroy 前先清空 url」；`createObjectURL` 要 mock。
 
+## 插件包（`packages/`）
+
+- 自研 Leafer 插件放 `packages/leafer-x-*`，命名跟官方社区插件规范（包名 `leafer-x-*`，全局变量 `LeaferX.*`）。
+- **插件包内不出现 React / Vue / store**：只 import `@leafer-ui/core`、`@leafer-ui/interface`，对外只给命令式 API（`enabled` / `size` / 设置项）和事件，状态由宿主自己管。框架适配写在 `src/pages/home/hooks/leaferCanvas/core/` 的接线 hook 里。
+- 每个插件自带 `__tests__`（Vitest + jsdom）、`main.ts` 纯 HTML Demo、README（配置项 + 内置属性/方法）。
+- 工作区里宿主直接消费插件源码（`exports` 指向 `src`），`publishConfig` 在发布时切到 `dist`（js 与 d.ts 同目录）。
+- 现有插件：`leafer-x-magnifier`（放大镜）、`leafer-x-brush-eraser`（画笔 / 橡皮擦）。
+
 ## 不要做的事
 
 - 不要引入第二套画布引擎或再拉一套状态库。
@@ -123,3 +134,4 @@ pnpm e2e          # Playwright
 - 不要在缩略图里 `fetch` 或 `new Worker` 图片缓存线程。
 - 不要把 Service Worker 重新接到制作页默认启动路径。
 - 不要提交 `.env`、密钥、无请求的空 commit。
+- 不要把框架（React / Vue）或状态库引进 `packages/leafer-x-*`。

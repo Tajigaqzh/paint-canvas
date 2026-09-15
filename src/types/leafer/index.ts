@@ -33,15 +33,21 @@ export type PointerLikeEvent = {
 
 /** Home 组件传入 hook 的全部依赖；hook 本身不直接读 zustand，便于保持边界清晰。 */
 export type UseLeaferCanvasOptions = {
-  /** 当前工具配置；select 走 Leafer 编辑器，brush / eraser 走自定义指针事件。 */
+  /** 当前工具配置；select 走 Leafer 编辑器，brush / eraser / magnifier 走自定义指针事件。 */
   tool: {
     /** 画笔真实落到 line 节点上的描边宽度，单位是业务画板坐标 px。 */
     brushSize: number;
     /** 橡皮擦真实写入 eraserPaths 的擦除宽度；cursor 视觉大小不在 hook 内生成。 */
     eraserSize: number;
+    /** 放大镜镜片直径，单位是 DOM CSS 像素；镜片本身不是 Leafer 节点。 */
+    magnifierSize: number;
+    /** 放大镜相对当前画布显示的放大倍数，1 表示和屏幕上看到的一样大。 */
+    magnifierZoom: number;
     /** 当前工具模式：select 使用 Leafer Editor，其它模式会拦截 pointer 事件。 */
     mode: CanvasToolMode;
   };
+  /** 放大镜镜片的定位容器；镜片元素由 leafer-x-magnifier 自己创建，React 侧只提供容器。 */
+  magnifierContainerRef: RefObject<HTMLElement | null>;
   /** 当前页面，是渲染 Leafer 的唯一数据源。 */
   page: CanvasPage;
   /** 画笔松手后提交一条完整笔迹。 */
@@ -58,7 +64,7 @@ export type UseLeaferCanvasOptions = {
   onUpdateNodes: (updates: CanvasNodeUpdate[]) => void;
   /** Leafer 挂载的 DOM 容器。 */
   viewRef: RefObject<HTMLDivElement | null>;
-  /** 当前白色画板在页面里的实际像素尺寸，用于重新计算 1920 x 1080 的缩放比例。 */
+  /** Leafer 挂载容器的实际像素尺寸（画布 shell 的内容区，不含内边距），用于重算画板缩放、居中和标尺让位。 */
   viewSize?: {
     height: number;
     width: number;
@@ -89,20 +95,6 @@ export type LeaferEventTarget = {
 export type CanvasPoint = {
   x: number;
   y: number;
-};
-
-/** brush / eraser 一次按下到松手之间的临时状态；这部分不进 store，松手时一次性提交历史。 */
-export type ToolDrawingState = {
-  /** 橡皮擦当前手势已经命中的节点，避免一次拖动重复删除同一节点。 */
-  erasedIds: Set<string>;
-  /** line 节点的实时 eraser 预览；key 是 line id，value 是挂在 line group 内的临时 eraser Line。 */
-  lineErasers: Map<string, LineEraserPreview>;
-  /** 画笔采样点，按 x/y 成对保存，最终归一化为 LineNode.points。 */
-  points: number[];
-  /** 当前 pointerId，用来忽略其它手指或鼠标事件。 */
-  pointerId: number;
-  /** brush 拖动时画在 Leafer 上的临时线，松手后销毁并写入 store。 */
-  tempLine?: Line;
 };
 
 /** EditorHandle 的运行时对象还有 list，可用来判断当前 Editor 选择是否已经一致。 */
@@ -154,25 +146,3 @@ export type LineGroupUI = ManagedNodeUI & {
 
 /** Leafer set / 构造函数可以接收多种属性；这里统一为宽松对象，避免每类 UI 拆类型。 */
 export type NodeUIInput = Record<string, unknown>;
-
-/** findHitNode 返回的命中信息；offset 是命中节点所在父级到画板根的累计偏移。 */
-export type HitNodeResult = {
-  /** 命中的业务节点 ID。 */
-  id: string;
-  /** 节点父级在画板坐标中的偏移，根层级为 0,0，组内节点会累加 group.x/y。 */
-  offset: CanvasPoint;
-};
-
-/** 一条 line 在 eraser 拖动过程中的实时预览状态；松手后会转换为 CanvasLineEraserUpdate。 */
-export type LineEraserPreview = {
-  /** line 节点自身相对父级的 x，用于把后续全局鼠标点转换为 line 内部点。 */
-  nodeX: number;
-  /** line 节点自身相对父级的 y，用于把后续全局鼠标点转换为 line 内部点。 */
-  nodeY: number;
-  /** 原 line 父级相对画板根的偏移，用于全局点和 store 局部坐标互转。 */
-  parentOffset: CanvasPoint;
-  /** 当前手势追加到该 line 上的局部 eraser 路径，松手时写入 store。 */
-  path: number[];
-  /** 运行时挂在 line group 内部的 eraser Line，用 Leafer 原生擦除能力实时预览。 */
-  tempLine: Line;
-};

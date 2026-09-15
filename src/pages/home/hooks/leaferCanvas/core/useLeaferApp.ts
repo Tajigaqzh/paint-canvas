@@ -34,7 +34,6 @@ type SetupLeaferAppParams = Pick<
   | "onUpdateNode"
   | "onUpdateNodesRef"
   | "pageRef"
-  | "stageRef"
   | "viewRef"
 > & {
   uiKindMap: Runtime["uiKindMapRef"]["current"];
@@ -56,7 +55,6 @@ const setupLeaferApp = ({
   onUpdateNode,
   onUpdateNodesRef,
   pageRef,
-  stageRef,
   uiKindMap,
   uiMap,
   uiParentMap,
@@ -150,7 +148,6 @@ const setupLeaferApp = ({
     app.destroy();
     appRef.current = null;
     boardRef.current = null;
-    stageRef.current = null;
     uiKindMap.clear();
     uiMap.clear();
     uiParentMap.clear();
@@ -171,7 +168,6 @@ export const useLeaferApp = ({
   onUpdateNode,
   onUpdateNodesRef,
   pageRef,
-  stageRef,
   uiKindMapRef,
   uiMapRef,
   uiParentMapRef,
@@ -190,7 +186,6 @@ export const useLeaferApp = ({
       onUpdateNode,
       onUpdateNodesRef,
       pageRef,
-      stageRef,
       uiKindMap,
       uiMap,
       uiParentMap,
@@ -204,7 +199,6 @@ export const useLeaferApp = ({
     onUpdateNode,
     onUpdateNodesRef,
     pageRef,
-    stageRef,
     uiKindMap,
     uiKindMapRef,
     uiMap,

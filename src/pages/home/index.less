@@ -80,6 +80,11 @@
   width: 76px;
   height: 38px;
 
+  // 放大镜直径是三位数，76px 会把 "200px" 截断成 "20..."。
+  &--wide {
+    width: 96px;
+  }
+
   &.ant-select-disabled {
     opacity: 0.52;
   }
@@ -335,6 +340,7 @@
 }
 
 .canvas-maker__canvas-shell {
+  position: relative;
   min-height: 0;
   padding: 18px;
   background:
@@ -342,22 +348,22 @@
     linear-gradient(rgba(31, 41, 55, 0.06) 1px, transparent 1px), #eef1f6;
   background-size: 24px 24px;
   display: flex;
-  align-items: center;
-  justify-content: center;
   flex: 1 1 auto;
 }
 
+// Leafer 挂载区：铺满 shell 内容区，白板由 Leafer 的 board 层绘制（含描边、圆角和投影）。
 .canvas-maker__canvas {
-  border: 1px solid #cfd6e4;
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow:
-    0 18px 42px rgba(15, 23, 42, 0.14),
-    0 4px 12px rgba(15, 23, 42, 0.1);
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
+  flex: 1 1 auto;
 
   &[data-tool="brush"] {
     cursor: crosshair;
+  }
+
+  &[data-tool="magnifier"] {
+    cursor: zoom-in;
   }
 }
 
