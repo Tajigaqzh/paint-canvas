@@ -9,7 +9,7 @@ import type { useRuntime } from "../core/useRuntime";
 
 type Runtime = ReturnType<typeof useRuntime>;
 
-type UseEditorSelectionParams = Pick<UseLeaferCanvasOptions, "tool"> &
+type UseEditorSelectionParams = Pick<UseLeaferCanvasOptions, "tool" | "readOnly"> &
   Pick<CanvasPage, "nodeMap" | "rootIds" | "selectedIds"> &
   Pick<Runtime, "appRef" | "isSyncingEditorSelectionRef" | "uiMapRef">;
 
@@ -18,11 +18,13 @@ type UseEditorSelectionParams = Pick<UseLeaferCanvasOptions, "tool"> &
  *
  * 用户操作到 store 的方向由 useLeaferApp 监听 EditorEvent.SELECT 处理；
  * 这里只处理 React 状态变化后如何调用 editor.select / editor.cancel。
+ * 预览只读模式（readOnly）下不做任何选区同步。
  */
 export const useEditorSelection = ({
   appRef,
   isSyncingEditorSelectionRef,
   nodeMap,
+  readOnly,
   rootIds,
   selectedIds,
   tool,
@@ -32,6 +34,8 @@ export const useEditorSelection = ({
 
   /** 将 store.selectedIds 同步到 Leafer Editor 选择框。 */
   useEffect(() => {
+    if (readOnly) return;
+
     const app = appRef.current;
 
     // App 未初始化时不做选择同步。
@@ -91,5 +95,14 @@ export const useEditorSelection = ({
         editor?.cancel();
       });
     }
-  }, [appRef, isSyncingEditorSelectionRef, nodeMap, rootIds, selectedIds, tool.mode, uiMap]);
+  }, [
+    appRef,
+    isSyncingEditorSelectionRef,
+    nodeMap,
+    rootIds,
+    selectedIds,
+    tool.mode,
+    readOnly,
+    uiMap,
+  ]);
 };

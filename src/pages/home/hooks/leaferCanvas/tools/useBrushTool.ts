@@ -19,6 +19,7 @@ export const useBrushTool = ({ boardRef, onAddDrawLineRef, tool }: UseBrushToolP
   const brushRef = useRef<Brush | null>(null);
   const mode = tool.mode;
   const strokeWidth = tool.brushSize;
+  const stroke = tool.brushColor;
 
   useEffect(() => {
     const board = boardRef.current;
@@ -26,7 +27,7 @@ export const useBrushTool = ({ boardRef, onAddDrawLineRef, tool }: UseBrushToolP
     // board 还没建出来时，等 useStageBoard 的 effect 跑完再说。
     if (!board) return undefined;
 
-    // 初始粗细先用插件默认值，紧跟的同步 effect 会立刻用宿主的值覆盖，不会有一帧偏差。
+    // 初始粗细/颜色先用插件默认值，紧跟的同步 effect 会立刻用宿主的值覆盖，不会有一帧偏差。
     const brush = new Brush({ container: board });
 
     brush.on("draw", (event) => {
@@ -41,13 +42,14 @@ export const useBrushTool = ({ boardRef, onAddDrawLineRef, tool }: UseBrushToolP
     };
   }, [boardRef, onAddDrawLineRef]);
 
-  // 只有画笔模式接管手势；粗细变化同步给插件。
+  // 只有画笔模式接管手势；粗细与颜色变化同步给插件。
   useEffect(() => {
     const brush = brushRef.current;
 
     if (!brush) return;
 
     brush.set({ strokeWidth });
+    if (stroke) brush.set({ stroke });
     brush.enabled = mode === "brush";
-  }, [mode, strokeWidth]);
+  }, [mode, strokeWidth, stroke]);
 };

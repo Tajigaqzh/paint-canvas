@@ -28,6 +28,7 @@ import { useToolInteractivity } from "./leaferCanvas/tree/useToolInteractivity";
  * 5. core/useRuler、core/useSnap、core/useMagnifier：第三方插件接线，只做状态同步。
  */
 export function useLeaferCanvas({
+  erasableFilter,
   magnifierContainerRef,
   onAddDrawLine,
   onApplyEraserResult,
@@ -36,6 +37,9 @@ export function useLeaferCanvas({
   onUpdateNode,
   onUpdateNodes,
   page,
+  readOnly,
+  replayToken,
+  showRuler = true,
   tool,
   viewRef,
   viewSize,
@@ -71,11 +75,14 @@ export function useLeaferCanvas({
   // 画笔 / 橡皮擦工具：两个插件都需要 board 当坐标空间和预览容器，所以放在 useStageBoard 之后。
   usePointerTools({
     ...runtime,
+    erasableFilter,
     tool,
   });
   // 画布左上角的标尺；必须在 useStageBoard 之后，app.tree 的缩放要先挂上去。
+  // 预览页传 showRuler=false 关闭标尺。
   useRuler({
     appRef: runtime.appRef,
+    enabled: showRuler,
   });
   // 节点拖拽时的对齐参考线和吸附；必须放在 useStageBoard 之后，board 要先建出来。
   useSnap({
@@ -100,23 +107,26 @@ export function useLeaferCanvas({
     onSelectNodeRef: runtime.onSelectNodeRef,
     onUpdateNodeRef: runtime.onUpdateNodeRef,
     pageRef: runtime.pageRef,
+    replayToken,
     rootIds,
     uiKindMapRef: runtime.uiKindMapRef,
     uiMapRef: runtime.uiMapRef,
     uiParentMapRef: runtime.uiParentMapRef,
   });
-  // select 可编辑；brush / eraser / magnifier 关闭 Editor 拖拽。
+  // select 可编辑；brush / eraser / magnifier 关闭 Editor 拖拽；readOnly 强制全部不可编辑。
   useToolInteractivity({
     nodeMap,
+    readOnly,
     rootIds,
     tool,
     uiMapRef: runtime.uiMapRef,
   });
-  // store.selectedIds -> editor.select / cancel。
+  // store.selectedIds -> editor.select / cancel；readOnly 下不执行选区同步。
   useEditorSelection({
     appRef: runtime.appRef,
     isSyncingEditorSelectionRef: runtime.isSyncingEditorSelectionRef,
     nodeMap,
+    readOnly,
     rootIds,
     selectedIds,
     tool,

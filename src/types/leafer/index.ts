@@ -45,11 +45,21 @@ export type UseLeaferCanvasOptions = {
     magnifierZoom: number;
     /** 当前工具模式：select 使用 Leafer Editor，其它模式会拦截 pointer 事件。 */
     mode: CanvasToolMode;
+    /** 画笔描边颜色，预览页可配置；制作页不传则沿用插件默认色。 */
+    brushColor?: string;
   };
   /** 放大镜镜片的定位容器；镜片元素由 leafer-x-magnifier 自己创建，React 侧只提供容器。 */
   magnifierContainerRef: RefObject<HTMLElement | null>;
   /** 当前页面，是渲染 Leafer 的唯一数据源。 */
   page: CanvasPage;
+  /** 预览只读模式：禁用节点编辑/拖拽，并跳过选区与拖拽结束的写回。 */
+  readOnly?: boolean;
+  /** 是否创建画布标尺，默认 true；预览页不展示标尺。 */
+  showRuler?: boolean;
+  /** 橡皮擦可擦范围过滤，入参是命中线节点的业务 id；不传则沿用默认（只擦 line 节点）。预览页用它限定只擦批注。 */
+  erasableFilter?: (id: string) => boolean;
+  /** 动画重播令牌；值变化时会让所有节点重新应用 animation，从而从头播放一次。 */
+  replayToken?: number;
   /** 画笔松手后提交一条完整笔迹。 */
   onAddDrawLine: (line: Omit<LineNode, "id" | "name">) => void;
   /** 橡皮擦松手后提交最终结果：普通节点删除，笔迹追加 eraser 轨迹。 */

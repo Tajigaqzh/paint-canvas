@@ -14,6 +14,7 @@ import type {
   CanvasViewport,
   GroupNode,
   LineNode,
+  LineSource,
 } from "@/types";
 
 /**
@@ -520,7 +521,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         draft.activePageId = newPage.id;
       });
     },
-    addDrawLine(line) {
+    addDrawLine(line, source: LineSource = "brush") {
       commit((draft) => {
         const page = getActivePage(draft);
 
@@ -532,7 +533,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
           id: createId(),
           kind: "line",
           name: `笔迹 ${serial}`,
-          source: "brush",
+          source,
           transformOrigin: line.transformOrigin ?? "top-left",
         };
 
@@ -703,6 +704,27 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
 
         ids.forEach((id) => {
           removeNodeFromPage(page, id);
+        });
+      });
+    },
+    /** 跨页删除所有预览批注（source === "preview"），离开预览页时调用，避免污染制作文档。 */
+    clearPreviewNotes() {
+      const { pages, pageIds } = get();
+      const hasPreviewNotes = pageIds.some((id) =>
+        Object.values(pages[id].nodeMap).some((node) => node.kind === "line" && node.source === "preview"),
+      );
+
+      if (!hasPreviewNotes) return;
+
+      commit((draft) => {
+        pageIds.forEach((id) => {
+          const page = draft.pages[id];
+
+          Object.values(page.nodeMap).forEach((node) => {
+            if (node.kind === "line" && node.source === "preview") {
+              removeNodeFromPage(page, node.id);
+            }
+          });
         });
       });
     },

@@ -23,7 +23,8 @@ const getEditorSelectList = (event: EditorSelectEvent): IUI[] =>
 
 type Runtime = ReturnType<typeof useRuntime>;
 
-type UseLeaferAppParams = Pick<UseLeaferCanvasOptions, "onUpdateNode" | "viewRef"> & Runtime;
+type UseLeaferAppParams = Pick<UseLeaferCanvasOptions, "onUpdateNode" | "readOnly" | "viewRef"> &
+  Runtime;
 
 type SetupLeaferAppParams = Pick<
   UseLeaferAppParams,
@@ -34,6 +35,7 @@ type SetupLeaferAppParams = Pick<
   | "onUpdateNode"
   | "onUpdateNodesRef"
   | "pageRef"
+  | "readOnly"
   | "viewRef"
 > & {
   uiKindMap: Runtime["uiKindMapRef"]["current"];
@@ -55,6 +57,7 @@ const setupLeaferApp = ({
   onUpdateNode,
   onUpdateNodesRef,
   pageRef,
+  readOnly,
   uiKindMap,
   uiMap,
   uiParentMap,
@@ -128,19 +131,22 @@ const setupLeaferApp = ({
     onSelectNodesRef.current(ids);
   };
 
-  // 框选、单选和取消选择都会通过这个事件同步回 store。
-  app.editor?.on(EditorEvent.SELECT, syncEditorSelection);
-  // 拖动结束统一检查选中节点位置，capture=true 让它能覆盖多选拖拽场景。
-  (app as LeaferEventTarget).on?.(DragEvent.END, syncSelectedNodeTransforms, undefined, true);
-  // 文本编辑完成后，把 Leafer 内部编辑器里的最终文本写回业务节点。
-  app.editor?.on(InnerEditorEvent.CLOSE, (event: InnerEditorCloseEvent) => {
-    const editTarget = event.editTarget;
-    const id = editTarget ? findNodeIdByUI(uiMap, editTarget) : undefined;
+  // 预览只读模式下不把 Leafer 的原生交互写回业务状态：不回写选区、不回写拖拽位置、不回写文本。
+  if (!readOnly) {
+    // 框选、单选和取消选择都会通过这个事件同步回 store。
+    app.editor?.on(EditorEvent.SELECT, syncEditorSelection);
+    // 拖动结束统一检查选中节点位置，capture=true 让它能覆盖多选拖拽场景。
+    (app as LeaferEventTarget).on?.(DragEvent.END, syncSelectedNodeTransforms, undefined, true);
+    // 文本编辑完成后，把 Leafer 内部编辑器里的最终文本写回业务节点。
+    app.editor?.on(InnerEditorEvent.CLOSE, (event: InnerEditorCloseEvent) => {
+      const editTarget = event.editTarget;
+      const id = editTarget ? findNodeIdByUI(uiMap, editTarget) : undefined;
 
-    if (!id || editTarget?.text === undefined) return;
+      if (!id || editTarget?.text === undefined) return;
 
-    onUpdateNode(id, { text: String(editTarget.text) });
-  });
+      onUpdateNode(id, { text: String(editTarget.text) });
+    });
+  }
 
   // 组件卸载或 viewRef 变化时销毁整个 LeaferApp 和所有托管索引。
   return () => {
@@ -168,6 +174,7 @@ export const useLeaferApp = ({
   onUpdateNode,
   onUpdateNodesRef,
   pageRef,
+  readOnly,
   uiKindMapRef,
   uiMapRef,
   uiParentMapRef,
@@ -186,6 +193,7 @@ export const useLeaferApp = ({
       onUpdateNode,
       onUpdateNodesRef,
       pageRef,
+      readOnly: Boolean(readOnly),
       uiKindMap,
       uiMap,
       uiParentMap,
@@ -199,6 +207,7 @@ export const useLeaferApp = ({
     onUpdateNode,
     onUpdateNodesRef,
     pageRef,
+    readOnly,
     uiKindMap,
     uiKindMapRef,
     uiMap,
