@@ -114,7 +114,7 @@ describe("Eraser", () => {
     dispatchPointer(view, "pointerdown", { clientX: 30, clientY: 40 });
     dispatchPointer(window, "pointerup", { clientX: 30, clientY: 40 });
 
-    expect(getByPoint).toHaveBeenCalledWith({ x: 30, y: 40 }, 10);
+    expect(getByPoint).toHaveBeenCalledWith({ x: 30, y: 40 }, 10, { through: true });
 
     eraser.dispose();
   });
@@ -174,6 +174,63 @@ describe("Eraser", () => {
     dispatchPointer(window, "pointerup", { clientX: 30, clientY: 10 });
 
     expect(erases.map((event) => event.target)).toEqual([first, second]);
+  });
+
+  it("同一点命中多层笔迹时，每层各插预览并各抛一条擦除轨迹", () => {
+    const env = createContainer();
+    const topGroup = createEraseContainer();
+    const bottomGroup = createEraseContainer();
+    const topLeaf = createTarget(topGroup);
+    const bottomLeaf = createTarget(bottomGroup);
+    // 选择器带 through 时返回命中的全部图层（上层在前）。
+    const getByPoint = vi.fn(() => ({ throughPath: { list: [topLeaf, bottomLeaf] } }));
+
+    (env.container.leafer as { selector?: ISelector }).selector = {
+      getByPoint,
+    } as unknown as ISelector;
+
+    const eraser = new Eraser({ container: env.container, strokeWidth: 20 });
+    const erases: EraserEraseEvent[] = [];
+
+    eraser.on("erase", (event) => erases.push(event));
+
+    dispatchPointer(env.view, "pointerdown", { clientX: 30, clientY: 40 });
+    dispatchPointer(window, "pointermove", { clientX: 60, clientY: 40 });
+    dispatchPointer(window, "pointerup", { clientX: 60, clientY: 40 });
+
+    // 两层都擦到：各自一个容器、一条轨迹，且按 group 去重不会重复。
+    expect(erases).toHaveLength(2);
+    expect(erases.map((event) => event.container)).toEqual([topGroup, bottomGroup]);
+    erases.forEach((event) => {
+      expect(event.points).toEqual([30, 40, 60, 40]);
+      expect(event.strokeWidth).toBe(20);
+    });
+    // 每个 group 内部都插入了 eraser 预览。
+    expect((topGroup.children[0] as MockLine).data).toMatchObject({ eraser: "pixel" });
+    expect((bottomGroup.children[0] as MockLine).data).toMatchObject({ eraser: "pixel" });
+  });
+
+  it("同一条笔迹的多个命中叶子按 group 去重，只抛一条轨迹", () => {
+    const env = createContainer();
+    const group = createEraseContainer();
+    const innerLeaf = createTarget(group);
+    const eraserLeaf = createTarget(group);
+    const getByPoint = vi.fn(() => ({ throughPath: { list: [innerLeaf, eraserLeaf] } }));
+
+    (env.container.leafer as { selector?: ISelector }).selector = {
+      getByPoint,
+    } as unknown as ISelector;
+
+    const eraser = new Eraser({ container: env.container, strokeWidth: 20 });
+    const erases: EraserEraseEvent[] = [];
+
+    eraser.on("erase", (event) => erases.push(event));
+
+    dispatchPointer(env.view, "pointerdown", { clientX: 30, clientY: 40 });
+    dispatchPointer(window, "pointerup", { clientX: 30, clientY: 40 });
+
+    expect(erases).toHaveLength(1);
+    expect(erases[0].container).toBe(group);
   });
 
   it("preview 关闭时不插入预览但仍抛事件", () => {

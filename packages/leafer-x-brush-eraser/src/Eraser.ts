@@ -38,6 +38,9 @@ type EraseStroke = {
  * 命中用 Leafer 自己的选择器（选择器在世界坐标里计算），擦除预览是一条
  * `eraser: "pixel"` 的临时 Line，插在被擦元素的父容器里，松手时销毁；
  * 最终轨迹通过 `erase` 事件交回宿主。插件不持有文档状态，也不 import 任何框架。
+ *
+ * 选择器带 `through: true` 取 `throughPath`，叠在一起的笔迹能一次性擦穿多层；
+ * 同一点下的每一层各记一条轨迹，松手时各自抛出一次 `erase`，宿主一次手势批量提交。
  */
 export class Eraser extends Emitter<EraserEvents> {
   private config: EraserConfig;
@@ -122,26 +125,60 @@ export class Eraser extends Emitter<EraserEvents> {
   }
 
   /**
-   * 命中检测。
+   * 命中检测：返回指针位置下**所有**可擦笔迹（按 group 去重）。
    *
    * 选择器按世界坐标计算，命中半径取擦除半宽，这样细线也能被容易地擦到。
+   * 带 `through: true` 时选择器返回 `throughPath`（命中的全部图层），叠在一起的笔迹
+   * 就能一次性擦穿多层；老选择器或单命中场景只给 `target`，这里回退成单层处理。
    */
-  private hitTest(point: IPointData): IUI | undefined {
+  private getHits(point: IPointData): { group: IUI; leaf: IUI }[] {
     const selector = this.getSelector();
 
-    if (!selector) return undefined;
+    if (!selector) return [];
 
     const world = this.config.container.getWorldPoint(point);
-    const { target } = selector.getByPoint(world, this.getStrokeWidth() / 2);
+    const result = selector.getByPoint(world, this.getStrokeWidth() / 2, { through: true });
 
-    if (!target) return undefined;
+    // throughPath 是命中的全部图层；没有就回退到单 target。
+    const leaves = result.throughPath?.list?.length
+      ? result.throughPath.list
+      : result.target
+        ? [result.target]
+        : [];
 
-    // 选择器的结果类型是 ILeaf，但能被子元素挂在容器里的命中项一定是 UI 实例。
-    const hit = target as IUI;
+    const hits: { group: IUI; leaf: IUI }[] = [];
+    const seen = new Set<IUI>();
 
-    if (this.config.erasable && !this.config.erasable(hit)) return undefined;
+    for (const leaf of leaves) {
+      const group = this.resolveGroup(leaf as IUI);
 
-    return hit;
+      // 同一条笔迹的 group、内部图形、eraser 子节点可能同时命中，按 group 去重。
+      if (!group || seen.has(group)) continue;
+
+      seen.add(group);
+      hits.push({ group, leaf: leaf as IUI });
+    }
+
+    return hits;
+  }
+
+  /**
+   * 把一个命中叶子解析成「笔迹 group」。
+   *
+   * 命中项通常是 line group 内部的图形子节点（父级就是 line 节点）；
+   * 直接命中 group 自身的情况也兼容。不可擦的叶子返回 undefined。
+   */
+  private resolveGroup(leaf: IUI): IUI | undefined {
+    const erasable = this.config.erasable;
+    const parent = leaf.parent as IUI | undefined;
+
+    if (!erasable) return parent ?? leaf;
+
+    // 与宿主 isErasableLineTarget 的判定顺序一致：优先父级，再自身。
+    if (parent && erasable(parent)) return parent;
+    if (erasable(leaf)) return leaf;
+
+    return undefined;
   }
 
   private getSelector(): ISelector | undefined {
@@ -158,33 +195,45 @@ export class Eraser extends Emitter<EraserEvents> {
   }
 
   private eraseAt(point: IPointData) {
-    const target = this.hitTest(point);
+    const hits = this.getHits(point);
 
-    if (!target) return;
+    if (hits.length === 0) return;
 
-    const container = (target.parent ?? this.config.container) as DrawContainer;
-    // 手势坐标是入口容器的局部坐标，这里换算到预览所在容器的局部坐标。
-    const local = container.getInnerPoint(this.config.container.getWorldPoint(point));
-    const stroke = this.getStroke(target, container);
+    const world = this.config.container.getWorldPoint(point);
 
-    stroke.points.push(local.x, local.y);
-    this.updatePreview(stroke);
+    // 同一点下的每一层笔迹各记一条轨迹，松手时各自抛出一次 erase。
+    hits.forEach(({ group, leaf }) => {
+      const container = group as DrawContainer;
+      // 手势坐标是入口容器的局部坐标，这里换算到预览所在容器的局部坐标。
+      const local = container.getInnerPoint(world);
+      const stroke = this.getStroke(group, leaf);
+
+      stroke.points.push(local.x, local.y);
+      this.updatePreview(stroke);
+    });
   }
 
-  private getStroke(target: IUI, container: DrawContainer) {
-    const cached = this.strokes.get(target);
+  /**
+   * 取（或建）某条笔迹的擦除轨迹缓存。
+   *
+   * 以「笔迹 group」为键去重：同一条笔迹的多个命中叶子共用一份轨迹。
+   * offset 用叶子相对 group 的包围盒算（宿主实际只用 container 与 points）。
+   */
+  private getStroke(group: IUI, leaf: IUI) {
+    const cached = this.strokes.get(group);
 
     if (cached) return cached;
 
-    const bounds = target.getBounds("box", container);
+    const container = group as DrawContainer;
+    const bounds = leaf.getBounds("box", container);
     const stroke: EraseStroke = {
       container,
       offset: { x: bounds.x, y: bounds.y },
       points: [],
-      target,
+      target: leaf,
     };
 
-    this.strokes.set(target, stroke);
+    this.strokes.set(group, stroke);
 
     return stroke;
   }
