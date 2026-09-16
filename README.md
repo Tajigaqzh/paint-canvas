@@ -19,10 +19,12 @@
 - 右键菜单：支持打组、拆组、调整层级和删除选中元素。
 - 属性面板：支持位置、尺寸、旋转基准、填充、描边颜色、描边粗细、线型、图形专属参数和元素动画配置。
 - 缩略图渲染：通过 worker 和 `OffscreenCanvas` 绘制页面缩略图，只展示白色画板和画布内元素。
-- 图片资源缓存：独立 Dedicated Worker 做内存 LRU → IndexedDB → 网络三级缓存；主画布和缩略图 worker 都通过 MessagePort 向它取 `Blob`，不各自 `fetch`。
+- 图片资源缓存：独立 Dedicated Worker 做内存 LRU → IndexedDB 二级缓存，未命中时网络兜底；主画布和缩略图 worker 都通过 MessagePort 向它取 `Blob`，不各自 `fetch`。素材面板预览 `<img>` 不经过这套缓存。
 - 撤销重做：基于 `mutative` patches 记录画布操作历史。
 
 图片缓存 Service Worker 和测试页代码仍保留在仓库里，但应用启动时不会注册 Service Worker，制作页走 `src/worker/image-cache/` 这套线程缓存。详细设计见 `src/worker/image-cache/README.md`。
+
+图片线程内的 `inflight map` 只负责合并同一 URL 的并发请求，不属于缓存层；缓存键只使用规范化后的 URL，当前没有 TTL 或 ETag 重新验证。相同 URL 在主画布和缩略图同时请求时，缓存未命中最多只会产生一次网络请求。
 
 ## 技术栈
 
@@ -119,7 +121,7 @@ src/
     leafer/                      Leafer 运行时、hook 选项和 UI 实例类型
   worker/
     README.md
-    image-cache/                 图片 Dedicated Worker：协议、客户端、cache/ 三级缓存
+    image-cache/                 图片 Dedicated Worker：协议、客户端、cache/ 二级缓存 + 网络兜底
     page-thumbnail/              页面缩略图绘制；images 向图片线程要 Blob
     registerImageCacheServiceWorker.ts
 
@@ -199,7 +201,7 @@ flowchart LR
 ## 开发约定
 
 - 新增节点类型时，同步检查 `types/elementNode`、`leaferCanvas/ui`、属性面板和 `worker/page-thumbnail`。
-- 图片 URL 只通过 `src/worker/image-cache` 加载，不要在主线程或缩略图 worker 里自行 `fetch`。
+- 主画布和缩略图中的图片 URL 只通过 `src/worker/image-cache` 加载，不要在主线程或缩略图 worker 里自行 `fetch`；素材面板预览 `<img>` 是例外。
 - 橡皮擦命中用 Leafer 选择器（`leafer-x-brush-eraser` 内部），宿主只负责 `erasable` 过滤和把命中 UI 反查成业务节点。
 - 改舞台缩放或指针坐标换算时，只改 `leaferCanvas/geometry/boardLayout.ts`，不要在 `useStageBoard` 和 `usePointerTools` 里各写一套公式。
 - 等比缩放和居中留在 `app.tree`：标尺按 `app.tree.scale` 校准刻度，换位置标尺会按屏幕像素标注；白板要让出 `BOARD_INSET` 的刻度条空间。

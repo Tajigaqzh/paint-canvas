@@ -77,6 +77,8 @@ export const getLeaferAnimation = (animationList?: CanvasAnimationItem[]) => {
   return animations.length === 1 ? animations[0] : animations;
 };
 
+/** 把高级动画的拖拽起止点转换为 Leafer 关键帧。 */
+
 /** 用序列化结果判断动画配置有没有变，避免每次节点同步都重启动画。 */
 export const getAnimationSignature = (animationList?: CanvasAnimationItem[]) =>
   JSON.stringify(animationList ?? []);

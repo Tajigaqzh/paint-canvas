@@ -28,7 +28,21 @@ export type CanvasMaterialKind =
   | "image";
 
 /** 动画预设类型，右侧面板用它快速生成 Leafer animation 数据。 */
-export type CanvasAnimationPreset = "fadeIn" | "fadeOut" | "slideRight" | "rotate";
+export type CanvasAnimationPreset = "fadeIn" | "fadeOut" | "move" | "slideRight" | "rotate";
+
+/** 移动动画的坐标预设；custom 使用下方的起止坐标。 */
+export type CanvasMovePreset =
+  | "custom"
+  | "right"
+  | "left"
+  | "up"
+  | "down"
+  | "topLeftToBottomRight"
+  | "bottomRightToTopLeft"
+  | "topRightToBottomLeft"
+  | "bottomLeftToTopRight";
+
+/** 高级动画把画布拖拽得到的起止偏移和透明度效果合成一条关键帧动画。 */
 
 /** 淡入方向；current 只做透明度变化，其它方向会从对应一侧滑入到原位。 */
 export type CanvasFadeInDirection = "current" | "left" | "top" | "bottom";
@@ -85,9 +99,21 @@ export interface CanvasAnimationItem {
   fadeInDirection?: CanvasFadeInDirection;
   /** 带方向淡入或淡出时的滑入/滑出距离，单位 px。 */
   fadeInDistance?: number;
-  /** 右移动画起始水平偏移，相对元素当前 x，单位 px。 */
+  /** 移动动画的方向预设。 */
+  movePreset?: CanvasMovePreset;
+  /** 方向预设的移动距离，单位 px。 */
+  moveDistance?: number;
+  /** 移动动画起始水平偏移，相对元素当前 x，单位 px。 */
+  moveFromX?: number;
+  /** 移动动画起始垂直偏移，相对元素当前 y，单位 px。 */
+  moveFromY?: number;
+  /** 移动动画结束水平偏移，相对元素当前 x，单位 px。 */
+  moveToX?: number;
+  /** 移动动画结束垂直偏移，相对元素当前 y，单位 px。 */
+  moveToY?: number;
+  /** 旧版右移动画字段，读取旧文档时兼容；新面板不再生成。 */
   slideFromX?: number;
-  /** 右移动画结束水平偏移，相对元素当前 x，单位 px。 */
+  /** 旧版右移动画字段，读取旧文档时兼容；新面板不再生成。 */
   slideToX?: number;
   /** Leafer 原生 animation 数据，渲染时会透传给元素的 animation 属性。 */
   animation: {
@@ -148,6 +174,7 @@ export interface CanvasNodeBase {
   strokeCap?: CanvasStrokeCap;
   /** 动画列表；一个节点可以有多条动画，渲染时映射为 Leafer animation 数组。 */
   animationList?: CanvasAnimationItem[];
+  /** 高级动画；和 animationList 互斥。 */
 }
 
 /** 矩形节点。 */

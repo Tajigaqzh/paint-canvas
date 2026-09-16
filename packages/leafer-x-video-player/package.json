@@ -1,0 +1,15 @@
+{
+  "name": "leafer-x-video-player",
+  "version": "0.1.0",
+  "description": "Leafer 视频播放器节点插件：用 HTMLVideoElement 解码并绘制到 Leafer 节点",
+  "type": "module",
+  "files": ["src", "dist"],
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": { "types": "./src/index.ts", "default": "./src/index.ts" } },
+  "scripts": { "build": "vite build && tsc -p tsconfig.build.json", "test:run": "vitest run" },
+  "dependencies": { "@leafer-ui/interface": "^2.2.3" },
+  "peerDependencies": { "@leafer-ui/core": "^2.2.3" },
+  "devDependencies": { "@leafer-ui/core": "^2.2.3", "typescript": "~6.0.2", "vite": "^8.1.1", "vitest": "^4.1.10", "jsdom": "^29.1.1" }
+}

@@ -780,6 +780,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         if (!node) return;
 
         Object.assign(node, data);
+
       });
     },
     updateNodes(updates: CanvasNodeUpdate[]) {

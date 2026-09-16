@@ -118,7 +118,20 @@ const syncNodeToParent = (
 
     if (ctx.animationSignatureMap.get(nodeId) !== animationSignature) {
       ctx.animationSignatureMap.set(nodeId, animationSignature);
-      ui.set({ animation: getLeaferAnimation(node.animationList) });
+      const animation = getLeaferAnimation(node.animationList);
+
+      if (animation) {
+        ui.set({ animation });
+      } else {
+        // 动画结束后 Leafer 会保留最后一帧样式；删除动画时显式恢复基础状态，
+        // 否则淡出节点会保持 opacity=0，直到切页重建 UI 才重新出现。
+        ui.set({
+          opacity: 1,
+          offsetX: 0,
+          offsetY: 0,
+          rotation: node.rotation ?? 0,
+        });
+      }
     }
   }
 

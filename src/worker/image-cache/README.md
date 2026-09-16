@@ -2,7 +2,7 @@
 
 制作页的主画布（Leafer，主线程）和底部缩略图（最多 3 个 Dedicated Worker）都可能需要同一张远程图。如果各自 `fetch` / 解码，同 URL 会打多次网络，HTTP 缓存也不保证跨线程、跨 `<img>` 与 `fetch` 命中。
 
-本目录实现一个**单独的 Dedicated Worker**，专门负责图片请求和三级缓存。主线程和缩略图 worker **都不自己请求图片 URL**，只通过 `MessagePort` 向它要 `Blob`。
+本目录实现一个**单独的 Dedicated Worker**，专门负责图片请求和二级缓存。主画布和缩略图 worker **都不自己请求图片 URL**，只通过 `MessagePort` 向它要 `Blob`；素材面板的预览 `<img>` 不经过此缓存，是唯一例外。
 
 不使用 Service Worker，也不使用 SharedWorker。
 
@@ -42,9 +42,9 @@ flowchart TB
 
 图片线程不随缩略图 `terminate()` 一起关掉，避免主画布还在用缓存。
 
-## 三级缓存（全部在图片线程内部）
+## 二级缓存 + 网络兜底（全部在图片线程内部）
 
-同一 URL 的并发请求会合并成一次加载（inflight map）。
+同一 URL 的并发请求会合并成一次加载（`inflight map`）。`inflight` 不是缓存层，只在请求进行期间保存 Promise，请求完成或失败后立即删除。
 
 ```mermaid
 flowchart TD
@@ -61,7 +61,13 @@ flowchart TD
 
 1. **L1 内存 LRU**：`Map` 保存 `Blob`。命中时把条目挪到最新；超出条目数或总字节则淘汰最旧。只活在图片线程里，刷新页面会丢。
 2. **L2 IndexedDB**：同源共享，库名 `paint-canvas-image-blobs`。刷新后仍可用。命中后提升到 L1，并更新 `lastAccessedAt`。超限按访问时间淘汰。
-3. **L3 网络**：`fetch`。默认 `cache: "default"`、`credentials: "omit"`、`mode: "cors"`，可通过 `getImageBlob(url, fetchInit)` 覆盖。成功后再写入 L1 和 L2。浏览器 HTTP 缓存仍可作为这次 fetch 的底层优化。
+3. **网络兜底**：前两级都未命中时才执行 `fetch`。默认 `cache: "default"`、`credentials: "omit"`、`mode: "cors"`，可通过 `getImageBlob(url, fetchInit)` 覆盖。成功后再写入 L1 和 L2；浏览器 HTTP 缓存仍可作为这次 fetch 的底层优化，但不属于本模块维护的缓存层。
+
+缓存键只由规范化后的 URL 生成。`fetchInit` 不参与缓存键，因此同一个 URL 即使传入不同请求参数，命中 L1/L2 时仍会复用已有 Blob。
+
+当前没有 TTL、ETag / Last-Modified 校验或后台 revalidate。L1 只在当前图片 Worker 会话内有效，L2 IndexedDB 会跨页面刷新保留，直到容量淘汰或手动清理。
+
+`cache: "no-store"` 只会传给真正发生的网络 `fetch`，不会绕过已经命中的 L1/L2。
 
 单张图大于 L1 / L2 上限时跳过对应层，避免一块超大图挤掉整个缓存。
 
@@ -69,7 +75,7 @@ flowchart TD
 
 `postMessage` 的协议消息（`{ type: "get", url }`）开销可忽略。贵的是把图搬过去：
 
-- 缓存线程 **L1/L2 存 Blob，回传也用 Blob，且不 transfer**。多数引擎只克隆句柄，不拷像素；发送方继续持有缓存。
+- 缓存线程 **L1/L2 存 Blob，回传也用 Blob，且不 transfer**。Blob 通过 structured clone 传递，是否共享底层数据由浏览器实现决定，协议层不能依赖零拷贝；发送方继续持有缓存。
 - 不要回传未 transfer 的 `ImageBitmap` / `ArrayBuffer`（会整份拷像素）。
 - 不要把已发出的 `ImageBitmap` 放进 L1（transfer 后发送方就没了）。
 - 解码（`createImageBitmap` / `HTMLImageElement` / Leafer fill）发生在**真正画画的那条线程**，同一 Blob 可能被主画布和缩略图各解一次，这比跨线程搬位图更可控。

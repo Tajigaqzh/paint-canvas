@@ -25,12 +25,14 @@ const THUMBNAIL_SIZE = {
   width: 138,
 };
 
+/** 释放缩略图使用的 ImageBitmap，避免页面切换或重渲染时积累位图资源。 */
 const closeBitmap = (bitmap?: ImageBitmap) => {
   if (!bitmap) return;
 
   bitmap.close();
 };
 
+/** 将 worker 返回的 ImageBitmap 绘制到缩略图 canvas 中。 */
 function ThumbnailCanvas({ bitmap }: { bitmap?: ImageBitmap }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -59,6 +61,7 @@ function ThumbnailCanvas({ bitmap }: { bitmap?: ImageBitmap }) {
   );
 }
 
+/** 展示页面缩略图、处理页面切换，并管理缩略图 worker 的生命周期。 */
 function PageThumbnailStrip({
   activePageId,
   onAddPage,
@@ -76,6 +79,7 @@ function PageThumbnailStrip({
   );
 
   useEffect(() => {
+    // worker 与页面条一一对应，组件卸载时同时终止任务并释放当前位图。
     managerRef.current = new PageThumbnailWorkerManager();
 
     return () => {
@@ -91,6 +95,7 @@ function PageThumbnailStrip({
 
     if (!manager || orderedPages.length === 0) return;
 
+    // 每次页面数据变化都递增版本号，丢弃返回较晚的旧批次，避免覆盖最新缩略图。
     const revision = revisionRef.current + 1;
 
     revisionRef.current = revision;
