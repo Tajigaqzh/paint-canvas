@@ -143,4 +143,159 @@ describe("useCanvasStore", () => {
     useCanvasStore.getState().redo();
     expect(Object.keys(useCanvasStore.getState().activePage.nodeMap).length).toBe(afterAdd);
   });
+
+  it("insertBlankPage 不传位置追加到末尾并切换", () => {
+    const before = useCanvasStore.getState().pageIds.length;
+    useCanvasStore.getState().insertBlankPage();
+    const state = useCanvasStore.getState();
+    expect(state.pageIds.length).toBe(before + 1);
+    expect(state.activePageId).toBe(state.pageIds.at(-1));
+  });
+
+  it("insertBlankPage 传入 afterPageId 时插到其后", () => {
+    const ids = useCanvasStore.getState().pageIds;
+    const target = ids[0];
+    const after = ids[1];
+    useCanvasStore.getState().insertBlankPage(target);
+    const newIds = useCanvasStore.getState().pageIds;
+    expect(newIds[newIds.indexOf(target) + 1]).toBe(newIds.at(-1));
+    expect(newIds.at(-1)).not.toBe(after);
+  });
+
+  it("duplicatePage 复制出内容相同但 ID 全新的页，并插到原页之后", () => {
+    const state = useCanvasStore.getState();
+    const sourceId = state.activePageId;
+    const sourceNodeCount = Object.keys(state.activePage.nodeMap).length;
+
+    useCanvasStore.getState().duplicatePage(sourceId);
+    const next = useCanvasStore.getState();
+    const newId = next.activePageId;
+    expect(newId).not.toBe(sourceId);
+    expect(next.pages[newId].nodeMap).not.toBe(next.pages[sourceId].nodeMap);
+    expect(Object.keys(next.pages[newId].nodeMap).length).toBe(sourceNodeCount);
+    // 复制页的节点 ID 与原页不共享。
+    const sourceNodeIds = new Set(Object.keys(next.pages[sourceId].nodeMap));
+    const newPageNodeIds = Object.keys(next.pages[newId].nodeMap);
+    expect(newPageNodeIds.some((id) => sourceNodeIds.has(id))).toBe(false);
+    // 复制页紧跟原页之后。
+    expect(next.pageIds[next.pageIds.indexOf(sourceId) + 1]).toBe(newId);
+  });
+
+  it("duplicatePage 会同步修正 group 的 childrenIds 引用", () => {
+    const pageId = useCanvasStore.getState().activePageId;
+    // 先放两个 rect 并选中，再打组，构造 group 包 rect 的页面来复制。
+    useCanvasStore.getState().addNode("rect");
+    const rectId = useCanvasStore.getState().activePage.activeId!;
+    useCanvasStore.getState().addNode("rect");
+    const rectId2 = useCanvasStore.getState().activePage.activeId!;
+    useCanvasStore.getState().selectNodes([rectId, rectId2]);
+    useCanvasStore.getState().groupSelected();
+    const groupId = useCanvasStore.getState().activePage.activeId!;
+
+    useCanvasStore.getState().duplicatePage(pageId);
+    const next = useCanvasStore.getState();
+    const dupPage = next.pages[next.activePageId];
+    const dupGroup = Object.values(dupPage.nodeMap).find((node) => node.kind === "group")!;
+    expect(dupGroup.id).not.toBe(groupId);
+    // 复制页里 group 的 childrenIds 应指向全新的子节点，且子节点 parentId 回指新 group。
+    expect(dupGroup.childrenIds.length).toBe(2);
+    dupGroup.childrenIds.forEach((childId) => {
+      const child = dupPage.nodeMap[childId];
+      expect(child).toBeTruthy();
+      expect(child.parentId).toBe(dupGroup.id);
+      expect(child.kind).toBe("rect");
+    });
+    // 复制页的子节点 ID 与原页不共享。
+    expect(dupGroup.childrenIds).not.toContain(rectId);
+    expect(dupGroup.childrenIds).not.toContain(rectId2);
+  });
+
+  it("removePage 删除指定页并切到相邻页", () => {
+    useCanvasStore.getState().addPage();
+    const state = useCanvasStore.getState();
+    const target = state.pageIds[0];
+    const neighbor = state.pageIds[1];
+    useCanvasStore.getState().removePage(target);
+    const next = useCanvasStore.getState();
+    expect(next.pageIds).not.toContain(target);
+    expect(next.activePageId).toBe(neighbor);
+  });
+
+  it("removePage 对最后一页无效", () => {
+    const state = useCanvasStore.getState();
+    const onlyId = state.pageIds[0];
+    useCanvasStore.getState().removePage(onlyId);
+    expect(useCanvasStore.getState().pageIds.length).toBe(1);
+  });
+
+  it("removePage 对不存在的 id 不抛错", () => {
+    expect(() => useCanvasStore.getState().removePage("missing")).not.toThrow();
+  });
+
+  describe("clearPreviewNotes", () => {
+    const addLine = (source: "brush" | "material" | "preview") =>
+      useCanvasStore.getState().addDrawLine(
+        {
+          height: 0,
+          kind: "line",
+          points: [0, 0, 100, 0],
+          width: 100,
+          x: 0,
+          y: 0,
+        },
+        source,
+      );
+
+    const countLines = (source?: "brush" | "material" | "preview") => {
+      const { activePage } = useCanvasStore.getState();
+      return Object.values(activePage.nodeMap).filter(
+        (node) => node.kind === "line" && (source === undefined || node.source === source),
+      ).length;
+    };
+
+    it("删除当前页 preview 批注，保留 brush 笔迹与其它节点", () => {
+      useCanvasStore.getState().addNode("rect");
+      addLine("brush");
+      addLine("preview");
+      expect(countLines("preview")).toBe(1);
+      expect(countLines("brush")).toBe(1);
+
+      useCanvasStore.getState().clearPreviewNotes();
+
+      expect(countLines("preview")).toBe(0);
+      expect(countLines("brush")).toBe(1);
+      expect(Object.keys(useCanvasStore.getState().activePage.nodeMap).length).toBeGreaterThan(1);
+    });
+
+    it("跨页删除所有 preview 批注", () => {
+      addLine("preview");
+      const firstPage = useCanvasStore.getState().activePageId;
+      useCanvasStore.getState().addPage();
+      const secondPage = useCanvasStore.getState().activePageId;
+      addLine("preview");
+      expect(secondPage).not.toBe(firstPage);
+
+      useCanvasStore.getState().clearPreviewNotes();
+
+      const { pages } = useCanvasStore.getState();
+      for (const id of [firstPage, secondPage]) {
+        const previewLines = Object.values(pages[id].nodeMap).filter(
+          (node) => node.kind === "line" && node.source === "preview",
+        );
+        expect(previewLines).toHaveLength(0);
+      }
+    });
+
+    it("没有 preview 批注时为空操作且不产生历史记录", () => {
+      // 默认只有矩形和文本，没有 line 节点，clearPreviewNotes 应早返回。
+      expect(useCanvasStore.getState().canUndo).toBe(false);
+      useCanvasStore.getState().clearPreviewNotes();
+      expect(useCanvasStore.getState().canUndo).toBe(false);
+      expect(
+        Object.values(useCanvasStore.getState().activePage.nodeMap).some(
+          (node) => node.kind === "line",
+        ),
+      ).toBe(false);
+    });
+  });
 });

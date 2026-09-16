@@ -1,9 +1,12 @@
 import { useSize } from "ahooks";
+import { Button } from "antd";
 import { useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAppMessage } from "@/hooks/useAppMessage";
 import { useCanvasStore } from "@/stores/canvasStore";
 import type { CanvasDocument, CanvasToolMode } from "@/types";
 import { getCanvasViewSize } from "./canvasFit";
+import { createEraserCursor } from "./eraserCursor";
 import CanvasContextMenu from "./components/CanvasContextMenu";
 import CanvasToolbar from "./components/CanvasToolbar";
 import MaterialPanel from "./components/MaterialPanel";
@@ -19,22 +22,10 @@ import "./index.less";
 
 const CANVAS_STORAGE_KEY = "paint-canvas:document";
 
-/**
- * 生成随橡皮尺寸变化的光标。光标位图限制在 12～64px，避免极端笔刷尺寸遮住画布；
- * 热点落在橡皮左下方，与图标实际接触画布的位置保持一致。
- */
-const createEraserCursor = (size: number) => {
-  const cursorSize = Math.max(12, Math.min(size, 64));
-  const hotspotX = Math.max(1, Math.round(cursorSize * 0.125));
-  const hotspotY = Math.max(1, Math.round(cursorSize * 0.875));
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="${cursorSize}" height="${cursorSize}"><path d="M567.494 765.551L270.292 557.448c-22.62-15.839-28.117-47.016-12.278-69.636l234.648-335.113c15.84-22.62 47.017-28.118 69.637-12.28L859.5 348.524c22.62 15.839 28.118 47.016 12.28 69.636L637.13 753.272c-15.839 22.62-47.016 28.118-69.636 12.28zM382.44 861.973L242.979 764.32c-45.241-31.678-56.236-94.032-24.558-139.273l22.28-31.82 303.294 212.369-22.28 31.82c-31.678 45.24-94.033 56.235-139.273 24.557z" fill="#1AA5FF"/></svg>`;
-
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${hotspotX} ${hotspotY}, auto`;
-};
-
 /** 制作页工作台：编排工具栏、素材/属性面板与 Leafer 画布运行时。 */
 function Home() {
   const message = useAppMessage();
+  const navigate = useNavigate();
   // shell 用于测量可用空间和承载浮层，view 才是 Leafer 实际挂载的内容区域。
   const canvasViewRef = useRef<HTMLDivElement>(null);
   const canvasShellRef = useRef<HTMLDivElement>(null);
@@ -66,11 +57,14 @@ function Home() {
     canRedo,
     canUndo,
     canUngroup,
+    duplicatePage,
     groupSelected,
+    insertBlankPage,
     pageIds,
     pages,
     redo,
     removeNodes,
+    removePage,
     selectNode,
     selectPage,
     selectNodes,
@@ -194,6 +188,9 @@ function Home() {
         <div className="canvas-maker__brand">
           <span className="canvas-maker__brand-icon" aria-hidden="true" />
           <h1>Canvas 制作工具</h1>
+          <Button style={{ marginLeft: 16 }} onClick={() => navigate("/preview")}>
+            预览
+          </Button>
         </div>
 
         <CanvasToolbar
@@ -248,6 +245,9 @@ function Home() {
             pageIds={pageIds}
             pages={pages}
             onAddPage={addPage}
+            onDuplicatePage={duplicatePage}
+            onInsertBlankPage={insertBlankPage}
+            onRemovePage={removePage}
             onSelectPage={selectPage}
           />
         </section>

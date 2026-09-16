@@ -27,8 +27,12 @@ const findLineNodeId = (ui: IUI | undefined, { uiKindMap, uiMap }: EraserMaps) =
  * 命中项通常是 line group 内部的图形子节点（原始笔迹），业务节点是它的父级；
  * 直接命中 group 的情况也一并兼容。
  */
+/** 取出命中线节点（line group 本体或内部子节点）对应的业务 id；非 line 节点返回 undefined。 */
+export const findErasableLineNodeId = (target: IUI, maps: EraserMaps) =>
+  findLineNodeId(target.parent ?? undefined, maps) ?? findLineNodeId(target, maps);
+
 export const isErasableLineTarget = (target: IUI, maps: EraserMaps) =>
-  Boolean(findLineNodeId(target.parent ?? undefined, maps) ?? findLineNodeId(target, maps));
+  Boolean(findErasableLineNodeId(target, maps));
 
 /**
  * 把一次橡皮擦手势的轨迹转成 store 的 eraser 更新。

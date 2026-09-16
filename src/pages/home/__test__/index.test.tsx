@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCanvasStore } from "@/stores/canvasStore";
 import Home from "../index";
@@ -113,7 +114,11 @@ describe("Home", () => {
   });
 
   it("renders the canvas maker shell", () => {
-    render(<Home />);
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>,
+    );
 
     expect(screen.getByRole("heading", { name: "Canvas 制作工具" })).toBeTruthy();
     expect(screen.getByText("素材")).toBeTruthy();
@@ -122,7 +127,11 @@ describe("Home", () => {
   });
 
   it("未开始拖素材时 drop 不新增节点", () => {
-    render(<Home />);
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>,
+    );
     mockCanvasRect();
     const before = useCanvasStore.getState().activePage.rootIds.length;
     fireEvent.drop(document.querySelector(".canvas-maker__canvas") as HTMLElement, {
@@ -134,7 +143,11 @@ describe("Home", () => {
   });
 
   it("拖矩形放到画布中心会按落点创建节点", () => {
-    render(<Home />);
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>,
+    );
     mockCanvasRect();
     setDraggingMaterialKind("rect");
     const canvas = document.querySelector(".canvas-maker__canvas") as HTMLElement;

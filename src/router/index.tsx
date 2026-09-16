@@ -19,6 +19,10 @@ export const routes: RouteObject[] = [
         element: createElement(lazy(() => import("@/pages/home"))),
       },
       {
+        path: "preview",
+        element: createElement(lazy(() => import("@/pages/preview"))),
+      },
+      {
         path: "image-cache-worker-test",
         element: createElement(lazy(() => import("@/pages/image-cache-test"))),
       },

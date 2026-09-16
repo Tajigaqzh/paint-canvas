@@ -4,7 +4,7 @@ import type { useRuntime } from "../core/useRuntime";
 
 type Runtime = ReturnType<typeof useRuntime>;
 
-type UseToolInteractivityParams = Pick<UseLeaferCanvasOptions, "tool"> &
+type UseToolInteractivityParams = Pick<UseLeaferCanvasOptions, "tool" | "readOnly"> &
   Pick<CanvasPage, "nodeMap" | "rootIds"> &
   Pick<Runtime, "uiMapRef">;
 
@@ -13,9 +13,11 @@ type UseToolInteractivityParams = Pick<UseLeaferCanvasOptions, "tool"> &
  *
  * 只有 select 模式放开 editable / draggable；brush / eraser / magnifier 都关闭，
  * 避免 Editor hover 框和自定义工具冲突，也避免放大镜悬停时误拖节点。
+ * 预览只读模式（readOnly）下，无论什么工具都强制不可编辑 / 不可拖拽。
  */
 export const useToolInteractivity = ({
   nodeMap,
+  readOnly,
   rootIds,
   tool,
   uiMapRef,
@@ -24,7 +26,7 @@ export const useToolInteractivity = ({
 
   /** 根据当前工具模式切换 Leafer Editor 是否可以接管节点。 */
   useEffect(() => {
-    const canUseEditor = tool.mode === "select";
+    const canUseEditor = tool.mode === "select" && !readOnly;
 
     /**
      * brush / eraser / magnifier 都是自定义工具，不靠 Leafer Editor 交互。
@@ -38,5 +40,5 @@ export const useToolInteractivity = ({
         editable: canUseEditor,
       });
     });
-  }, [nodeMap, rootIds, tool.mode, uiMap]);
+  }, [nodeMap, rootIds, tool.mode, readOnly, uiMap]);
 };

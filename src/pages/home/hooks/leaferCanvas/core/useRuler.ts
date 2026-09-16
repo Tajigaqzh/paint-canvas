@@ -5,7 +5,7 @@ import type { useRuntime } from "./useRuntime";
 
 type Runtime = ReturnType<typeof useRuntime>;
 
-type UseRulerParams = Pick<Runtime, "appRef">;
+type UseRulerParams = Pick<Runtime, "appRef"> & { enabled?: boolean };
 
 /**
  * 接入 leafer-x-ruler：画布视图左上角的标尺。
@@ -13,15 +13,16 @@ type UseRulerParams = Pick<Runtime, "appRef">;
  * 标尺按 `app.tree.scale` / `app.tree.worldTransform` 反算刻度值，
  * 所以画布缩放必须挂在 `app.tree` 上（见 useStageBoard），否则刻度会按屏幕像素标注。
  * 刻度条宽度和 `BOARD_INSET` 是同一个值，白板会主动让开这条空间，不会被刻度条压住。
+ * `enabled` 为 false 时不创建标尺（预览页不展示标尺）。
  */
-export const useRuler = ({ appRef }: UseRulerParams) => {
+export const useRuler = ({ appRef, enabled = true }: UseRulerParams) => {
   const rulerRef = useRef<Ruler | null>(null);
 
   useEffect(() => {
     const app = appRef.current;
 
-    // App 还没创建时等初始化 effect 完成，Ruler 构造需要 app.editor。
-    if (!app) return undefined;
+    // App 还没创建，或明确关闭标尺时，等初始化 / 不创建。
+    if (!app || !enabled) return undefined;
 
     const ruler = new Ruler(app, {
       ruleSize: BOARD_INSET,
@@ -41,5 +42,5 @@ export const useRuler = ({ appRef }: UseRulerParams) => {
       ruler.dispose();
       rulerRef.current = null;
     };
-  }, [appRef]);
+  }, [appRef, enabled]);
 };

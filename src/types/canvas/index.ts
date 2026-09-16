@@ -1,5 +1,5 @@
 import type { Patch } from "mutative";
-import type { CanvasMaterialKind, CanvasNode, LineNode } from "@/types/elementNode";
+import type { CanvasMaterialKind, CanvasNode, LineNode, LineSource } from "@/types/elementNode";
 
 /** 当前画布交互工具。 */
 export type CanvasToolMode = "select" | "brush" | "eraser" | "magnifier";
@@ -90,8 +90,16 @@ export interface CanvasStore extends CanvasDocument {
   canUndo: boolean;
   /** 新增一个空白页面，并切换到新页面。 */
   addPage(): void;
-  /** 添加一条自由绘制笔迹。 */
-  addDrawLine(line: Omit<LineNode, "id" | "name">): void;
+  /** 复制指定页面（节点 ID 全部换新），插入到原页之后并切换过去。 */
+  duplicatePage(sourceId: string): void;
+  /** 插入一个空白页面，afterPageId 为空时追加到末尾，并切换过去。 */
+  insertBlankPage(afterPageId?: string): void;
+  /** 删除指定页面；最后一页不允许删除。 */
+  removePage(id: string): void;
+  /** 添加一条自由绘制笔迹。source 默认 "brush"（制作页批注），预览页传入 "preview" 以便离开时单独清掉。 */
+  addDrawLine(line: Omit<LineNode, "id" | "name">, source?: LineSource): void;
+  /** 清空全部预览批注（source === "preview"），用于离开预览页时避免污染制作文档。 */
+  clearPreviewNotes(): void;
   /** 添加一个根层级节点，并自动选中新节点；传入 position 时按画板坐标落点。 */
   addNode(kind: CanvasMaterialKind, position?: { x: number; y: number }): void;
   /** 提交一次橡皮擦结果：普通节点删除，笔迹节点追加组内 eraser 路径。 */

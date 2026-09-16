@@ -14,6 +14,7 @@ import type {
   CanvasViewport,
   GroupNode,
   LineNode,
+  LineSource,
 } from "@/types";
 
 /**
@@ -461,7 +462,66 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         draft.activePageId = page.id;
       });
     },
-    addDrawLine(line) {
+    insertBlankPage(afterPageId) {
+      commit((draft) => {
+        const page = createPage();
+
+        draft.pages[page.id] = page;
+        if (afterPageId && draft.pages[afterPageId]) {
+          const index = draft.pageIds.indexOf(afterPageId);
+          draft.pageIds.splice(index + 1, 0, page.id);
+        } else {
+          draft.pageIds.push(page.id);
+        }
+        draft.activePageId = page.id;
+      });
+    },
+    duplicatePage(sourceId) {
+      // 在 draft 之外读取原始页面，避免在 mutative 代理对象上做深拷贝导致失败。
+      const source = get().pages[sourceId];
+
+      if (!source) return;
+
+      /**
+       * 复制页时所有节点必须换新 ID，并同步修正 parentId 与 group.childrenIds 的引用，
+       * 否则新页会与原页共享节点，改动一方会串到另一方。
+       */
+      const idMap = new Map<string, string>();
+
+      for (const node of Object.values(source.nodeMap)) {
+        idMap.set(node.id, createId());
+      }
+
+      const newNodeMap: Record<string, CanvasNode> = {};
+
+      for (const node of Object.values(source.nodeMap)) {
+        const clone = structuredClone(node);
+
+        clone.id = idMap.get(node.id)!;
+        if (clone.parentId) {
+          clone.parentId = idMap.get(clone.parentId) ?? clone.parentId;
+        }
+        if (clone.kind === "group") {
+          clone.childrenIds = clone.childrenIds.map((childId) => idMap.get(childId) ?? childId);
+        }
+        newNodeMap[clone.id] = clone;
+      }
+
+      const newPage = createPage(`${source.name} 副本`);
+
+      newPage.nodeMap = newNodeMap;
+      newPage.rootIds = source.rootIds.map((id) => idMap.get(id) ?? id);
+      newPage.selectedIds = [];
+      newPage.activeId = undefined;
+
+      commit((draft) => {
+        draft.pages[newPage.id] = newPage;
+        const index = draft.pageIds.indexOf(sourceId);
+        draft.pageIds.splice(index + 1, 0, newPage.id);
+        draft.activePageId = newPage.id;
+      });
+    },
+    addDrawLine(line, source: LineSource = "brush") {
       commit((draft) => {
         const page = getActivePage(draft);
 
@@ -473,7 +533,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
           id: createId(),
           kind: "line",
           name: `笔迹 ${serial}`,
-          source: "brush",
+          source,
           transformOrigin: line.transformOrigin ?? "top-left",
         };
 
@@ -647,12 +707,51 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         });
       });
     },
+    /** 跨页删除所有预览批注（source === "preview"），离开预览页时调用，避免污染制作文档。 */
+    clearPreviewNotes() {
+      const { pages, pageIds } = get();
+      const hasPreviewNotes = pageIds.some((id) =>
+        Object.values(pages[id].nodeMap).some(
+          (node) => node.kind === "line" && node.source === "preview",
+        ),
+      );
+
+      if (!hasPreviewNotes) return;
+
+      commit((draft) => {
+        pageIds.forEach((id) => {
+          const page = draft.pages[id];
+
+          Object.values(page.nodeMap).forEach((node) => {
+            if (node.kind === "line" && node.source === "preview") {
+              removeNodeFromPage(page, node.id);
+            }
+          });
+        });
+      });
+    },
     selectPage(id) {
       const document = snapshot();
 
       if (!document.pages[id] || document.activePageId === id) return;
 
       set(sync({ ...document, activePageId: id }));
+    },
+    removePage(id) {
+      const index = get().pageIds.indexOf(id);
+
+      if (index === -1) return;
+      /** 至少保留一页，避免空文档导致画布无法渲染。 */
+      if (get().pageIds.length <= 1) return;
+
+      commit((draft) => {
+        delete draft.pages[id];
+        draft.pageIds.splice(index, 1);
+        if (draft.activePageId === id) {
+          /** 删的是当前页时，切到相邻页：优先后一页，没有则前一页。 */
+          draft.activePageId = draft.pageIds[index] ?? draft.pageIds[index - 1] ?? draft.pageIds[0];
+        }
+      });
     },
     selectNode(id, additive = false) {
       const page = get().activePage;

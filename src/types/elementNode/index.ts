@@ -225,7 +225,7 @@ export interface LineEraserPath {
  * 画笔手绘的笔迹是 brush，素材面板插入的线条是 material；
  * 渲染时用它给 Leafer 元素打 Scene 标识，第三方遍历场景时能直接区分。
  */
-export type LineSource = "brush" | "material";
+export type LineSource = "brush" | "material" | "preview";
 
 /** 线条节点。 */
 export interface LineNode extends CanvasNodeBase {

@@ -17,13 +17,14 @@ type UseNodeTreeSyncParams = Pick<
   | "uiMapRef"
   | "uiParentMapRef"
 > &
-  Pick<CanvasPage, "nodeMap" | "rootIds">;
+  Pick<CanvasPage, "nodeMap" | "rootIds"> & { replayToken?: number };
 
 /**
  * 将 CanvasPage 的 nodeMap / rootIds 增量同步到 Leafer UI 树。
  *
  * hook 只负责在 board 就绪后触发同步；创建 / 复用 / 排序 / 删除细节在 syncNodeTree。
  * 本轮从 rootIds / childrenIds 访问不到的 UI 视为 stale 并销毁。
+ * `replayToken` 变化时会清空动画签名缓存，强制所有节点重新应用 animation，从而从头播放。
  */
 export const useNodeTreeSync = ({
   appRef,
@@ -33,6 +34,7 @@ export const useNodeTreeSync = ({
   onSelectNodeRef,
   onUpdateNodeRef,
   pageRef,
+  replayToken,
   rootIds,
   uiKindMapRef,
   uiMapRef,
@@ -42,11 +44,19 @@ export const useNodeTreeSync = ({
   const uiKindMap = uiKindMapRef.current;
   const uiParentMap = uiParentMapRef.current;
   const animationSignatureMapRef = useRef(new Map<string, string>());
+  const prevReplayTokenRef = useRef(replayToken);
 
   useEffect(() => {
     const board = boardRef.current as ParentNodeUI | null;
 
     if (!board) return;
+
+    // replayToken 变化（如点击“播放动画”或切换页面）时，让所有节点的动画签名失效，
+    // 下一轮同步会重新写入 animation，触发从头播放，而不是沿用上次播放后的末态。
+    if (replayToken !== prevReplayTokenRef.current) {
+      animationSignatureMapRef.current.clear();
+      prevReplayTokenRef.current = replayToken;
+    }
 
     syncCanvasPageToLeafer(
       {
@@ -72,6 +82,7 @@ export const useNodeTreeSync = ({
     onSelectNodeRef,
     onUpdateNodeRef,
     pageRef,
+    replayToken,
     rootIds,
     uiKindMap,
     uiMap,

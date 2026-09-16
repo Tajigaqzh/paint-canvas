@@ -5,7 +5,7 @@ import { useEraserTool } from "./useEraserTool";
 
 type Runtime = ReturnType<typeof useRuntime>;
 
-type UsePointerToolsParams = Pick<UseLeaferCanvasOptions, "tool"> & Runtime;
+type UsePointerToolsParams = Pick<UseLeaferCanvasOptions, "tool" | "erasableFilter"> & Runtime;
 
 /**
  * 组合画笔与橡皮擦两个工具。
@@ -15,7 +15,7 @@ type UsePointerToolsParams = Pick<UseLeaferCanvasOptions, "tool"> & Runtime;
  *
  * 两个插件都需要 board 作为坐标空间和预览容器，所以整组必须晚于 useStageBoard。
  */
-export const usePointerTools = ({ tool, ...runtime }: UsePointerToolsParams) => {
+export const usePointerTools = ({ tool, erasableFilter, ...runtime }: UsePointerToolsParams) => {
   useBrushTool({
     boardRef: runtime.boardRef,
     onAddDrawLineRef: runtime.onAddDrawLineRef,
@@ -24,6 +24,7 @@ export const usePointerTools = ({ tool, ...runtime }: UsePointerToolsParams) => 
 
   useEraserTool({
     boardRef: runtime.boardRef,
+    erasableFilter,
     onApplyEraserResultRef: runtime.onApplyEraserResultRef,
     tool,
     uiKindMapRef: runtime.uiKindMapRef,
