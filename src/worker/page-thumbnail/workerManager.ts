@@ -57,9 +57,14 @@ export class PageThumbnailWorkerManager {
     this.workers = Array.from({ length: workerCount }, () => this.createManagedWorker());
   }
 
+  /** 只重绘单页，返回该页的渲染结果。 */
+  renderPage(page: CanvasPage, size: PageThumbnailSize) {
+    return this.enqueuePage(page, size);
+  }
+
   /** 并行入队多页；实际绘制仍按空闲 worker 逐个消费。 */
   renderPages(pages: CanvasPage[], size: PageThumbnailSize) {
-    return Promise.all(pages.map((page) => this.enqueuePage(page, size)));
+    return Promise.all(pages.map((page) => this.renderPage(page, size)));
   }
 
   /** 停止调度并 terminate 所有 worker，队列里未完成的任务会 reject。 */

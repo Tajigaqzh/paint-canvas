@@ -90,6 +90,12 @@ export interface CanvasStore extends CanvasDocument {
   canUndo: boolean;
   /** 新增一个空白页面，并切换到新页面。 */
   addPage(): void;
+  /** 复制指定页面（节点 ID 全部换新），插入到原页之后并切换过去。 */
+  duplicatePage(sourceId: string): void;
+  /** 插入一个空白页面，afterPageId 为空时追加到末尾，并切换过去。 */
+  insertBlankPage(afterPageId?: string): void;
+  /** 删除指定页面；最后一页不允许删除。 */
+  removePage(id: string): void;
   /** 添加一条自由绘制笔迹。 */
   addDrawLine(line: Omit<LineNode, "id" | "name">): void;
   /** 添加一个根层级节点，并自动选中新节点；传入 position 时按画板坐标落点。 */

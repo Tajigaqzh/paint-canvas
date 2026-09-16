@@ -66,11 +66,14 @@ function Home() {
     canRedo,
     canUndo,
     canUngroup,
+    duplicatePage,
     groupSelected,
+    insertBlankPage,
     pageIds,
     pages,
     redo,
     removeNodes,
+    removePage,
     selectNode,
     selectPage,
     selectNodes,
@@ -248,6 +251,9 @@ function Home() {
             pageIds={pageIds}
             pages={pages}
             onAddPage={addPage}
+            onDuplicatePage={duplicatePage}
+            onInsertBlankPage={insertBlankPage}
+            onRemovePage={removePage}
             onSelectPage={selectPage}
           />
         </section>
