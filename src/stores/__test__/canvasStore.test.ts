@@ -231,4 +231,71 @@ describe("useCanvasStore", () => {
   it("removePage 对不存在的 id 不抛错", () => {
     expect(() => useCanvasStore.getState().removePage("missing")).not.toThrow();
   });
+
+  describe("clearPreviewNotes", () => {
+    const addLine = (source: "brush" | "material" | "preview") =>
+      useCanvasStore.getState().addDrawLine(
+        {
+          height: 0,
+          kind: "line",
+          points: [0, 0, 100, 0],
+          width: 100,
+          x: 0,
+          y: 0,
+        },
+        source,
+      );
+
+    const countLines = (source?: "brush" | "material" | "preview") => {
+      const { activePage } = useCanvasStore.getState();
+      return Object.values(activePage.nodeMap).filter(
+        (node) => node.kind === "line" && (source === undefined || node.source === source),
+      ).length;
+    };
+
+    it("删除当前页 preview 批注，保留 brush 笔迹与其它节点", () => {
+      useCanvasStore.getState().addNode("rect");
+      addLine("brush");
+      addLine("preview");
+      expect(countLines("preview")).toBe(1);
+      expect(countLines("brush")).toBe(1);
+
+      useCanvasStore.getState().clearPreviewNotes();
+
+      expect(countLines("preview")).toBe(0);
+      expect(countLines("brush")).toBe(1);
+      expect(Object.keys(useCanvasStore.getState().activePage.nodeMap).length).toBeGreaterThan(1);
+    });
+
+    it("跨页删除所有 preview 批注", () => {
+      addLine("preview");
+      const firstPage = useCanvasStore.getState().activePageId;
+      useCanvasStore.getState().addPage();
+      const secondPage = useCanvasStore.getState().activePageId;
+      addLine("preview");
+      expect(secondPage).not.toBe(firstPage);
+
+      useCanvasStore.getState().clearPreviewNotes();
+
+      const { pages } = useCanvasStore.getState();
+      for (const id of [firstPage, secondPage]) {
+        const previewLines = Object.values(pages[id].nodeMap).filter(
+          (node) => node.kind === "line" && node.source === "preview",
+        );
+        expect(previewLines).toHaveLength(0);
+      }
+    });
+
+    it("没有 preview 批注时为空操作且不产生历史记录", () => {
+      // 默认只有矩形和文本，没有 line 节点，clearPreviewNotes 应早返回。
+      expect(useCanvasStore.getState().canUndo).toBe(false);
+      useCanvasStore.getState().clearPreviewNotes();
+      expect(useCanvasStore.getState().canUndo).toBe(false);
+      expect(
+        Object.values(useCanvasStore.getState().activePage.nodeMap).some(
+          (node) => node.kind === "line",
+        ),
+      ).toBe(false);
+    });
+  });
 });
