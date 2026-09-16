@@ -221,11 +221,7 @@ function PageThumbnailStrip({
           const thumbnail = thumbnails[page.id];
 
           return (
-            <Dropdown
-              key={page.id}
-              menu={buildPageMenu(page.id)}
-              trigger={["contextMenu"]}
-            >
+            <Dropdown key={page.id} menu={buildPageMenu(page.id)} trigger={["contextMenu"]}>
               <button
                 className="page-thumbnail"
                 data-active={page.id === activePageId}
