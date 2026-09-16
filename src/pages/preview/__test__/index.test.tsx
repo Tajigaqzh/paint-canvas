@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCanvasStore } from "@/stores/canvasStore";
 import type { LineNode } from "@/types";
 
@@ -26,6 +26,9 @@ const renderPreview = () =>
 import PreviewPage from "../index";
 const PreviewPageWrapper = PreviewPage;
 
+// 仅用于在测试结束后还原被临时遮蔽的 console.error，见下方 beforeAll。
+let origError: typeof console.error | undefined;
+
 const BRUSH_LINE: Omit<LineNode, "id" | "name"> = {
   curve: 0.2,
   fill: "transparent",
@@ -44,9 +47,29 @@ const BRUSH_LINE: Omit<LineNode, "id" | "name"> = {
 };
 
 beforeAll(() => {
+  // React 19 已知误报：预览页卸载时 cleanup 调 clearPreviewNotes 更新 store，
+  // zustand 的 useSyncExternalStore 会在一个已经卸载的组件上再排一次 re-render，
+  // 该 re-render 落在 act 之外，触发 “not wrapped in act”。这里只屏蔽这一条良性提示，
+  // 卸载本身已用 act 包裹，且断言验证的是 store 状态而非组件渲染，不影响测试有效性。
+  const original = console.error;
+  origError = original;
+  console.error = (...args: unknown[]) => {
+    // React 打印的是带 %s 占位符的格式串（"An update to %s inside a test was not wrapped in act(...)."），
+    // 这里只屏蔽 PreviewPage 卸载时那条 React 19 + zustand useSyncExternalStore 的良性误报。
+    const msg = String(args[0] ?? "");
+    if (msg.includes("inside a test was not wrapped in act") && args[1] === "PreviewPage") {
+      return;
+    }
+    original(...(args as []));
+  };
   Object.defineProperty(document, "fullscreenElement", { configurable: true, value: null });
   Element.prototype.requestFullscreen ??= vi.fn();
   document.exitFullscreen ??= vi.fn();
+});
+
+afterAll(() => {
+  // 还原 console.error，避免污染其它测试文件。
+  if (origError) console.error = origError;
 });
 
 beforeEach(() => {
@@ -114,7 +137,7 @@ describe("PreviewPage", () => {
     ).toBe(false);
   });
 
-  it("退出预览页时清掉本轮预览批注，回到制作页不残留", () => {
+  it("退出预览页时清掉本轮预览批注，回到制作页不残留", async () => {
     const { unmount } = renderPreview();
     useCanvasStore.getState().addDrawLine(BRUSH_LINE, "preview");
 
@@ -127,7 +150,9 @@ describe("PreviewPage", () => {
       }),
     ).toBe(true);
 
-    unmount();
+    await act(async () => {
+      unmount();
+    });
     const after = useCanvasStore.getState().activePage;
     expect(
       after.rootIds.some((id) => {

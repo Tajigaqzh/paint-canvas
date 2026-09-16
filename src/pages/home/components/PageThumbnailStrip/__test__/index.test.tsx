@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import PageThumbnailStrip from "../index";
 
@@ -40,7 +40,7 @@ describe("PageThumbnailStrip", () => {
     expect(onSelectPage).toHaveBeenCalledWith("p1");
   });
 
-  it("右键菜单点击复制当前页会调用 onDuplicatePage，并传入被右键的页 id", () => {
+  it("右键菜单点击复制当前页会调用 onDuplicatePage，并传入被右键的页 id", async () => {
     const onDuplicatePage = vi.fn();
     render(
       <PageThumbnailStrip
@@ -60,12 +60,18 @@ describe("PageThumbnailStrip", () => {
         }}
       />,
     );
-    fireEvent.contextMenu(screen.getByText("页面 1"));
-    fireEvent.click(screen.getByText("复制当前页"));
+    await act(async () => {
+      fireEvent.contextMenu(screen.getByText("页面 1"));
+      fireEvent.click(screen.getByText("复制当前页"));
+    });
+    // 等待 antd Dropdown 异步定位（rAF）在 act 内完成，避免 act 警告。
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    });
     expect(onDuplicatePage).toHaveBeenCalledWith("p1");
   });
 
-  it("只有一页时删除菜单项禁用", () => {
+  it("只有一页时删除菜单项禁用", async () => {
     render(
       <PageThumbnailStrip
         {...baseProps}
@@ -83,7 +89,13 @@ describe("PageThumbnailStrip", () => {
         }}
       />,
     );
-    fireEvent.contextMenu(screen.getByText("页面 1"));
+    await act(async () => {
+      fireEvent.contextMenu(screen.getByText("页面 1"));
+    });
+    // 等待 antd Dropdown 异步定位（rAF）在 act 内完成，避免 act 警告。
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    });
     const deleteItem = screen.getByText("删除当前页").closest("li");
     expect(deleteItem).toHaveAttribute("aria-disabled", "true");
   });
