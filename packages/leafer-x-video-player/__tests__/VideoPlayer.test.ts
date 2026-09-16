@@ -62,7 +62,9 @@ beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
     context as unknown as CanvasRenderingContext2D,
   );
-  playSpy = vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(() => Promise.resolve());
+  playSpy = vi
+    .spyOn(HTMLMediaElement.prototype, "play")
+    .mockImplementation(() => Promise.resolve());
   pauseSpy = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
   loadSpy = vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
   vi.stubGlobal("requestAnimationFrame", raf);
@@ -97,7 +99,7 @@ describe("VideoPlayer 构造", () => {
   });
 
   it("video 元素配置 crossOrigin / playsInline / preload / src", () => {
-    const video = (player_video(createPlayer())) as HTMLVideoElement;
+    const video = player_video(createPlayer()) as HTMLVideoElement;
 
     expect(video.crossOrigin).toBe("anonymous");
     expect(video.playsInline).toBe(true);
