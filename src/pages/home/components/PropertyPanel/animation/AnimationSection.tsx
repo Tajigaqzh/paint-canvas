@@ -8,11 +8,7 @@ import {
 } from "@ant-design/icons";
 import { Button, Checkbox, Empty, Form, Input, InputNumber, Select } from "antd";
 import type { CanvasAnimationItem } from "@/types";
-import {
-  canSelectAnimationPreset,
-  canUseInfiniteLoop,
-  reorderAnimations,
-} from "./animationOrder";
+import { canSelectAnimationPreset, canUseInfiniteLoop, reorderAnimations } from "./animationOrder";
 import {
   animationPresetOptions,
   createAnimationItem,
@@ -102,9 +98,7 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                     size="small"
                     title="删除动画"
                     onClick={() =>
-                      commitAnimationList(
-                        animationList.filter((item) => item.id !== animation.id),
-                      )
+                      commitAnimationList(animationList.filter((item) => item.id !== animation.id))
                     }
                   />
                   <Input
@@ -161,9 +155,7 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                         <InputNumber
                           min={0}
                           value={animation.delay}
-                          onChange={(delay) =>
-                            updateAnimation({ delay: Number(delay ?? 0) })
-                          }
+                          onChange={(delay) => updateAnimation({ delay: Number(delay ?? 0) })}
                         />
                       </Form.Item>
                     </div>
@@ -194,13 +186,10 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                           <Select
                             options={fadeInDirectionOptions}
                             value={animation.fadeInDirection ?? "current"}
-                            onChange={(fadeInDirection) =>
-                              updateAnimation({ fadeInDirection })
-                            }
+                            onChange={(fadeInDirection) => updateAnimation({ fadeInDirection })}
                           />
                         </Form.Item>
-                        {animation.fadeInDirection &&
-                        animation.fadeInDirection !== "current" ? (
+                        {animation.fadeInDirection && animation.fadeInDirection !== "current" ? (
                           <Form.Item label="滑入距离">
                             <InputNumber
                               min={0}
@@ -221,13 +210,10 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                           <Select
                             options={fadeOutDirectionOptions}
                             value={animation.fadeInDirection ?? "current"}
-                            onChange={(fadeInDirection) =>
-                              updateAnimation({ fadeInDirection })
-                            }
+                            onChange={(fadeInDirection) => updateAnimation({ fadeInDirection })}
                           />
                         </Form.Item>
-                        {animation.fadeInDirection &&
-                        animation.fadeInDirection !== "current" ? (
+                        {animation.fadeInDirection && animation.fadeInDirection !== "current" ? (
                           <Form.Item label="滑出距离">
                             <InputNumber
                               min={0}

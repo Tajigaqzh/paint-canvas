@@ -30,7 +30,12 @@ describe("AnimationSection", () => {
   });
 
   it("渲染已有动画项的名称", () => {
-    render(<AnimationSection animationList={[makeItem({ name: "我的动画" })]} commitAnimationList={vi.fn()} />);
+    render(
+      <AnimationSection
+        animationList={[makeItem({ name: "我的动画" })]}
+        commitAnimationList={vi.fn()}
+      />,
+    );
 
     expect(screen.getByDisplayValue("我的动画")).toBeTruthy();
   });
@@ -49,7 +54,9 @@ describe("AnimationSection", () => {
 
   it("点击删除会提交过滤掉该项的列表", () => {
     const commit = vi.fn();
-    render(<AnimationSection animationList={[makeItem({ id: "x" })]} commitAnimationList={commit} />);
+    render(
+      <AnimationSection animationList={[makeItem({ id: "x" })]} commitAnimationList={commit} />,
+    );
 
     fireEvent.click(screen.getByTitle("删除动画"));
 
@@ -68,7 +75,9 @@ describe("AnimationSection", () => {
 
   it("修改名称会提交带新名称的列表", () => {
     const commit = vi.fn();
-    render(<AnimationSection animationList={[makeItem({ id: "x" })]} commitAnimationList={commit} />);
+    render(
+      <AnimationSection animationList={[makeItem({ id: "x" })]} commitAnimationList={commit} />,
+    );
 
     fireEvent.change(screen.getByDisplayValue("淡入动画"), { target: { value: "重命名" } });
 

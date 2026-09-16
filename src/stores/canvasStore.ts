@@ -711,7 +711,9 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
     clearPreviewNotes() {
       const { pages, pageIds } = get();
       const hasPreviewNotes = pageIds.some((id) =>
-        Object.values(pages[id].nodeMap).some((node) => node.kind === "line" && node.source === "preview"),
+        Object.values(pages[id].nodeMap).some(
+          (node) => node.kind === "line" && node.source === "preview",
+        ),
       );
 
       if (!hasPreviewNotes) return;
