@@ -1,0 +1,60 @@
+{
+  "name": "leafer-x-curved-text",
+  "version": "0.1.0",
+  "description": "Leafer 曲线文字布局与富文本插件",
+  "keywords": [
+    "curved-text",
+    "leafer",
+    "leafer-ui",
+    "rich-text"
+  ],
+  "license": "MIT",
+  "files": [
+    "src",
+    "dist"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "publishConfig": {
+    "main": "./dist/index.esm.js",
+    "module": "./dist/index.esm.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "@leafer-ui/interface": "^2.0.4"
+  },
+  "devDependencies": {
+    "@leafer-ui/core": "^2.2.3",
+    "jsdom": "^29.1.1",
+    "leafer-ui": "^2.2.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1",
+    "vitest": "^4.1.10"
+  },
+  "peerDependencies": {
+    "@leafer-ui/core": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@leafer-ui/core": {
+      "optional": true
+    }
+  }
+}
