@@ -45,9 +45,7 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
           {t("add")}
         </Button>
       </div>
-      <p className="property-animation__hint">
-        {t("animationOrderHint")}
-      </p>
+      <p className="property-animation__hint">{t("animationOrderHint")}</p>
 
       {animationList.length ? (
         <div className="property-animation__list">
@@ -112,7 +110,9 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                     icon={isAnimationCollapsed ? <DownOutlined /> : <UpOutlined />}
                     size="small"
                     title={isAnimationCollapsed ? t("expandAnimation") : t("collapseAnimation")}
-                    aria-label={isAnimationCollapsed ? t("expandAnimation") : t("collapseAnimation")}
+                    aria-label={
+                      isAnimationCollapsed ? t("expandAnimation") : t("collapseAnimation")
+                    }
                     onClick={() =>
                       setCollapsedAnimationIds((current) => {
                         const next = new Set(current);
@@ -187,7 +187,10 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                       <>
                         <Form.Item label={t("fadeInDirection")}>
                           <Select
-                            options={fadeInDirectionOptions.map((option) => ({ ...option, label: t(option.labelKey) }))}
+                            options={fadeInDirectionOptions.map((option) => ({
+                              ...option,
+                              label: t(option.labelKey),
+                            }))}
                             value={animation.fadeInDirection ?? "current"}
                             onChange={(fadeInDirection) => updateAnimation({ fadeInDirection })}
                           />
@@ -211,7 +214,10 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                       <>
                         <Form.Item label={t("fadeOutDirection")}>
                           <Select
-                            options={fadeOutDirectionOptions.map((option) => ({ ...option, label: t(option.labelKey) }))}
+                            options={fadeOutDirectionOptions.map((option) => ({
+                              ...option,
+                              label: t(option.labelKey),
+                            }))}
                             value={animation.fadeInDirection ?? "current"}
                             onChange={(fadeInDirection) => updateAnimation({ fadeInDirection })}
                           />
@@ -235,7 +241,10 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                       <>
                         <Form.Item label={t("movePreset")}>
                           <Select
-                            options={movePresetOptions.map((option) => ({ ...option, label: t(option.labelKey) }))}
+                            options={movePresetOptions.map((option) => ({
+                              ...option,
+                              label: t(option.labelKey),
+                            }))}
                             value={animation.movePreset ?? "right"}
                             onChange={(movePreset) => updateAnimation({ movePreset })}
                           />

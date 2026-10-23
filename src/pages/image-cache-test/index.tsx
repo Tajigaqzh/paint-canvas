@@ -224,7 +224,10 @@ function ImageCacheTest() {
     <main className="image-cache-test">
       <div className="image-cache-test__shell">
         <header className="image-cache-test__header">
-          <div><h1>{t("imageCacheRequestTest")}</h1><LanguageSwitcher /></div>
+          <div>
+            <h1>{t("imageCacheRequestTest")}</h1>
+            <LanguageSwitcher />
+          </div>
           <p>{t("cacheConcurrencyHint")}</p>
         </header>
 
@@ -260,9 +263,7 @@ function ImageCacheTest() {
           <ResultPanel result={workerResult} title={t("workerFetch")} />
         </div>
 
-        <p className="image-cache-test__note">
-          {t("cacheTestHint")}
-        </p>
+        <p className="image-cache-test__note">{t("cacheTestHint")}</p>
       </div>
     </main>
   );
