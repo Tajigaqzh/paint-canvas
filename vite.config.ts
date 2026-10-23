@@ -23,7 +23,10 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5174,
+    port: 5173,
+    proxy: {
+      "/api": "http://localhost:8080",
+    },
   },
   build: {
     // antd 体积天然偏大，拆成独立 vendor chunk 是有意为之，提高阈值避免噪声告警。
@@ -43,7 +46,8 @@ export default defineConfig({
 
           if (id.includes("node_modules")) {
             if (/[\\/]node_modules[\\/][^\\/]*leafer[^\\/]*[\\/]/.test(id)) return "leafer";
-            if (/[\\/]node_modules[\\/](?:antd|@ant-design|rc-[^\\/]*|dayjs)[\\/]/.test(id)) return "antd";
+            if (/[\\/]node_modules[\\/](?:antd|@ant-design|rc-[^\\/]*|dayjs)[\\/]/.test(id))
+              return "antd";
             if (
               /[\\/]node_modules[\\/](?:react|react-dom|react-router[^\\/]*|scheduler|use-sync-external-store)[\\/]/.test(
                 id,

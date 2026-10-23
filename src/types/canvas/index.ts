@@ -4,7 +4,7 @@ import type { CanvasMaterialKind, CanvasNode, LineNode, LineSource } from "@/typ
 /** 当前画布交互工具。 */
 export type CanvasToolMode = "select" | "brush" | "eraser" | "magnifier";
 
-/** 画布固定设计尺寸。DOM 会等比缩放，数据始终按这个坐标系存储。 */
+/** 画布设计尺寸。DOM 会等比缩放，数据始终按页面的 viewport 坐标系存储。 */
 export interface CanvasViewport {
   /** 画布设计宽度，当前按 1920 设计。 */
   width: number;
@@ -18,7 +18,7 @@ export interface CanvasPage {
   id: string;
   /** 页面名称，用于底部缩略图和后续页面管理。 */
   name: string;
-  /** 固定画布尺寸，当前默认 1920 x 1080。 */
+  /** 当前页面的画布尺寸，新建页面默认 1920 x 1080。 */
   viewport: CanvasViewport;
   /** 所有节点字典，key 是节点 ID。 */
   nodeMap: Record<string, CanvasNode>;
@@ -90,12 +90,16 @@ export interface CanvasStore extends CanvasDocument {
   canUndo: boolean;
   /** 新增一个空白页面，并切换到新页面。 */
   addPage(): void;
+  /** 更新当前页面画布尺寸。 */
+  updateViewport(viewport: CanvasViewport): void;
   /** 复制指定页面（节点 ID 全部换新），插入到原页之后并切换过去。 */
   duplicatePage(sourceId: string): void;
   /** 插入一个空白页面，afterPageId 为空时追加到末尾，并切换过去。 */
   insertBlankPage(afterPageId?: string): void;
   /** 删除指定页面；最后一页不允许删除。 */
   removePage(id: string): void;
+  /** 用后端文档替换当前文档，并清空撤销/重做历史。 */
+  replaceDocument(document: CanvasDocument): void;
   /** 添加一条自由绘制笔迹。source 默认 "brush"（制作页批注），预览页传入 "preview" 以便离开时单独清掉。 */
   addDrawLine(line: Omit<LineNode, "id" | "name">, source?: LineSource): void;
   /** 清空全部预览批注（source === "preview"），用于离开预览页时避免污染制作文档。 */

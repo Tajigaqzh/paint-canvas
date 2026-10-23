@@ -3,18 +3,22 @@ import { useSize } from "ahooks";
 import { Button, Drawer, InputNumber, Space, Switch } from "antd";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAppTranslation } from "@/i18n/useAppTranslation";
+import LanguageSwitcher from "@/i18n/LanguageSwitcher";
 import { useCanvasStore } from "@/stores/canvasStore";
 import type { CanvasToolMode, LineNode } from "@/types";
 import { useLeaferCanvas } from "@/pages/home/hooks/useLeaferCanvas";
 import { getCanvasViewSize } from "@/pages/home/canvasFit";
 import { createEraserCursor } from "@/pages/home/eraserCursor";
 import PreviewToolbar from "./PreviewToolbar";
+import { useFullscreen } from "./hooks/useFullscreen";
 import { BRUSH_COLORS } from "./presets";
 import PreviewPageStrip from "./PreviewPageStrip";
 import "./index.less";
 
 /** 预览演示页：只读展示 home 制作的画布，支持画笔批注、橡皮擦、一键清除、动画播放与演示设置。 */
 const PreviewPage = () => {
+  const { t } = useAppTranslation();
   const navigate = useNavigate();
   const canvasViewRef = useRef<HTMLDivElement>(null);
   const canvasShellRef = useRef<HTMLDivElement>(null);
@@ -35,7 +39,7 @@ const PreviewPage = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [autoplay, setAutoplay] = useState(false);
   const [autoplaySeconds, setAutoplaySeconds] = useState(5);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const { isFullscreen, toggleFullscreen: handleToggleFullscreen } = useFullscreen(rootRef);
 
   const {
     activePage,
@@ -123,23 +127,6 @@ const PreviewPage = () => {
     };
   }, []);
 
-  /** 全屏切换：把整页容器切到浏览器全屏。 */
-  const handleToggleFullscreen = useCallback(() => {
-    if (document.fullscreenElement) {
-      void document.exitFullscreen();
-    } else {
-      void rootRef.current?.requestFullscreen();
-    }
-  }, []);
-
-  useEffect(() => {
-    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
-
-    document.addEventListener("fullscreenchange", onChange);
-
-    return () => document.removeEventListener("fullscreenchange", onChange);
-  }, []);
-
   // 键盘左右键翻页并播放动画。
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -191,16 +178,17 @@ const PreviewPage = () => {
       <header className="preview__header">
         <div className="preview__brand">
           <span className="preview__brand-icon" aria-hidden="true" />
-          <h1>预览演示</h1>
+          <h1>{t("presentationPreview")}</h1>
         </div>
         <Space className="preview__actions">
+          <LanguageSwitcher />
           <Button icon={<CaretRightOutlined />} onClick={handlePlayAnimations}>
-            播放动画
+            {t("playAnimations")}
           </Button>
           <Button icon={<SettingOutlined />} onClick={() => setSettingsOpen(true)}>
-            演示设置
+            {t("presentationSettings")}
           </Button>
-          <Button onClick={() => navigate("/")}>返回制作</Button>
+          <Button onClick={() => navigate("/")}>{t("backToEditor")}</Button>
         </Space>
       </header>
 
@@ -248,13 +236,13 @@ const PreviewPage = () => {
         />
       </main>
 
-      <Drawer title="演示设置" open={settingsOpen} onClose={() => setSettingsOpen(false)}>
+      <Drawer title={t("presentationSettings")} open={settingsOpen} onClose={() => setSettingsOpen(false)}>
         <div className="preview__settings-item">
-          <span>自动轮播</span>
+          <span>{t("autoPlayPages")}</span>
           <Switch checked={autoplay} onChange={setAutoplay} />
         </div>
         <div className="preview__settings-item">
-          <span>轮播间隔（秒）</span>
+          <span>{t("intervalSeconds")}</span>
           <InputNumber
             min={1}
             max={60}
@@ -263,7 +251,7 @@ const PreviewPage = () => {
           />
         </div>
         <p className="preview__settings-hint">
-          画笔颜色、画笔粗细、橡皮擦粗细、放大镜参数在右侧工具面板中设置。切换页面或键盘左右键会从头播放该页动画。
+          {t("previewSettingsHint")}
         </p>
       </Drawer>
     </div>

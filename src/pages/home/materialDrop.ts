@@ -33,7 +33,7 @@ export const setDraggingMaterialKind = (kind?: CanvasMaterialKind) => {
 export const getDraggingMaterialKind = () => draggingMaterialKind;
 
 /**
- * 把投放点从 client 坐标换成 1920×1080 业务坐标。
+ * 把投放点从 client 坐标换成当前页面 viewport 的业务坐标。
  * 白板外返回 undefined，调用方不应创建节点。
  */
 export const mapMaterialDropPoint = (

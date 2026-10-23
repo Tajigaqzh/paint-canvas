@@ -1,8 +1,11 @@
 import { useSize } from "ahooks";
-import { Button } from "antd";
-import { useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Button, InputNumber, Space } from "antd";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { documentsApi, type DocumentRecord } from "@/api/documents";
+import { useAppTranslation } from "@/i18n/useAppTranslation";
 import { useAppMessage } from "@/hooks/useAppMessage";
+import LanguageSwitcher from "@/i18n/LanguageSwitcher";
 import { useCanvasStore } from "@/stores/canvasStore";
 import type { CanvasDocument, CanvasToolMode } from "@/types";
 import { getCanvasViewSize } from "./canvasFit";
@@ -20,12 +23,12 @@ import {
 } from "./materialDrop";
 import "./index.less";
 
-const CANVAS_STORAGE_KEY = "paint-canvas:document";
-
 /** 制作页工作台：编排工具栏、素材/属性面板与 Leafer 画布运行时。 */
 function Home() {
+  const { t } = useAppTranslation();
   const message = useAppMessage();
   const navigate = useNavigate();
+  const { documentId } = useParams();
   // shell 用于测量可用空间和承载浮层，view 才是 Leafer 实际挂载的内容区域。
   const canvasViewRef = useRef<HTMLDivElement>(null);
   const canvasShellRef = useRef<HTMLDivElement>(null);
@@ -40,6 +43,12 @@ function Home() {
   const [eraserSize, setEraserSize] = useState(24);
   const [magnifierSize, setMagnifierSize] = useState(200);
   const [magnifierZoom, setMagnifierZoom] = useState(3);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDocumentLoading, setIsDocumentLoading] = useState(false);
+  const [currentDocument, setCurrentDocument] = useState<DocumentRecord | null>(null);
+  const initializedNewDocumentRef = useRef(false);
+  const noticeRef = useRef({ message, t });
+  noticeRef.current = { message, t };
   const [contextMenu, setContextMenu] = useState({
     open: false,
     x: 0,
@@ -63,6 +72,7 @@ function Home() {
     pageIds,
     pages,
     redo,
+    replaceDocument,
     removeNodes,
     removePage,
     selectNode,
@@ -73,6 +83,7 @@ function Home() {
     ungroupSelected,
     updateNode,
     updateNodes,
+    updateViewport,
   } = useCanvasStore();
   const { activeId, nodeMap, selectedIds, viewport } = activePage;
 
@@ -123,16 +134,69 @@ function Home() {
     setContextMenu((value) => ({ ...value, open: false }));
   };
 
-  /** 将当前 Store 文档序列化到浏览器本地存储，并反馈保存结果。 */
-  const saveDocument = () => {
+  /** 新文档创建，已打开文档按 revision 更新，防止覆盖其他会话的修改。 */
+  const saveDocument = async () => {
+    if (isSaving) return;
+
+    setIsSaving(true);
     try {
-      window.localStorage.setItem(CANVAS_STORAGE_KEY, JSON.stringify(document));
-      message.success("保存成功");
+      const input = { data: document, name: currentDocument?.name ?? activePage.name };
+      const saved = currentDocument
+        ? await documentsApi.update(currentDocument.id, {
+            ...input,
+            revision: currentDocument.revision,
+          })
+        : await documentsApi.create(input);
+      setCurrentDocument(saved);
+      if (documentId === "new") navigate(`/editor/${saved.id}`, { replace: true });
+      message.success(t("documentSaved"));
     } catch {
-      // localStorage 可能因隐私策略、配额或序列化失败而不可用，统一留在页面层反馈。
-      message.error("保存失败");
+      message.error(t("documentSaveFailed"));
+    } finally {
+      setIsSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (!documentId) return;
+    if (documentId === "new") {
+      if (!initializedNewDocumentRef.current) {
+        initializedNewDocumentRef.current = true;
+        useCanvasStore.getState().reset();
+        setCurrentDocument(null);
+        setIsDocumentLoading(false);
+      }
+      return;
+    }
+    initializedNewDocumentRef.current = false;
+    if (currentDocument?.id === documentId) {
+      setIsDocumentLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsDocumentLoading(true);
+    documentsApi
+      .get(documentId)
+      .then((loaded) => {
+        if (cancelled) return;
+        setIsDocumentLoading(false);
+        replaceDocument(loaded.data);
+        setCurrentDocument(loaded);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        noticeRef.current.message.error(noticeRef.current.t("documentOpenFailed"));
+        navigate("/works", { replace: true });
+      })
+      .finally(() => {
+        if (!cancelled) setIsDocumentLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentDocument?.id, documentId, navigate, replaceDocument]);
 
   /** 记录右键菜单的 viewport 坐标，并阻止浏览器默认菜单。 */
   const openContextMenu = (event: React.MouseEvent) => {
@@ -168,7 +232,7 @@ function Home() {
 
     if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return;
 
-    // DOM client 坐标需结合舞台缩放和平移，反算为固定 1920×1080 的业务坐标。
+    // DOM client 坐标需结合舞台缩放和平移，反算为当前 viewport 的业务坐标。
     const point = mapMaterialDropPoint(
       event.clientX,
       event.clientY,
@@ -187,9 +251,13 @@ function Home() {
       <header className="canvas-maker__header">
         <div className="canvas-maker__brand">
           <span className="canvas-maker__brand-icon" aria-hidden="true" />
-          <h1>Canvas 制作工具</h1>
+          <h1>{t("homeTitle")}</h1>
+          <LanguageSwitcher />
+          <Button style={{ marginLeft: 16 }} onClick={() => navigate("/works")}>
+            {t("backToWorks")}
+          </Button>
           <Button style={{ marginLeft: 16 }} onClick={() => navigate("/preview")}>
-            预览
+            {t("preview")}
           </Button>
         </div>
 
@@ -199,6 +267,8 @@ function Home() {
           canRedo={canRedo}
           canUndo={canUndo}
           eraserSize={eraserSize}
+          isDocumentLoading={isDocumentLoading}
+          isSaving={isSaving}
           magnifierSize={magnifierSize}
           magnifierZoom={magnifierZoom}
           onChangeBrushSize={setBrushSize}
@@ -221,10 +291,33 @@ function Home() {
 
         <section className="canvas-maker__workspace">
           <div className="canvas-maker__workspace-bar">
-            <span>画布区域</span>
-            <span>
-              {activePage.name} · {viewport.width} x {viewport.height}
-            </span>
+            <span>{t("canvas")}</span>
+            <Space size={8}>
+              <span>{activePage.name}</span>
+              <InputNumber
+                aria-label={t("canvasWidth")}
+                min={1}
+                max={10000}
+                precision={0}
+                size="small"
+                value={viewport.width}
+                onChange={(width) => {
+                  if (width) updateViewport({ ...viewport, width });
+                }}
+              />
+              <span aria-hidden="true">x</span>
+              <InputNumber
+                aria-label={t("canvasHeight")}
+                min={1}
+                max={10000}
+                precision={0}
+                size="small"
+                value={viewport.height}
+                onChange={(height) => {
+                  if (height) updateViewport({ ...viewport, height });
+                }}
+              />
+            </Space>
           </div>
           <div
             className="canvas-maker__canvas-shell"

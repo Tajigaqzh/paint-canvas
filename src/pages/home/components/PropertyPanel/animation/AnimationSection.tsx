@@ -7,6 +7,7 @@ import {
   UpOutlined,
 } from "@ant-design/icons";
 import { Button, Checkbox, Empty, Form, Input, InputNumber, Select } from "antd";
+import { useAppTranslation } from "@/i18n/useAppTranslation";
 import type { CanvasAnimationItem } from "@/types";
 import { canSelectAnimationPreset, canUseInfiniteLoop, reorderAnimations } from "./animationOrder";
 import {
@@ -26,13 +27,14 @@ type AnimationSectionProps = {
 };
 
 function AnimationSection({ animationList, commitAnimationList }: AnimationSectionProps) {
+  const { t } = useAppTranslation();
   const [draggingAnimationId, setDraggingAnimationId] = useState<string>();
   const [collapsedAnimationIds, setCollapsedAnimationIds] = useState<Set<string>>(() => new Set());
 
   return (
     <section className="property-animation">
       <div className="property-section-title">
-        <span>动画</span>
+        <span>{t("animation")}</span>
         <Button
           icon={<PlusOutlined />}
           size="small"
@@ -40,11 +42,11 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
             commitAnimationList([...animationList, createAnimationItem(animationList)])
           }
         >
-          添加
+          {t("add")}
         </Button>
       </div>
       <p className="property-animation__hint">
-        淡入最先播放，移动和旋转居中，淡出最后。可拖动手柄调整同阶段顺序。
+        {t("animationOrderHint")}
       </p>
 
       {animationList.length ? (
@@ -82,7 +84,7 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                   <span
                     className="property-animation__drag"
                     draggable
-                    title="拖动排序"
+                    title={t("dragToReorder")}
                     onDragEnd={() => setDraggingAnimationId(undefined)}
                     onDragStart={(event) => {
                       event.dataTransfer.effectAllowed = "move";
@@ -96,7 +98,7 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                     danger
                     icon={<DeleteOutlined />}
                     size="small"
-                    title="删除动画"
+                    title={t("deleteAnimation")}
                     onClick={() =>
                       commitAnimationList(animationList.filter((item) => item.id !== animation.id))
                     }
@@ -109,8 +111,8 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                   <Button
                     icon={isAnimationCollapsed ? <DownOutlined /> : <UpOutlined />}
                     size="small"
-                    title={isAnimationCollapsed ? "展开动画" : "折叠动画"}
-                    aria-label={isAnimationCollapsed ? "展开动画" : "折叠动画"}
+                    title={isAnimationCollapsed ? t("expandAnimation") : t("collapseAnimation")}
+                    aria-label={isAnimationCollapsed ? t("expandAnimation") : t("collapseAnimation")}
                     onClick={() =>
                       setCollapsedAnimationIds((current) => {
                         const next = new Set(current);
@@ -125,10 +127,11 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                 </div>
                 {!isAnimationCollapsed && (
                   <Form layout="vertical" size="small">
-                    <Form.Item label="类型">
+                    <Form.Item label={t("type")}>
                       <Select
                         options={animationPresetOptions.map((option) => ({
                           ...option,
+                          label: t(option.labelKey),
                           disabled: !canSelectAnimationPreset(
                             animationList,
                             animation.id,
@@ -140,7 +143,7 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                       />
                     </Form.Item>
                     <div className="property-grid property-grid--two">
-                      <Form.Item label="时长">
+                      <Form.Item label={t("duration")}>
                         <InputNumber
                           min={0}
                           value={animation.duration}
@@ -151,7 +154,7 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                           }
                         />
                       </Form.Item>
-                      <Form.Item label="延时">
+                      <Form.Item label={t("delayLabel")}>
                         <InputNumber
                           min={0}
                           value={animation.delay}
@@ -160,7 +163,7 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                       </Form.Item>
                     </div>
                     <div className="property-grid property-grid--two">
-                      <Form.Item label="循环次数">
+                      <Form.Item label={t("iterations")}>
                         <InputNumber
                           disabled={animation.loop < 0}
                           min={0}
@@ -168,7 +171,7 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                           onChange={(loop) => updateAnimation({ loop: Number(loop ?? 0) })}
                         />
                       </Form.Item>
-                      <Form.Item label="无限循环">
+                      <Form.Item label={t("infiniteLoop")}>
                         <Checkbox
                           checked={animation.loop < 0}
                           disabled={!allowInfiniteLoop}
@@ -176,21 +179,21 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                             updateAnimation({ loop: event.target.checked ? -1 : 0 })
                           }
                         >
-                          开启
+                          {t("on")}
                         </Checkbox>
                       </Form.Item>
                     </div>
                     {animation.preset === "fadeIn" ? (
                       <>
-                        <Form.Item label="淡入方向">
+                        <Form.Item label={t("fadeInDirection")}>
                           <Select
-                            options={fadeInDirectionOptions}
+                            options={fadeInDirectionOptions.map((option) => ({ ...option, label: t(option.labelKey) }))}
                             value={animation.fadeInDirection ?? "current"}
                             onChange={(fadeInDirection) => updateAnimation({ fadeInDirection })}
                           />
                         </Form.Item>
                         {animation.fadeInDirection && animation.fadeInDirection !== "current" ? (
-                          <Form.Item label="滑入距离">
+                          <Form.Item label={t("slideInDistance")}>
                             <InputNumber
                               min={0}
                               value={animation.fadeInDistance ?? 80}
@@ -206,15 +209,15 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                     ) : null}
                     {animation.preset === "fadeOut" ? (
                       <>
-                        <Form.Item label="淡出方向">
+                        <Form.Item label={t("fadeOutDirection")}>
                           <Select
-                            options={fadeOutDirectionOptions}
+                            options={fadeOutDirectionOptions.map((option) => ({ ...option, label: t(option.labelKey) }))}
                             value={animation.fadeInDirection ?? "current"}
                             onChange={(fadeInDirection) => updateAnimation({ fadeInDirection })}
                           />
                         </Form.Item>
                         {animation.fadeInDirection && animation.fadeInDirection !== "current" ? (
-                          <Form.Item label="滑出距离">
+                          <Form.Item label={t("slideOutDistance")}>
                             <InputNumber
                               min={0}
                               value={animation.fadeInDistance ?? 80}
@@ -230,15 +233,15 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                     ) : null}
                     {animation.preset === "move" || animation.preset === "slideRight" ? (
                       <>
-                        <Form.Item label="移动预设">
+                        <Form.Item label={t("movePreset")}>
                           <Select
-                            options={movePresetOptions}
+                            options={movePresetOptions.map((option) => ({ ...option, label: t(option.labelKey) }))}
                             value={animation.movePreset ?? "right"}
                             onChange={(movePreset) => updateAnimation({ movePreset })}
                           />
                         </Form.Item>
                         {animation.movePreset !== "custom" ? (
-                          <Form.Item label="移动距离">
+                          <Form.Item label={t("moveDistance")}>
                             <InputNumber
                               min={0}
                               value={animation.moveDistance ?? 80}
@@ -249,7 +252,7 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                           </Form.Item>
                         ) : (
                           <div className="property-grid property-grid--two">
-                            <Form.Item label="起始 X">
+                            <Form.Item label={t("startX")}>
                               <InputNumber
                                 value={animation.moveFromX ?? 0}
                                 disabled={animation.movePreset !== "custom"}
@@ -258,7 +261,7 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                                 }
                               />
                             </Form.Item>
-                            <Form.Item label="起始 Y">
+                            <Form.Item label={t("startY")}>
                               <InputNumber
                                 value={animation.moveFromY ?? 0}
                                 disabled={animation.movePreset !== "custom"}
@@ -267,7 +270,7 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                                 }
                               />
                             </Form.Item>
-                            <Form.Item label="结束 X">
+                            <Form.Item label={t("endX")}>
                               <InputNumber
                                 value={animation.moveToX ?? 80}
                                 disabled={animation.movePreset !== "custom"}
@@ -276,7 +279,7 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
                                 }
                               />
                             </Form.Item>
-                            <Form.Item label="结束 Y">
+                            <Form.Item label={t("endY")}>
                               <InputNumber
                                 value={animation.moveToY ?? 0}
                                 disabled={animation.movePreset !== "custom"}
@@ -296,7 +299,7 @@ function AnimationSection({ animationList, commitAnimationList }: AnimationSecti
           })}
         </div>
       ) : (
-        <Empty description="暂无动画" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <Empty description={t("noAnimations")} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       )}
     </section>
   );

@@ -1,4 +1,5 @@
 import { InputNumber } from "antd";
+import { useAppTranslation } from "@/i18n/useAppTranslation";
 import type { CanvasNode, PolygonNode } from "@/types";
 
 type PolygonPropertyProps = {
@@ -7,11 +8,12 @@ type PolygonPropertyProps = {
 };
 
 function PolygonProperty({ node, onUpdateNode }: PolygonPropertyProps) {
+  const { t } = useAppTranslation();
   return (
     <div className="property-polygon">
       <div className="property-grid property-grid--two">
         <label className="property-field">
-          <span>边数</span>
+          <span>{t("sides")}</span>
           <InputNumber
             max={12}
             min={3}
@@ -20,7 +22,7 @@ function PolygonProperty({ node, onUpdateNode }: PolygonPropertyProps) {
           />
         </label>
         <label className="property-field">
-          <span>圆角</span>
+          <span>{t("cornerRadius")}</span>
           <InputNumber
             min={0}
             value={node.cornerRadius ?? 0}

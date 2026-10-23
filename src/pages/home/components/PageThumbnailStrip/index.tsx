@@ -1,6 +1,7 @@
 import { PlusOutlined } from "@ant-design/icons";
 import { Button, Dropdown, Tooltip } from "antd";
 import { useMemo } from "react";
+import { useAppTranslation } from "@/i18n/useAppTranslation";
 import type { MenuProps } from "antd";
 import type { CanvasPage } from "@/types";
 import { usePageThumbnails } from "@/worker/page-thumbnail/usePageThumbnails";
@@ -28,6 +29,7 @@ function PageThumbnailStrip({
   pageIds,
   pages,
 }: PageThumbnailStripProps) {
+  const { t } = useAppTranslation();
   const thumbnails = usePageThumbnails(pages, pageIds);
   const orderedPages = useMemo(
     () => pageIds.map((id) => pages[id]).filter((page): page is CanvasPage => Boolean(page)),
@@ -37,10 +39,10 @@ function PageThumbnailStrip({
   /** 缩略图右键菜单：复制当前页、插入空白页、删除当前页（最后一页不可删）。 */
   const buildPageMenu = (pageId: string): MenuProps => ({
     items: [
-      { key: "duplicate", label: "复制当前页" },
-      { key: "insert", label: "插入空白页" },
+      { key: "duplicate", label: t("duplicatePage") },
+      { key: "insert", label: t("insertBlankPage") },
       { type: "divider" },
-      { disabled: pageIds.length <= 1, key: "delete", label: "删除当前页" },
+      { disabled: pageIds.length <= 1, key: "delete", label: t("deletePage") },
     ],
     onClick: ({ key }) => {
       if (key === "duplicate") onDuplicatePage(pageId);
@@ -68,7 +70,7 @@ function PageThumbnailStrip({
                   <ThumbnailCanvas bitmap={thumbnail?.bitmap} />
                   {thumbnail?.error && (
                     <span className="page-thumbnail__error" title={thumbnail.error}>
-                      渲染失败
+                      {t("renderFailed")}
                     </span>
                   )}
                 </span>
@@ -79,7 +81,7 @@ function PageThumbnailStrip({
         })}
       </div>
 
-      <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title="新增页面">
+      <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title={t("addPage")}>
         <Button className="page-thumbnail-strip__add" icon={<PlusOutlined />} onClick={onAddPage} />
       </Tooltip>
     </footer>

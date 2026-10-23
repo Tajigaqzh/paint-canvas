@@ -4,47 +4,48 @@ import type {
   CanvasFadeInDirection,
   CanvasMovePreset,
 } from "@/types";
+import { translateKey } from "@/i18n";
 
 export const animationPresetOptions: Array<{
-  label: string;
+  labelKey: string;
   value: CanvasAnimationPreset;
 }> = [
-  { label: "淡入", value: "fadeIn" },
-  { label: "淡出", value: "fadeOut" },
-  { label: "移动", value: "move" },
-  { label: "旋转", value: "rotate" },
+  { labelKey: "fadeIn", value: "fadeIn" },
+  { labelKey: "fadeOut", value: "fadeOut" },
+  { labelKey: "move", value: "move" },
+  { labelKey: "rotate", value: "rotate" },
 ];
 
 export const fadeInDirectionOptions: Array<{
-  label: string;
+  labelKey: string;
   value: CanvasFadeInDirection;
 }> = [
-  { label: "从当前位置", value: "current" },
-  { label: "从左边", value: "left" },
-  { label: "从上边", value: "top" },
-  { label: "从下边", value: "bottom" },
+  { labelKey: "fromCurrentPosition", value: "current" },
+  { labelKey: "fromLeft", value: "left" },
+  { labelKey: "fromTop", value: "top" },
+  { labelKey: "fromBottom", value: "bottom" },
 ];
 
 export const fadeOutDirectionOptions: Array<{
-  label: string;
+  labelKey: string;
   value: CanvasFadeInDirection;
 }> = [
-  { label: "在当前位置", value: "current" },
-  { label: "向左边", value: "left" },
-  { label: "向上边", value: "top" },
-  { label: "向下边", value: "bottom" },
+  { labelKey: "atCurrentPosition", value: "current" },
+  { labelKey: "toLeft", value: "left" },
+  { labelKey: "toTop", value: "top" },
+  { labelKey: "toBottom", value: "bottom" },
 ];
 
-export const movePresetOptions: Array<{ label: string; value: CanvasMovePreset }> = [
-  { label: "自定义", value: "custom" },
-  { label: "右移", value: "right" },
-  { label: "左移", value: "left" },
-  { label: "上移", value: "up" },
-  { label: "下移", value: "down" },
-  { label: "左上 → 右下", value: "topLeftToBottomRight" },
-  { label: "右下 → 左上", value: "bottomRightToTopLeft" },
-  { label: "右上 → 左下", value: "topRightToBottomLeft" },
-  { label: "左下 → 右上", value: "bottomLeftToTopRight" },
+export const movePresetOptions: Array<{ labelKey: string; value: CanvasMovePreset }> = [
+  { labelKey: "custom", value: "custom" },
+  { labelKey: "moveRight", value: "right" },
+  { labelKey: "moveLeft", value: "left" },
+  { labelKey: "moveUp", value: "up" },
+  { labelKey: "moveDown", value: "down" },
+  { labelKey: "topLeftBottomRight", value: "topLeftToBottomRight" },
+  { labelKey: "bottomRightTopLeft", value: "bottomRightToTopLeft" },
+  { labelKey: "topRightBottomLeft", value: "topRightToBottomLeft" },
+  { labelKey: "bottomLeftTopRight", value: "bottomLeftToTopRight" },
 ];
 
 const getFadeOffset = (direction: CanvasFadeInDirection, distance: number) => {
@@ -143,11 +144,11 @@ export const createAnimationData = (
 };
 
 export const getAnimationName = (preset: CanvasAnimationPreset) => {
-  if (preset === "fadeOut") return "淡出动画";
-  if (preset === "move" || preset === "slideRight") return "移动动画";
-  if (preset === "rotate") return "旋转动画";
+  if (preset === "fadeOut") return translateKey("fadeOutAnimation");
+  if (preset === "move" || preset === "slideRight") return translateKey("moveAnimation");
+  if (preset === "rotate") return translateKey("rotateAnimation");
 
-  return "淡入动画";
+  return translateKey("fadeInAnimation");
 };
 
 /** 新增一条动画：已有淡入则补移动，否则补淡入，保证阶段顺序合法。 */

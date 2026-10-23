@@ -20,7 +20,7 @@ describe("AnimationSection", () => {
 
     expect(screen.getByText("动画")).toBeTruthy();
     expect(screen.getByText("添加")).toBeTruthy();
-    expect(screen.getByText(/淡入最先播放/)).toBeTruthy();
+    expect(screen.getByText(/淡入先播放/)).toBeTruthy();
   });
 
   it("空列表显示暂无动画", () => {

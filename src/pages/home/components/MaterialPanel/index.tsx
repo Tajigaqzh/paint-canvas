@@ -6,6 +6,7 @@ import {
 } from "@ant-design/icons";
 import { Button, Tabs } from "antd";
 import type { ReactNode } from "react";
+import { useAppTranslation } from "@/i18n/useAppTranslation";
 import { TEST_MATERIAL_IMAGE_URL } from "@/constants/materialImages";
 import type { CanvasMaterialKind } from "@/types";
 import { MATERIAL_DRAG_MIME, setDraggingMaterialKind } from "../../materialDrop";
@@ -98,92 +99,79 @@ const ImageMaterialIcon = () => (
 const materials = [
   {
     key: "rect",
-    title: "矩形",
-    description: "按钮、卡片、容器",
+    titleKey: "rectangle",
     icon: <RectMaterialIcon />,
   },
   {
     key: "circle",
-    title: "圆形",
-    description: "头像、节点、徽标",
+    titleKey: "circle",
     icon: <EllipseMaterialIcon />,
   },
   {
     key: "ellipse",
-    title: "椭圆",
-    description: "标签、背景、装饰",
+    titleKey: "ellipse",
     icon: <OvalMaterialIcon />,
   },
   {
     key: "ring",
-    title: "圆环",
-    description: "进度、状态、图标",
+    titleKey: "ring",
     icon: <RingMaterialIcon />,
   },
   {
     key: "sector",
-    title: "扇形",
-    description: "饼图、角标、强调",
+    titleKey: "sector",
     icon: <SectorMaterialIcon />,
   },
   {
     key: "sector-ring",
-    title: "扇形圆环",
-    description: "进度段、仪表盘",
+    titleKey: "sectorRing",
     icon: <SectorRingMaterialIcon />,
   },
   {
     key: "arc",
-    title: "圆角弧线",
-    description: "路径、进度、标注",
+    titleKey: "arc",
     icon: <ArcMaterialIcon />,
   },
   {
     key: "text",
-    title: "文本",
-    description: "标题、标签、说明",
+    titleKey: "text",
     icon: <TextMaterialIcon />,
   },
   {
     key: "line",
-    title: "线条",
-    description: "分割线、连接线、标注",
+    titleKey: "line",
     icon: <LineMaterialIcon />,
   },
   {
     key: "triangle",
-    title: "三角形",
-    description: "箭头、标识、图标",
+    titleKey: "triangle",
     icon: <TriangleMaterialIcon />,
   },
   {
     key: "polygon",
-    title: "正多边形",
-    description: "徽章、图标、容器",
+    titleKey: "polygon",
     icon: <PolygonMaterialIcon />,
   },
   {
     key: "star",
-    title: "星形",
-    description: "评级、标识、强调",
+    titleKey: "star",
     icon: <StarMaterialIcon />,
   },
 ] satisfies Array<{
   key: CanvasMaterialKind;
-  title: string;
-  description: string;
+  titleKey: string;
   icon: ReactNode;
 }>;
 
 const imageMaterials = [
   {
     key: "image",
-    title: "测试图片",
+    titleKey: "sampleImage",
     previewUrl: TEST_MATERIAL_IMAGE_URL,
   },
   {
     key: "upload",
-    title: "上传图片",
+    titleKey: "uploadImage",
     icon: <ImageMaterialIcon />,
   },
 ] as const;
@@ -198,6 +186,7 @@ type MaterialPanelProps = {
 };
 
 function MaterialPanel({ collapsed, onAddNode, onToggle }: MaterialPanelProps) {
+  const { t } = useAppTranslation();
   const tabItems = [
     {
       children: (
@@ -207,7 +196,7 @@ function MaterialPanel({ collapsed, onAddNode, onToggle }: MaterialPanelProps) {
               className="material-item"
               draggable
               key={material.key}
-              title={material.title}
+              title={t(material.titleKey)}
               type="button"
               onClick={() => onAddNode(material.key)}
               onDragEnd={() => setDraggingMaterialKind(undefined)}
@@ -224,7 +213,7 @@ function MaterialPanel({ collapsed, onAddNode, onToggle }: MaterialPanelProps) {
         </div>
       ),
       key: "basic",
-      label: "基础图形",
+      label: t("basicShapes"),
       icon: <BorderOutlined />,
     },
     {
@@ -236,7 +225,7 @@ function MaterialPanel({ collapsed, onAddNode, onToggle }: MaterialPanelProps) {
               data-preview={"previewUrl" in material ? "image" : undefined}
               draggable={material.key === "image"}
               key={material.key}
-              title={material.title}
+              title={t(material.titleKey)}
               type="button"
               disabled={material.key !== "image"}
               onClick={() => {
@@ -253,7 +242,7 @@ function MaterialPanel({ collapsed, onAddNode, onToggle }: MaterialPanelProps) {
             >
               {"previewUrl" in material ? (
                 <img
-                  alt={material.title}
+                  alt={t(material.titleKey)}
                   className="material-item__preview"
                   referrerPolicy="no-referrer"
                   src={material.previewUrl}
@@ -266,7 +255,7 @@ function MaterialPanel({ collapsed, onAddNode, onToggle }: MaterialPanelProps) {
         </div>
       ),
       key: "images",
-      label: "图片素材",
+      label: t("imageAssets"),
       icon: <FileImageOutlined />,
     },
   ];
@@ -282,7 +271,7 @@ function MaterialPanel({ collapsed, onAddNode, onToggle }: MaterialPanelProps) {
         />
       ) : (
         <div className="panel-title">
-          <span>素材</span>
+          <span>{t("assets")}</span>
           <Button type="text" icon={<LeftOutlined />} onClick={onToggle} />
         </div>
       )}

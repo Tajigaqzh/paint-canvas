@@ -190,26 +190,55 @@ export const getNodePatchFromUI = (ui: IUI, node: CanvasNode) => {
 
   // 普通图形需要同步位置、尺寸和旋转；Math.round 避免拖拽产生长小数污染 store。
   const patch = {
-    height: Math.round(ui.height ?? node.height),
     rotation: Math.round(ui.rotation ?? node.rotation ?? 0),
-    width: Math.round(ui.width ?? node.width),
     x: Math.round(ui.x ?? node.x),
     y: Math.round(ui.y ?? node.y),
   };
 
-  // 线条编辑可能改动局部 points，需要额外同步一份数组。
   if (node.kind === "line") {
-    const lineUI = ui as IUI & { points?: number[] };
+    const lineGroup = ui as IUI & {
+      __eraserContent?: Array<{ points?: number[]; strokeWidth?: number }>;
+      __lineContent?: { points?: number[]; strokeWidth?: number };
+    };
+    const lineUI = lineGroup.__lineContent;
+    const points = lineUI?.points;
+    const eraserPaths = lineGroup.__eraserContent?.map((eraser, index) => ({
+      points: eraser.points ? [...eraser.points] : (node.eraserPaths?.[index]?.points ?? []),
+      strokeWidth: eraser.strokeWidth ?? node.eraserPaths?.[index]?.strokeWidth ?? 0,
+    }));
+    const hasChangedPoints =
+      points !== undefined &&
+      (points.length !== (node.points?.length ?? 0) ||
+        points.some((value, index) => value !== node.points?.[index]));
+    const hasChangedEraserPaths =
+      eraserPaths !== undefined &&
+      (eraserPaths.length !== (node.eraserPaths?.length ?? 0) ||
+        eraserPaths.some(
+          (path, index) =>
+            path.strokeWidth !== node.eraserPaths?.[index]?.strokeWidth ||
+            path.points.length !== node.eraserPaths?.[index]?.points.length ||
+            path.points.some(
+              (value, pointIndex) => value !== node.eraserPaths?.[index]?.points[pointIndex],
+            ),
+        ));
 
-    if (lineUI.points?.length) {
-      return {
-        ...patch,
-        points: [...lineUI.points],
-      };
-    }
+    return {
+      ...patch,
+      height: Math.round(ui.height ?? node.height),
+      width: Math.round(ui.width ?? node.width),
+      ...(hasChangedPoints && { points: [...(points ?? [])] }),
+      ...(lineUI?.strokeWidth !== undefined && lineUI.strokeWidth !== node.strokeWidth
+        ? { strokeWidth: lineUI.strokeWidth }
+        : {}),
+      ...(hasChangedEraserPaths && { eraserPaths }),
+    };
   }
 
-  return patch;
+  return {
+    ...patch,
+    height: Math.round(ui.height ?? node.height),
+    width: Math.round(ui.width ?? node.width),
+  };
 };
 
 /**

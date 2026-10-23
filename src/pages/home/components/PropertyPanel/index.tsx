@@ -1,5 +1,6 @@
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { Button, Divider, Empty, Form, Input, InputNumber, Select, Space } from "antd";
+import { useAppTranslation } from "@/i18n/useAppTranslation";
 import type {
   CanvasAnimationItem,
   CanvasNode,
@@ -42,30 +43,6 @@ const getDefaultFill = (node: CanvasNode) => {
   return "#ffffff";
 };
 
-const strokeStyleOptions: Array<{
-  label: string;
-  value: CanvasStrokeStyle;
-}> = [
-  { label: "实线", value: "solid" },
-  { label: "虚线", value: "dashed" },
-  { label: "点线", value: "dotted" },
-];
-
-const transformOriginOptions: Array<{
-  label: string;
-  value: CanvasTransformOrigin;
-}> = [
-  { label: "左上", value: "top-left" },
-  { label: "上中", value: "top" },
-  { label: "右上", value: "top-right" },
-  { label: "左中", value: "left" },
-  { label: "中心", value: "center" },
-  { label: "右中", value: "right" },
-  { label: "左下", value: "bottom-left" },
-  { label: "下中", value: "bottom" },
-  { label: "右下", value: "bottom-right" },
-];
-
 function PropertyPanel({
   collapsed,
   canUngroup,
@@ -74,7 +51,24 @@ function PropertyPanel({
   onUngroup,
   onUpdateNode,
 }: PropertyPanelProps) {
+  const { t } = useAppTranslation();
   const animationList = node?.animationList ?? [];
+  const strokeStyleOptions: Array<{ label: string; value: CanvasStrokeStyle }> = [
+    { label: t("solid"), value: "solid" },
+    { label: t("dashed"), value: "dashed" },
+    { label: t("dotted"), value: "dotted" },
+  ];
+  const transformOriginOptions: Array<{ label: string; value: CanvasTransformOrigin }> = [
+    { label: t("topLeft"), value: "top-left" },
+    { label: t("topCenter"), value: "top" },
+    { label: t("topRight"), value: "top-right" },
+    { label: t("middleLeft"), value: "left" },
+    { label: t("center"), value: "center" },
+    { label: t("middleRight"), value: "right" },
+    { label: t("bottomLeft"), value: "bottom-left" },
+    { label: t("bottomCenter"), value: "bottom" },
+    { label: t("bottomRight"), value: "bottom-right" },
+  ];
 
   const commitAnimationList = (list: CanvasAnimationItem[]) => {
     if (!node) return;
@@ -85,7 +79,7 @@ function PropertyPanel({
   return (
     <aside className="canvas-maker__properties" data-collapsed={collapsed}>
       <div className="panel-title">
-        {!collapsed && <span>属性</span>}
+        {!collapsed && <span>{t("properties")}</span>}
         <Button
           type="text"
           icon={collapsed ? <LeftOutlined /> : <RightOutlined />}
@@ -99,9 +93,9 @@ function PropertyPanel({
             <strong>{node.name}</strong>
             {node.kind === "group" && (
               <div className="property-group-actions">
-                <span>{node.childrenIds.length} 个元素</span>
+                <span>{t("countElements", { count: node.childrenIds.length })}</span>
                 <Button danger disabled={!canUngroup} onClick={onUngroup}>
-                  解组
+                  {t("ungroupObjects")}
                 </Button>
               </div>
             )}
@@ -127,7 +121,7 @@ function PropertyPanel({
               {node.kind !== "text" && node.kind !== "line" && (
                 <div className="property-grid property-grid--two">
                   <label className="property-field">
-                    <span>宽</span>
+                    <span>{t("width")}</span>
                     <InputNumber
                       min={1}
                       value={toPanelNumber(node.width)}
@@ -135,7 +129,7 @@ function PropertyPanel({
                     />
                   </label>
                   <label className="property-field">
-                    <span>高</span>
+                    <span>{t("height")}</span>
                     <InputNumber
                       min={1}
                       value={toPanelNumber(node.height)}
@@ -157,7 +151,7 @@ function PropertyPanel({
 
               {node.kind === "image" && (
                 <label className="property-field">
-                  <span>图片地址</span>
+                  <span>{t("imageUrl")}</span>
                   <Input
                     value={node.src}
                     onChange={(event) => onUpdateNode(node.id, { src: event.target.value })}
@@ -167,11 +161,11 @@ function PropertyPanel({
 
               {node.kind !== "group" && (
                 <div className="property-paint">
-                  <span className="property-paint__label">外观</span>
+                  <span className="property-paint__label">{t("appearance")}</span>
                   <div className="property-grid property-grid--two">
                     {node.kind !== "line" && node.kind !== "image" && (
                       <label className="property-field">
-                        <span>填充</span>
+                        <span>{t("fill")}</span>
                         <Input
                           className="property-color-input"
                           type="color"
@@ -181,7 +175,7 @@ function PropertyPanel({
                       </label>
                     )}
                     <label className="property-field">
-                      <span>描边</span>
+                      <span>{t("outline")}</span>
                       <Input
                         className="property-color-input"
                         type="color"
@@ -192,7 +186,7 @@ function PropertyPanel({
                   </div>
                   <div className="property-grid property-grid--two">
                     <label className="property-field">
-                      <span>线宽</span>
+                      <span>{t("strokeWidth")}</span>
                       <InputNumber
                         min={0}
                         value={toPanelNumber(node.strokeWidth)}
@@ -202,7 +196,7 @@ function PropertyPanel({
                       />
                     </label>
                     <label className="property-field">
-                      <span>线型</span>
+                      <span>{t("strokeStyle")}</span>
                       <Select
                         options={strokeStyleOptions}
                         value={node.strokeStyle ?? "solid"}
@@ -215,7 +209,7 @@ function PropertyPanel({
 
               <div className="property-grid property-grid--two">
                 <label className="property-field">
-                  <span>旋转</span>
+                  <span>{t("rotation")}</span>
                   <Space.Compact className="property-unit-input">
                     <InputNumber
                       value={toPanelNumber(node.rotation)}
@@ -225,7 +219,7 @@ function PropertyPanel({
                   </Space.Compact>
                 </label>
                 <label className="property-field">
-                  <span>基准</span>
+                  <span>{t("origin")}</span>
                   <Select
                     options={transformOriginOptions}
                     value={node.transformOrigin ?? "center"}
@@ -243,7 +237,7 @@ function PropertyPanel({
             />
           </div>
         ) : (
-          <Empty description="未选择元素" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description={t("noElementSelected")} image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ))}
     </aside>
   );

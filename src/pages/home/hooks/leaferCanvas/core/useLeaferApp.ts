@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import "@leafer-in/animate";
 import "@leafer-in/editor";
+import "@leafer-in/resize";
 import "@leafer-in/text-editor";
 import { EditorEvent, InnerEditorEvent } from "@leafer-in/editor";
 import { App as LeaferApp, DragEvent, type IUI } from "leafer-ui";

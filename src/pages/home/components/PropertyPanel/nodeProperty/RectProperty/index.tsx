@@ -1,4 +1,5 @@
 import { InputNumber } from "antd";
+import { useAppTranslation } from "@/i18n/useAppTranslation";
 import type { CanvasNode, RectNode } from "@/types";
 import { cornerRadiusLabels, patchCornerRadius, toCornerRadiusValues } from "./utils";
 
@@ -8,15 +9,16 @@ type RectPropertyProps = {
 };
 
 function RectProperty({ node, onUpdateNode }: RectPropertyProps) {
+  const { t } = useAppTranslation();
   const cornerRadiusValues = toCornerRadiusValues(node.cornerRadius);
 
   return (
     <div className="property-corner-radius">
-      <span className="property-corner-radius__label">圆角</span>
+      <span className="property-corner-radius__label">{t("cornerRadius")}</span>
       <div className="property-corner-radius__grid">
         {cornerRadiusLabels.map((label, index) => (
           <label className="property-corner-radius__field" key={label}>
-            <span>{label}</span>
+            <span>{t(label)}</span>
             <InputNumber
               min={0}
               value={cornerRadiusValues[index]}

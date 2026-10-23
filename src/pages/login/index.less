@@ -1,0 +1,59 @@
+.login-page {
+  min-height: 100vh;
+  background: #f4f6f8;
+  color: #17212b;
+}
+
+.login-page__topbar {
+  height: 64px;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e1e6eb;
+  background: #fff;
+}
+
+.login-page__brand {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.login-page__content {
+  min-height: calc(100vh - 65px);
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+}
+
+.login-page__form {
+  width: min(100%, 400px);
+  padding: 32px;
+  border: 1px solid #e1e6eb;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.login-page__form h1 {
+  margin: 0 0 24px;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.login-page__error {
+  margin-top: 16px;
+}
+
+.login-page__form form {
+  margin-top: 24px;
+}
+
+@media (max-width: 480px) {
+  .login-page__topbar {
+    padding: 0 16px;
+  }
+
+  .login-page__form {
+    padding: 24px 20px;
+  }
+}

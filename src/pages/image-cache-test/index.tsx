@@ -1,6 +1,8 @@
 import { DeleteOutlined, ReloadOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { Button } from "antd";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAppTranslation } from "@/i18n/useAppTranslation";
+import LanguageSwitcher from "@/i18n/LanguageSwitcher";
 import type { ImageRequestResult, ImageRequestWorkerResponse } from "./types";
 import "./index.less";
 
@@ -13,22 +15,23 @@ type RequestState = ImageRequestResult | { error: string; source: "main" | "work
 const formatResultType = (type: ResponseType) => type;
 
 function ResultPanel({ result, title }: { result: RequestState; title: string }) {
+  const { t } = useAppTranslation();
   return (
     <section className="image-cache-test__panel">
       <h2>{title}</h2>
-      {!result && <p className="image-cache-test__placeholder">尚未请求</p>}
+      {!result && <p className="image-cache-test__placeholder">{t("notRequested")}</p>}
       {result && "error" in result && <p className="image-cache-test__error">{result.error}</p>}
       {result && !("error" in result) && (
         <dl>
-          <dt>响应类型</dt>
+          <dt>{t("responseType")}</dt>
           <dd>{formatResultType(result.responseType)}</dd>
-          <dt>缓存层级</dt>
-          <dd>{result.cacheLevel ?? "未标记"}</dd>
-          <dt>状态码</dt>
+          <dt>{t("cacheLevel")}</dt>
+          <dd>{result.cacheLevel ?? t("notReported")}</dd>
+          <dt>{t("status")}</dt>
           <dd>{result.status}</dd>
           <dt>ok</dt>
           <dd>{String(result.ok)}</dd>
-          <dt>耗时</dt>
+          <dt>{t("elapsed")}</dt>
           <dd>{result.elapsedMs}ms</dd>
         </dl>
       )}
@@ -37,11 +40,12 @@ function ResultPanel({ result, title }: { result: RequestState; title: string })
 }
 
 function ImageCacheTest() {
+  const { t } = useAppTranslation();
   const workerRef = useRef<Worker | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [mainResult, setMainResult] = useState<RequestState>(null);
   const [workerResult, setWorkerResult] = useState<RequestState>(null);
-  const [serviceWorkerStatus, setServiceWorkerStatus] = useState("检查 service worker 状态中");
+  const [serviceWorkerStatus, setServiceWorkerStatus] = useState("checkingServiceWorkerStatus");
   const [serverRequestCount, setServerRequestCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -59,23 +63,23 @@ function ImageCacheTest() {
 
   const waitForServiceWorkerController = useCallback(async () => {
     if (!("serviceWorker" in navigator)) {
-      setServiceWorkerStatus("当前浏览器不支持 service worker");
+      setServiceWorkerStatus("serviceWorkerUnsupported");
       return false;
     }
 
     await navigator.serviceWorker.ready;
 
     if (navigator.serviceWorker.controller) {
-      setServiceWorkerStatus("service worker 已控制当前页面");
+      setServiceWorkerStatus("serviceWorkerControlsThisPage");
       return true;
     }
 
-    setServiceWorkerStatus("等待 service worker 控制当前页面");
+    setServiceWorkerStatus("waitingForServiceWorkerControl");
 
     await new Promise<void>((resolve) => {
       navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true });
     });
-    setServiceWorkerStatus("service worker 已控制当前页面");
+    setServiceWorkerStatus("serviceWorkerControlsThisPage");
 
     return true;
   }, []);
@@ -220,8 +224,8 @@ function ImageCacheTest() {
     <main className="image-cache-test">
       <div className="image-cache-test__shell">
         <header className="image-cache-test__header">
-          <h1>图片缓存请求测试</h1>
-          <p>并行从主线程和 Web Worker 请求同一个跨域 PNG，用 Network 面板观察真实网络请求数量。</p>
+          <div><h1>{t("imageCacheRequestTest")}</h1><LanguageSwitcher /></div>
+          <p>{t("cacheConcurrencyHint")}</p>
         </header>
 
         <div className="image-cache-test__url">{TEST_IMAGE_URL}</div>
@@ -233,33 +237,31 @@ function ImageCacheTest() {
             type="primary"
             onClick={() => void runRequests(true)}
           >
-            清缓存并请求
+            {t("clearCacheAndRequest")}
           </Button>
           <Button
             icon={<ThunderboltOutlined />}
             loading={isRunning}
             onClick={() => void runRequests(false)}
           >
-            直接请求
+            {t("requestDirectly")}
           </Button>
           <Button icon={<ReloadOutlined />} onClick={() => window.location.reload()}>
-            刷新页面
+            {t("refreshPage")}
           </Button>
-          <span className="image-cache-test__status">{serviceWorkerStatus}</span>
+          <span className="image-cache-test__status">{t(serviceWorkerStatus)}</span>
           <span className="image-cache-test__status">
-            服务端真实 GET：{serverRequestCount ?? "未读取"}
+            {t("serverGetRequests")}：{serverRequestCount ?? t("notRead")}
           </span>
         </div>
 
         <div className="image-cache-test__grid">
-          <ResultPanel result={mainResult} title="主线程 fetch" />
-          <ResultPanel result={workerResult} title="Worker fetch" />
+          <ResultPanel result={mainResult} title={t("mainThreadFetch")} />
+          <ResultPanel result={workerResult} title={t("workerFetch")} />
         </div>
 
         <p className="image-cache-test__note">
-          冷缓存时点击“清缓存并请求”，两个 fetch 会同时命中 service
-          worker。热缓存时点击“直接请求”，应从 service worker 的内存 LRU 或 IndexedDB
-          返回，不再访问远端图片。服务端真实请求数看 http://localhost:6174/stats。
+          {t("cacheTestHint")}
         </p>
       </div>
     </main>

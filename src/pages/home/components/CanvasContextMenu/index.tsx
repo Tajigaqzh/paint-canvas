@@ -1,3 +1,5 @@
+import { useAppTranslation } from "@/i18n/useAppTranslation";
+
 type CanvasContextMenuProps = {
   /** 当前选择是否可以打组。 */
   canGroup: boolean;
@@ -39,26 +41,27 @@ function CanvasContextMenu({
   onSendBackward,
   onUngroup,
 }: CanvasContextMenuProps) {
+  const { t } = useAppTranslation();
   if (!open) return null;
 
   return (
     <div className="canvas-context-menu" style={{ left: x, top: y }} onMouseLeave={onClose}>
       <button type="button" disabled={!canGroup} onClick={onGroup}>
-        打组
+        {t("groupObjects")}
       </button>
       <button type="button" disabled={!canUngroup} onClick={onUngroup}>
-        拆分组
+        {t("ungroup")}
       </button>
       <span />
       <button type="button" disabled={selectedCount !== 1} onClick={onBringForward}>
-        向上一层
+        {t("bringForward")}
       </button>
       <button type="button" disabled={selectedCount !== 1} onClick={onSendBackward}>
-        向下一层
+        {t("sendBackward")}
       </button>
       <span />
       <button type="button" disabled={selectedCount === 0} onClick={onRemove}>
-        删除
+        {t("delete")}
       </button>
     </div>
   );
