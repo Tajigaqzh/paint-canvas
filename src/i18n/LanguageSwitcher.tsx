@@ -6,7 +6,7 @@ export default function LanguageSwitcher() {
 
   return (
     <Select
-        size={"small"}
+      size={"small"}
       aria-label={i18n.language.startsWith("zh") ? "切换语言" : "Change language"}
       value={i18n.language.startsWith("zh") ? "zh-CN" : "en-US"}
       options={[

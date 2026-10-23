@@ -236,7 +236,11 @@ const PreviewPage = () => {
         />
       </main>
 
-      <Drawer title={t("presentationSettings")} open={settingsOpen} onClose={() => setSettingsOpen(false)}>
+      <Drawer
+        title={t("presentationSettings")}
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      >
         <div className="preview__settings-item">
           <span>{t("autoPlayPages")}</span>
           <Switch checked={autoplay} onChange={setAutoplay} />
@@ -250,9 +254,7 @@ const PreviewPage = () => {
             onChange={(value) => setAutoplaySeconds(value ?? 5)}
           />
         </div>
-        <p className="preview__settings-hint">
-          {t("previewSettingsHint")}
-        </p>
+        <p className="preview__settings-hint">{t("previewSettingsHint")}</p>
       </Drawer>
     </div>
   );
