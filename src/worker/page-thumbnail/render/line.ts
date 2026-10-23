@@ -4,6 +4,33 @@ import type { RenderContext } from "./types";
 
 type LineNode = Extract<CanvasNode, { kind: "line" }>;
 
+type Transform = Pick<DOMMatrixReadOnly, "a" | "b" | "c" | "d" | "e" | "f">;
+type LineBounds = { height: number; minX: number; minY: number; width: number };
+
+/** 把 line 的局部范围映射到缩略图最终像素空间，包含旋转与等比缩放。 */
+export const getTransformedLineBounds = (bounds: LineBounds, transform: Transform) => {
+  const corners = [
+    [bounds.minX, bounds.minY],
+    [bounds.minX + bounds.width, bounds.minY],
+    [bounds.minX, bounds.minY + bounds.height],
+    [bounds.minX + bounds.width, bounds.minY + bounds.height],
+  ].map(([x, y]) => ({
+    x: transform.a * x + transform.c * y + transform.e,
+    y: transform.b * x + transform.d * y + transform.f,
+  }));
+  const minX = Math.floor(Math.min(...corners.map(({ x }) => x)) - 2);
+  const minY = Math.floor(Math.min(...corners.map(({ y }) => y)) - 2);
+  const maxX = Math.ceil(Math.max(...corners.map(({ x }) => x)) + 2);
+  const maxY = Math.ceil(Math.max(...corners.map(({ y }) => y)) + 2);
+
+  return {
+    height: Math.max(maxY - minY, 1),
+    minX,
+    minY,
+    width: Math.max(maxX - minX, 1),
+  };
+};
+
 /**
  * 对开放路径执行描边。
  * 线条和开放弧线只需要 stroke，不需要 fill。
@@ -158,7 +185,7 @@ const getLineRenderBounds = (node: LineNode) => {
  */
 export const renderLineNode = (context: RenderContext, node: LineNode) => {
   const eraserPaths = node.eraserPaths ?? [];
-  const bounds = getLineRenderBounds(node);
+  const localBounds = getLineRenderBounds(node);
   const points = node.points?.length ? node.points : [0, 0, node.width, 0];
 
   if (eraserPaths.length === 0) {
@@ -167,12 +194,23 @@ export const renderLineNode = (context: RenderContext, node: LineNode) => {
     return;
   }
 
+  // Leafer 在当前显示缩放的像素空间里合成 eraser；worker 也必须在最终像素空间栅格化，
+  // 否则先按业务坐标擦除再缩小，会让擦除边缘覆盖更多缩略图像素。
+  const transform = context.getTransform();
+  const bounds = getTransformedLineBounds(localBounds, transform);
   const layer = new OffscreenCanvas(bounds.width, bounds.height);
   const layerContext = layer.getContext("2d");
 
   if (!layerContext) return;
 
-  layerContext.translate(-bounds.minX, -bounds.minY);
+  layerContext.setTransform(
+    transform.a,
+    transform.b,
+    transform.c,
+    transform.d,
+    transform.e - bounds.minX,
+    transform.f - bounds.minY,
+  );
   renderLinePath(layerContext, points, node.curve);
   strokeOpenPath(layerContext, node);
 
@@ -191,5 +229,8 @@ export const renderLineNode = (context: RenderContext, node: LineNode) => {
   });
   layerContext.restore();
 
+  context.save();
+  context.setTransform(1, 0, 0, 1, 0, 0);
   context.drawImage(layer, bounds.minX, bounds.minY);
+  context.restore();
 };

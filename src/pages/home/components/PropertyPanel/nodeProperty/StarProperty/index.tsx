@@ -1,4 +1,5 @@
 import { InputNumber } from "antd";
+import { useAppTranslation } from "@/i18n/useAppTranslation";
 import type { CanvasNode, StarNode } from "@/types";
 
 type StarPropertyProps = {
@@ -7,11 +8,12 @@ type StarPropertyProps = {
 };
 
 function StarProperty({ node, onUpdateNode }: StarPropertyProps) {
+  const { t } = useAppTranslation();
   return (
     <div className="property-star">
       <div className="property-grid property-grid--two">
         <label className="property-field">
-          <span>角数</span>
+          <span>{t("points")}</span>
           <InputNumber
             max={12}
             min={3}
@@ -20,7 +22,7 @@ function StarProperty({ node, onUpdateNode }: StarPropertyProps) {
           />
         </label>
         <label className="property-field">
-          <span>内径</span>
+          <span>{t("innerRadius")}</span>
           <InputNumber
             max={0.9}
             min={0.1}
@@ -32,14 +34,14 @@ function StarProperty({ node, onUpdateNode }: StarPropertyProps) {
       </div>
       <div className="property-grid property-grid--two">
         <label className="property-field">
-          <span>起角</span>
+          <span>{t("startAngle")}</span>
           <InputNumber
             value={node.startAngle ?? -90}
             onChange={(value) => onUpdateNode(node.id, { startAngle: Number(value ?? -90) })}
           />
         </label>
         <label className="property-field">
-          <span>圆角</span>
+          <span>{t("cornerRadius")}</span>
           <InputNumber
             min={0}
             value={node.cornerRadius ?? 0}

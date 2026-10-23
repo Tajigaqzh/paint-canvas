@@ -1,4 +1,5 @@
 import { InputNumber, Select } from "antd";
+import { useAppTranslation } from "@/i18n/useAppTranslation";
 import type { CanvasEllipseMode, CanvasNode } from "@/types";
 
 type CirclePropertyProps = {
@@ -6,19 +7,16 @@ type CirclePropertyProps = {
   onUpdateNode: (id: string, data: Partial<CanvasNode>) => void;
 };
 
-const ellipseModeOptions: Array<{
-  label: string;
-  value: CanvasEllipseMode;
-}> = [
-  { label: "圆形", value: "circle" },
-  { label: "椭圆", value: "ellipse" },
-  { label: "圆环", value: "ring" },
-  { label: "扇形", value: "sector" },
-  { label: "扇形圆环", value: "sector-ring" },
-  { label: "圆角弧线", value: "arc" },
-];
-
 function CircleProperty({ node, onUpdateNode }: CirclePropertyProps) {
+  const { t } = useAppTranslation();
+  const ellipseModeOptions: Array<{ label: string; value: CanvasEllipseMode }> = [
+    { label: t("circle"), value: "circle" },
+    { label: t("ellipse"), value: "ellipse" },
+    { label: t("ring"), value: "ring" },
+    { label: t("sector"), value: "sector" },
+    { label: t("sectorRing"), value: "sector-ring" },
+    { label: t("arc"), value: "arc" },
+  ];
   const mode = node.ellipseMode ?? (node.width === node.height ? "circle" : "ellipse");
   const hasAngle = mode === "sector" || mode === "sector-ring" || mode === "arc";
   const hasInnerRadius = mode === "ring" || mode === "sector-ring";
@@ -26,7 +24,7 @@ function CircleProperty({ node, onUpdateNode }: CirclePropertyProps) {
   return (
     <div className="property-ellipse">
       <label className="property-field">
-        <span>形状</span>
+        <span>{t("shape")}</span>
         <Select
           options={ellipseModeOptions}
           value={mode}
@@ -60,14 +58,14 @@ function CircleProperty({ node, onUpdateNode }: CirclePropertyProps) {
       {hasAngle && (
         <div className="property-grid property-grid--two">
           <label className="property-field">
-            <span>起角</span>
+            <span>{t("startAngle")}</span>
             <InputNumber
               value={node.startAngle ?? -60}
               onChange={(value) => onUpdateNode(node.id, { startAngle: Number(value ?? -60) })}
             />
           </label>
           <label className="property-field">
-            <span>止角</span>
+            <span>{t("endAngle")}</span>
             <InputNumber
               value={node.endAngle ?? 180}
               onChange={(value) => onUpdateNode(node.id, { endAngle: Number(value ?? 180) })}
@@ -78,7 +76,7 @@ function CircleProperty({ node, onUpdateNode }: CirclePropertyProps) {
 
       {hasInnerRadius && (
         <label className="property-field">
-          <span>内径</span>
+          <span>{t("innerRadius")}</span>
           <InputNumber
             max={0.95}
             min={0}
@@ -91,7 +89,7 @@ function CircleProperty({ node, onUpdateNode }: CirclePropertyProps) {
 
       {mode === "sector-ring" && (
         <label className="property-field">
-          <span>圆角</span>
+          <span>{t("cornerRadius")}</span>
           <InputNumber
             min={0}
             value={node.cornerRadius ?? 10}

@@ -1,19 +1,11 @@
 import { InputNumber, Select } from "antd";
+import { useAppTranslation } from "@/i18n/useAppTranslation";
 import type { CanvasNode, CanvasStrokeCap, LineNode } from "@/types";
 
 type LinePropertyProps = {
   node: LineNode;
   onUpdateNode: (id: string, data: Partial<CanvasNode>) => void;
 };
-
-const strokeCapOptions: Array<{
-  label: string;
-  value: CanvasStrokeCap;
-}> = [
-  { label: "平头", value: "none" },
-  { label: "圆头", value: "round" },
-  { label: "方头", value: "square" },
-];
 
 const DEFAULT_CURVE = 0.2;
 const CURVE_LINE_HEIGHT = 100;
@@ -28,11 +20,18 @@ const createCurvePoints = (width: number): number[] => {
 };
 
 function LineProperty({ node, onUpdateNode }: LinePropertyProps) {
+  const { t } = useAppTranslation();
+  const strokeCapOptions: Array<{ label: string; value: CanvasStrokeCap }> = [
+    { label: t("butt"), value: "none" },
+    { label: t("round"), value: "round" },
+    { label: t("square"), value: "square" },
+  ];
+
   return (
     <div className="property-line">
       <div className="property-grid property-grid--two">
         <label className="property-field">
-          <span>长度</span>
+          <span>{t("length")}</span>
           <InputNumber
             min={1}
             value={node.width}
@@ -47,7 +46,7 @@ function LineProperty({ node, onUpdateNode }: LinePropertyProps) {
           />
         </label>
         <label className="property-field">
-          <span>端点</span>
+          <span>{t("lineCap")}</span>
           <Select
             options={strokeCapOptions}
             value={node.strokeCap ?? "round"}
@@ -57,11 +56,11 @@ function LineProperty({ node, onUpdateNode }: LinePropertyProps) {
       </div>
       <div className="property-grid property-grid--two">
         <label className="property-field">
-          <span>曲线</span>
+          <span>{t("curve")}</span>
           <Select
             options={[
-              { label: "关闭", value: "off" },
-              { label: "开启", value: "on" },
+              { label: t("off"), value: "off" },
+              { label: t("on"), value: "on" },
             ]}
             value={node.curve ? "on" : "off"}
             onChange={(value) =>
@@ -74,7 +73,7 @@ function LineProperty({ node, onUpdateNode }: LinePropertyProps) {
           />
         </label>
         <label className="property-field">
-          <span>曲率</span>
+          <span>{t("curvature")}</span>
           <InputNumber
             disabled={!node.curve}
             max={1}

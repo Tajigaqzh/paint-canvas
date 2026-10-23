@@ -9,6 +9,7 @@ import {
   ZoomInOutlined,
 } from "@ant-design/icons";
 import { Button, Select, Tooltip } from "antd";
+import { useAppTranslation } from "@/i18n/useAppTranslation";
 import type { CanvasToolMode } from "@/types";
 import {
   BRUSH_COLORS,
@@ -100,10 +101,11 @@ export default function PreviewToolbar({
   collapsed,
   onToggleCollapsed,
 }: PreviewToolbarProps) {
+  const { t } = useAppTranslation();
   if (collapsed) {
     return (
       <div className="preview__panel preview__panel--collapsed">
-        <Tooltip title="展开工具面板">
+        <Tooltip title={t("expandTools")}>
           <Button
             icon={<MenuUnfoldOutlined />}
             onClick={onToggleCollapsed}
@@ -117,44 +119,44 @@ export default function PreviewToolbar({
   return (
     <div className="preview__panel">
       <div className="preview__panel-title">
-        <span>演示工具</span>
-        <Tooltip title="收起面板">
+        <span>{t("presentationTools")}</span>
+        <Tooltip title={t("collapsePanel")}>
           <Button icon={<MenuFoldOutlined />} onClick={onToggleCollapsed} type="text" />
         </Tooltip>
       </div>
 
       <div className="preview__panel-section">
-        <span className="preview__panel-label">工具</span>
+        <span className="preview__panel-label">{t("tools")}</span>
         <div style={{ display: "flex", gap: 8 }}>
           <ToolButton
             active={activeTool === "select"}
             icon={<SelectOutlined />}
-            title="鼠标（不绘制）"
+            title={t("pointerNoDrawing")}
             onClick={() => onChangeTool("select")}
           />
           <ToolButton
             active={activeTool === "brush"}
             icon={<EditOutlined />}
-            title="画笔"
+            title={t("brush")}
             onClick={() => onChangeTool("brush")}
           />
           <ToolButton
             active={activeTool === "eraser"}
             icon={<ClearOutlined />}
-            title="橡皮擦"
+            title={t("eraser")}
             onClick={() => onChangeTool("eraser")}
           />
           <ToolButton
             active={activeTool === "magnifier"}
             icon={<ZoomInOutlined />}
-            title="放大镜"
+            title={t("magnifier")}
             onClick={() => onChangeTool("magnifier")}
           />
         </div>
       </div>
 
       <div className="preview__panel-section">
-        <span className="preview__panel-label">画笔颜色</span>
+        <span className="preview__panel-label">{t("brushColor")}</span>
         <div className="preview__swatches">
           {BRUSH_COLORS.map((color) => (
             <button
@@ -162,14 +164,14 @@ export default function PreviewToolbar({
               className={`preview__swatch${brushColor === color ? " preview__swatch--active" : ""}`}
               style={{ background: color }}
               onClick={() => onChangeBrushColor(color)}
-              aria-label={`画笔颜色 ${color}`}
+              aria-label={`${t("brushColor")} ${color}`}
             />
           ))}
         </div>
       </div>
 
       <div className="preview__panel-section">
-        <span className="preview__panel-label">画笔粗细</span>
+        <span className="preview__panel-label">{t("brushSize")}</span>
         <Select
           options={BRUSH_SIZES.map((value) => ({ label: `${value}px`, value }))}
           value={brushSize}
@@ -179,7 +181,7 @@ export default function PreviewToolbar({
       </div>
 
       <div className="preview__panel-section">
-        <span className="preview__panel-label">橡皮擦粗细</span>
+        <span className="preview__panel-label">{t("eraserSize")}</span>
         <Select
           options={ERASER_SIZES.map((value) => ({ label: `${value}px`, value }))}
           value={eraserSize}
@@ -189,9 +191,9 @@ export default function PreviewToolbar({
       </div>
 
       <div className="preview__panel-section">
-        <span className="preview__panel-label">放大镜</span>
+        <span className="preview__panel-label">{t("magnifier")}</span>
         <Select
-          options={MAGNIFIER_SIZES.map((value) => ({ label: `镜片 ${value}px`, value }))}
+          options={MAGNIFIER_SIZES.map((value) => ({ label: t("lensValuePx", { value }), value }))}
           value={magnifierSize}
           onChange={onChangeMagnifierSize}
           style={{ width: "100%", marginBottom: 8 }}
@@ -206,7 +208,7 @@ export default function PreviewToolbar({
 
       <div className="preview__panel-section">
         <Button danger icon={<DeleteOutlined />} onClick={onClearNotes} block>
-          清除笔记
+          {t("clearAnnotations")}
         </Button>
         <Button
           icon={<FullscreenOutlined />}
@@ -214,7 +216,7 @@ export default function PreviewToolbar({
           block
           type={isFullscreen ? "primary" : "default"}
         >
-          全屏演示
+          {t("presentFullScreen")}
         </Button>
       </div>
     </div>

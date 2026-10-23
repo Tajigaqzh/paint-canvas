@@ -1,12 +1,12 @@
 import { apply, create as createMutative } from "mutative";
 import { nanoid } from "nanoid";
+import { translateKey } from "@/i18n";
 import { create } from "zustand";
-import { TEST_MATERIAL_IMAGE_URL } from "@/constants/materialImages";
+import { createNode } from "./nodeFactory";
 import type {
   CanvasDocument,
   CanvasHistoryEntry,
   CanvasLineEraserUpdate,
-  CanvasMaterialKind,
   CanvasNode,
   CanvasNodeUpdate,
   CanvasPage,
@@ -156,183 +156,6 @@ const removeNodeFromPage = (page: CanvasPage, id: string) => {
   return true;
 };
 
-/** 根据素材类型创建默认节点数据。 */
-const createNode = (kind: CanvasMaterialKind, index: number): CanvasNode => {
-  serial += 1;
-
-  /** 新节点按现有根节点数量做轻微错位，避免连续添加时完全重叠。 */
-  const baseX = 180 + index * 24;
-  const baseY = 140 + index * 20;
-  const id = createId();
-
-  if (
-    kind === "circle" ||
-    kind === "ellipse" ||
-    kind === "ring" ||
-    kind === "sector" ||
-    kind === "sector-ring" ||
-    kind === "arc"
-  ) {
-    const ellipseNames: Record<typeof kind, string> = {
-      arc: "圆角弧线",
-      circle: "圆形",
-      ellipse: "椭圆",
-      ring: "圆环",
-      sector: "扇形",
-      "sector-ring": "扇形圆环",
-    };
-
-    return {
-      animationList: [],
-      closed: kind !== "arc",
-      cornerRadius: kind === "sector-ring" ? 10 : undefined,
-      ellipseMode: kind,
-      endAngle: kind === "sector" || kind === "sector-ring" || kind === "arc" ? 180 : undefined,
-      fill: kind === "arc" ? "transparent" : "#32cd79",
-      height: kind === "ellipse" ? 160 : 132,
-      id,
-      innerRadius: kind === "ring" || kind === "sector-ring" ? 0.5 : undefined,
-      kind: "ellipse",
-      name: `${ellipseNames[kind]} ${serial}`,
-      rotation: 0,
-      startAngle: kind === "sector" || kind === "sector-ring" || kind === "arc" ? -60 : undefined,
-      stroke: kind === "arc" ? "#32cd79" : "#0f172a",
-      strokeAlign: kind === "arc" ? "center" : undefined,
-      strokeCap: kind === "arc" ? "round" : undefined,
-      strokeStyle: "solid",
-      strokeWidth: kind === "arc" ? 10 : 0,
-      transformOrigin: "center",
-      width: 132,
-      x: baseX,
-      y: baseY,
-    };
-  }
-
-  if (kind === "line") {
-    return {
-      animationList: [],
-      curve: false,
-      fill: "transparent",
-      height: 0,
-      id,
-      kind,
-      name: `线条 ${serial}`,
-      source: "material",
-      rotation: 0,
-      stroke: "#32cd79",
-      strokeCap: "round",
-      strokeStyle: "solid",
-      strokeWidth: 8,
-      transformOrigin: "center",
-      width: 180,
-      x: baseX,
-      y: baseY,
-    };
-  }
-
-  if (kind === "triangle" || kind === "polygon") {
-    return {
-      animationList: [],
-      cornerRadius: 0,
-      fill: "#32cd79",
-      height: 132,
-      id,
-      kind: "polygon",
-      name: `${kind === "triangle" ? "三角形" : "正多边形"} ${serial}`,
-      polygonMode: kind,
-      rotation: 0,
-      sides: kind === "triangle" ? 3 : 6,
-      stroke: "#0f172a",
-      strokeStyle: "solid",
-      strokeWidth: 0,
-      transformOrigin: "center",
-      width: 132,
-      x: baseX,
-      y: baseY,
-    };
-  }
-
-  if (kind === "star") {
-    return {
-      animationList: [],
-      cornerRadius: 0,
-      corners: 5,
-      fill: "#32cd79",
-      height: 132,
-      id,
-      innerRadius: 0.45,
-      kind,
-      name: `星形 ${serial}`,
-      rotation: 0,
-      startAngle: -90,
-      stroke: "#0f172a",
-      strokeStyle: "solid",
-      strokeWidth: 0,
-      transformOrigin: "center",
-      width: 132,
-      x: baseX,
-      y: baseY,
-    };
-  }
-
-  if (kind === "text") {
-    return {
-      animationList: [],
-      fill: "#111827",
-      fontSize: 28,
-      fontWeight: 600,
-      id,
-      kind,
-      name: `文本 ${serial}`,
-      rotation: 0,
-      stroke: "#0f172a",
-      strokeStyle: "solid",
-      strokeWidth: 0,
-      text: "双击编辑文本",
-      transformOrigin: "center",
-      x: baseX,
-      y: baseY,
-    };
-  }
-
-  if (kind === "image") {
-    return {
-      animationList: [],
-      height: 240,
-      id,
-      kind,
-      name: `图片 ${serial}`,
-      rotation: 0,
-      src: TEST_MATERIAL_IMAGE_URL,
-      stroke: "#0f172a",
-      strokeStyle: "solid",
-      strokeWidth: 0,
-      transformOrigin: "center",
-      width: 360,
-      x: baseX,
-      y: baseY,
-    };
-  }
-
-  return {
-    animationList: [],
-    cornerRadius: 12,
-    fill: "#4f46e5",
-    height: 112,
-    id,
-    kind,
-    name: `矩形 ${serial}`,
-    rotation: 0,
-    stroke: "#0f172a",
-    strokeStyle: "solid",
-    strokeWidth: 0,
-    transformOrigin: "center",
-    width: 180,
-    x: baseX,
-    y: baseY,
-  };
-};
-
 /** 创建一页画布，并把传入节点作为根层级节点写入页面。 */
 const createPage = (name?: string, nodes: CanvasNode[] = []): CanvasPage => {
   pageSerial += 1;
@@ -340,7 +163,7 @@ const createPage = (name?: string, nodes: CanvasNode[] = []): CanvasPage => {
   return {
     activeId: undefined,
     id: createPageId(),
-    name: name ?? `页面 ${pageSerial}`,
+    name: name ?? translateKey("pageNumber", { count: pageSerial }),
     nodeMap: Object.fromEntries(nodes.map((node) => [node.id, node])),
     rootIds: nodes.map((node) => node.id),
     selectedIds: [],
@@ -348,8 +171,8 @@ const createPage = (name?: string, nodes: CanvasNode[] = []): CanvasPage => {
   };
 };
 
-/** 初始页面放两个元素，方便打开页面后可以直接测试选择、拖拽、打组、撤销。 */
-const initialPage = createPage("页面 1", [createNode("rect", 0), createNode("text", 1)]);
+/** 新建文档从空白画布开始，元素由用户主动添加。 */
+const initialPage = createPage(translateKey("pageNumber", { count: 1 }));
 
 /**
  * 文档结构使用“多页 + 每页扁平字典 + 层级 id 列表”：
@@ -462,6 +285,15 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         draft.activePageId = page.id;
       });
     },
+    updateViewport(viewport) {
+      if (!Number.isInteger(viewport.width) || !Number.isInteger(viewport.height)) return;
+      if (viewport.width < 1 || viewport.height < 1) return;
+
+      commit((draft) => {
+        const page = getActivePage(draft);
+        page.viewport = { ...viewport };
+      });
+    },
     insertBlankPage(afterPageId) {
       commit((draft) => {
         const page = createPage();
@@ -507,8 +339,9 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         newNodeMap[clone.id] = clone;
       }
 
-      const newPage = createPage(`${source.name} 副本`);
+      const newPage = createPage(`${source.name} ${translateKey("copy")}`);
 
+      newPage.viewport = { ...source.viewport };
       newPage.nodeMap = newNodeMap;
       newPage.rootIds = source.rootIds.map((id) => idMap.get(id) ?? id);
       newPage.selectedIds = [];
@@ -532,7 +365,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
           animationList: [],
           id: createId(),
           kind: "line",
-          name: `笔迹 ${serial}`,
+          name: translateKey("strokeCount", { count: serial }),
           source,
           transformOrigin: line.transformOrigin ?? "top-left",
         };
@@ -546,7 +379,12 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
     addNode(kind, position) {
       commit((draft) => {
         const page = getActivePage(draft);
-        const node = createNode(kind, page.rootIds.length);
+        serial += 1;
+        const node = createNode(kind, {
+          id: createId(),
+          index: page.rootIds.length,
+          serial,
+        });
 
         /**
          * 素材拖放到白板上时，store 的 x/y 就是节点 origin（默认 center），
@@ -643,7 +481,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
           height: bounds.height,
           id: groupId,
           kind: "group",
-          name: `组 ${serial}`,
+          name: translateKey("groupCount", { count: serial }),
           parentId: first.parentId,
           rotation: 0,
           transformOrigin: "center",
@@ -752,6 +590,11 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
           draft.activePageId = draft.pageIds[index] ?? draft.pageIds[index - 1] ?? draft.pageIds[0];
         }
       });
+    },
+    replaceDocument(document) {
+      past = [];
+      future = [];
+      set(sync(document));
     },
     selectNode(id, additive = false) {
       const page = get().activePage;

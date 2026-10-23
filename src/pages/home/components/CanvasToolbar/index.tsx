@@ -8,6 +8,7 @@ import {
   ZoomInOutlined,
 } from "@ant-design/icons";
 import { Button, Select, Space, Tooltip } from "antd";
+import { useAppTranslation } from "@/i18n/useAppTranslation";
 import type { CanvasToolMode } from "@/types";
 
 type CanvasToolbarProps = {
@@ -25,6 +26,10 @@ type CanvasToolbarProps = {
   magnifierSize: number;
   /** 当前放大镜放大倍数。 */
   magnifierZoom: number;
+  /** 保存请求是否正在进行。 */
+  isSaving?: boolean;
+  /** 文档加载期间暂不允许保存，但不显示保存中的状态。 */
+  isDocumentLoading?: boolean;
   /** 切换画布交互工具。 */
   onChangeTool: (tool: CanvasToolMode) => void;
   /** 修改画笔粗细。 */
@@ -36,7 +41,7 @@ type CanvasToolbarProps = {
   /** 修改放大镜放大倍数。 */
   onChangeMagnifierZoom: (zoom: number) => void;
   /** 保存当前画布文档。 */
-  onSave: () => void;
+  onSave: () => void | Promise<void>;
   /** 点击重做按钮时触发。 */
   onRedo: () => void;
   /** 点击撤销按钮时触发。 */
@@ -71,6 +76,8 @@ function CanvasToolbar({
   eraserSize,
   magnifierSize,
   magnifierZoom,
+  isSaving = false,
+  isDocumentLoading = false,
   onChangeBrushSize,
   onChangeEraserSize,
   onChangeMagnifierSize,
@@ -80,17 +87,19 @@ function CanvasToolbar({
   onSave,
   onUndo,
 }: CanvasToolbarProps) {
+  const { t } = useAppTranslation();
+
   return (
     <Space className="canvas-maker__toolbar" size={12}>
       <Space.Compact>
-        <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title="选择">
+        <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title={t("select")}>
           <Button
             icon={<SelectOutlined />}
             type={activeTool === "select" ? "primary" : "default"}
             onClick={() => onChangeTool("select")}
           />
         </Tooltip>
-        <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title="画笔">
+        <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title={t("brush")}>
           <Button
             icon={<EditOutlined />}
             type={activeTool === "brush" ? "primary" : "default"}
@@ -105,7 +114,7 @@ function CanvasToolbar({
           value={brushSize}
           onChange={onChangeBrushSize}
         />
-        <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title="橡皮擦">
+        <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title={t("eraser")}>
           <Button
             icon={<ClearOutlined />}
             type={activeTool === "eraser" ? "primary" : "default"}
@@ -120,7 +129,7 @@ function CanvasToolbar({
           value={eraserSize}
           onChange={onChangeEraserSize}
         />
-        <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title="放大镜">
+        <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title={t("magnifier")}>
           <Button
             icon={<ZoomInOutlined />}
             type={activeTool === "magnifier" ? "primary" : "default"}
@@ -146,15 +155,21 @@ function CanvasToolbar({
       </Space.Compact>
 
       <Space.Compact>
-        <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title="撤销">
+        <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title={t("undo")}>
           <Button disabled={!canUndo} icon={<UndoOutlined />} onClick={onUndo} />
         </Tooltip>
-        <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title="重做">
+        <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title={t("redo")}>
           <Button disabled={!canRedo} icon={<RedoOutlined />} onClick={onRedo} />
         </Tooltip>
-        <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title="保存">
-          <Button type="primary" icon={<SaveOutlined />} onClick={onSave}>
-            保存
+        <Tooltip classNames={{ root: "canvas-maker__toolbar-tooltip" }} title={t("save")}>
+          <Button
+            disabled={isSaving || isDocumentLoading}
+            loading={isSaving}
+            type="primary"
+            icon={<SaveOutlined />}
+            onClick={onSave}
+          >
+            {t("save")}
           </Button>
         </Tooltip>
       </Space.Compact>

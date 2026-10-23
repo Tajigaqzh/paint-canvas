@@ -17,7 +17,7 @@ export type BoardLayout = {
 export const BOARD_INSET = 20;
 
 /**
- * 按 DOM 容器尺寸计算 1920×1080 业务画板在舞台上的缩放和居中。
+ * 按 DOM 容器尺寸计算当前业务画板在舞台上的缩放和居中。
  * 指针坐标反算必须用同一套公式，否则画笔落点和节点位置会对不齐。
  */
 export const getBoardLayout = (

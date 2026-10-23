@@ -1,4 +1,8 @@
 import { App as AntdApp, ConfigProvider, type ThemeConfig } from "antd";
+import enUS from "antd/locale/en_US";
+import zhCN from "antd/locale/zh_CN";
+import { useAppTranslation } from "@/i18n/useAppTranslation";
+import "@/i18n";
 import { Outlet } from "react-router-dom";
 
 const antdTheme: ThemeConfig = {
@@ -22,8 +26,14 @@ const antdTheme: ThemeConfig = {
 };
 
 function AppLayout() {
+  const { i18n } = useAppTranslation();
+
   return (
-    <ConfigProvider componentSize="large" theme={antdTheme}>
+    <ConfigProvider
+      componentSize="large"
+      locale={i18n.language.startsWith("zh") ? zhCN : enUS}
+      theme={antdTheme}
+    >
       <AntdApp>
         <Outlet />
       </AntdApp>

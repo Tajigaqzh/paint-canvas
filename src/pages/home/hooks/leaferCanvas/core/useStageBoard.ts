@@ -20,7 +20,7 @@ const BOARD_CHROME = {
 };
 
 /**
- * 维护画布舞台：`app.tree` 承载缩放和居中，`board` 是 1920 x 1080 白色业务画板。
+ * 维护画布舞台：`app.tree` 承载缩放和居中，`board` 按当前页面 viewport 设置尺寸。
  *
  * 缩放必须挂在 `app.tree` 上：`leafer-x-ruler` 按 `app.tree.scale` / `app.tree.worldTransform`
  * 校准刻度，挂在更内层它读不到，标尺就会按屏幕像素而不是业务坐标标注。

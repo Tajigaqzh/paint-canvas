@@ -1,6 +1,6 @@
 import type { CanvasCornerRadius } from "@/types";
 
-export const cornerRadiusLabels = ["左上", "右上", "右下", "左下"] as const;
+export const cornerRadiusLabels = ["topLeft", "topRight", "bottomRight", "bottomLeft"] as const;
 
 export const toCornerRadiusValues = (
   value: CanvasCornerRadius | undefined,

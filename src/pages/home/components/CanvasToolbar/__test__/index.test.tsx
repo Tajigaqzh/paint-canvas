@@ -21,9 +21,22 @@ const props = {
 };
 
 describe("CanvasToolbar", () => {
+  it("文档加载时禁用保存但不显示保存旋转状态", () => {
+    render(<CanvasToolbar {...props} isDocumentLoading />);
+    const saveButton = screen.getByRole("button", { name: /保存/ });
+
+    expect(saveButton).toBeDisabled();
+    expect(saveButton.classList.contains("ant-btn-loading")).toBe(false);
+  });
+
   it("渲染保存按钮", () => {
     render(<CanvasToolbar {...props} />);
     expect(screen.getByText("保存")).toBeTruthy();
+  });
+
+  it("保存期间禁用保存按钮", () => {
+    render(<CanvasToolbar {...props} isSaving />);
+    expect(screen.getByRole("button", { name: /保存/ })).toBeDisabled();
   });
 
   it("点击选择工具", () => {

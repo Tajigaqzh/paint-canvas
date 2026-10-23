@@ -1,5 +1,6 @@
 import { LeftOutlined, RightOutlined, UpOutlined } from "@ant-design/icons";
 import { Button } from "antd";
+import { useAppTranslation } from "@/i18n/useAppTranslation";
 import type { CanvasPage } from "@/types";
 import { usePageThumbnails } from "@/worker/page-thumbnail/usePageThumbnails";
 import { ThumbnailCanvas } from "@/pages/home/components/PageThumbnailStrip/ThumbnailCanvas";
@@ -31,13 +32,14 @@ export default function PreviewPageStrip({
   collapsed,
   onToggleCollapsed,
 }: PreviewPageStripProps) {
+  const { t } = useAppTranslation();
   const thumbnails = usePageThumbnails(pages, pageIds);
 
   if (collapsed) {
     return (
       <div className="preview__strip preview__strip--collapsed">
         <Button size="small" onClick={onToggleCollapsed}>
-          页码
+          {t("pages")}
         </Button>
       </div>
     );
@@ -70,7 +72,7 @@ export default function PreviewPageStrip({
                 <ThumbnailCanvas bitmap={thumbnail?.bitmap} />
                 {thumbnail?.error && (
                   <span className="preview__page-thumb-error" title={thumbnail.error}>
-                    渲染失败
+                    {t("renderFailed")}
                   </span>
                 )}
               </span>
@@ -84,7 +86,7 @@ export default function PreviewPageStrip({
         disabled={pageIds.length <= 1}
         onClick={() => onSelectPage(pageIds[(currentIndex + 1) % pageIds.length])}
       />
-      <Button icon={<UpOutlined />} title="收起" onClick={onToggleCollapsed} />
+      <Button icon={<UpOutlined />} title={t("collapse")} onClick={onToggleCollapsed} />
     </div>
   );
 }

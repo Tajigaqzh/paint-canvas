@@ -1,26 +1,28 @@
 # Paint Canvas
 
-`paint-canvas` 是一个基于 React、TypeScript、Vite、Ant Design 和 LeaferJS 的画布制作工具。当前重点是制作页：用固定 1920 x 1080 业务坐标管理多页面画布，通过 Leafer 渲染和编辑节点，并用 React store 维护可撤销的文档状态。
+`paint-canvas` 是一个基于 React、TypeScript、Vite、Ant Design 和 LeaferJS 的画布制作工具。应用包含登录、作品管理、画布制作和预览流程。画布按页面保存设计尺寸（新建页面默认 1920 x 1080），Leafer 负责渲染和交互，Zustand store 维护可撤销的文档状态。
 
 ## 当前能力
 
 - 多页面画布：底部缩略图展示页面，支持新增页面和切换页面。
-- 固定业务坐标系：画布数据按 1920 x 1080 存储，DOM 容器变化时只等比缩放和居中。
+- 页面画布尺寸：每页可单独设置设计宽高，新建页面默认 1920 x 1080；DOM 容器变化时按页面尺寸等比缩放和居中。
 - 节点编辑：支持选择、框选、多选、拖拽、缩放、旋转和文本双击编辑。
 - 基础图形：支持矩形、圆形、椭圆、圆环、扇形、扇形圆环、圆角弧线、线条、三角形、正多边形、星形、文本和远程 URL 图片。
 - 图片节点：素材面板只写入测试图 URL；主画布和缩略图通过图片缓存线程取 Blob 再绘制。
 - 自由绘制：顶部工具栏支持选择、画笔、橡皮擦；画笔和橡皮擦都支持粗细选择。能力由自研插件 `packages/leafer-x-brush-eraser` 提供。
-- 场景标识：笔迹节点在 Leafer 场景里带 `brush` 标识（内部元素是 `brush-path` / `brush-eraser`，素材线条是 `line`），便于按 className 遍历；
+- 场景标识：笔迹节点在 Leafer 场景里带来源标识（制作笔迹、素材线条、预览批注分别区分），内部元素使用 `brush-path` / `brush-eraser` 等 className，便于按来源处理；
 - 局部擦除：橡皮擦只擦 `line` 笔迹（命中用 Leafer 选择器 + `erasable` 过滤），通过 Leafer eraser 子节点记录局部擦除轨迹；矩形、椭圆、文本等图形不会被整节点删掉。
 - 放大镜：顶部工具栏可激活放大镜，指针悬停在画布上时用镜片局部放大；镜片直径和放大倍率都可选，取样直接来自 Leafer 渲染结果，笔迹和图片一起放大。能力由自研插件 `packages/leafer-x-magnifier` 提供，插件本身不依赖任何框架。
 - 对齐参考线与吸附：`select` 模式拖动节点时显示对齐参考线和吸附点，自动吸附到同级元素的边缘 / 中心，由 `leafer-x-easy-snap` 提供。
-- 标尺：画布左上角显示 1920 x 1080 业务坐标刻度，并高亮选中元素所在区间，由 `leafer-x-ruler` 提供。
+- 标尺：画布左上角按当前页面设计尺寸显示业务坐标刻度，并高亮选中元素所在区间，由 `leafer-x-ruler` 提供。
 - 元素动画：属性面板可配置淡入、淡出、右移、旋转；淡入/淡出支持方向，右移支持起止偏移。多条动画按「淡入 → 移动/旋转 → 淡出」排序，可拖动手柄调整同阶段顺序，并按列表依次播放。
 - 右键菜单：支持打组、拆组、调整层级和删除选中元素。
 - 属性面板：支持位置、尺寸、旋转基准、填充、描边颜色、描边粗细、线型、图形专属参数和元素动画配置。
 - 缩略图渲染：通过 worker 和 `OffscreenCanvas` 绘制页面缩略图，只展示白色画板和画布内元素。
 - 图片资源缓存：独立 Dedicated Worker 做内存 LRU → IndexedDB 二级缓存，未命中时网络兜底；主画布和缩略图 worker 都通过 MessagePort 向它取 `Blob`，不各自 `fetch`。素材面板预览 `<img>` 不经过这套缓存。
 - 撤销重做：基于 `mutative` patches 记录画布操作历史。
+- 账号与作品：登录后访问作品列表；制作页通过后端文档接口保存和加载作品，未登录访问制作页会跳转到登录页。
+- 预览演示：只读展示作品，支持页面切换、动画重播、自动轮播、全屏、画笔批注、批注橡皮擦和离开时清理预览批注。
 
 图片缓存 Service Worker 和测试页代码仍保留在仓库里，但应用启动时不会注册 Service Worker，制作页走 `src/worker/image-cache/` 这套线程缓存。详细设计见 `src/worker/image-cache/README.md`。
 
@@ -85,7 +87,7 @@ src/
           core/                  共享 refs、LeaferApp 生命周期、画布变换、插件接线
             useRuntime.ts        子模块共享的 app / board / uiMap / callback refs
             useLeaferApp.ts      创建销毁 App，绑 Editor 选择 / 拖拽 / 文本事件
-            useStageBoard.ts     app.tree 承载缩放与居中，board 是 1920 x 1080 白板
+            useStageBoard.ts     app.tree 承载缩放与居中，board 按当前页面 viewport 设置尺寸
             useRuler.ts          leafer-x-ruler 接线：业务坐标标尺
             useSnap.ts           leafer-x-easy-snap 接线：对齐参考线和吸附
             useMagnifier.ts      leafer-x-magnifier 接线：只同步工具状态
@@ -111,7 +113,7 @@ src/
   constants/
     materialImages.ts            素材测试图 URL
   router/
-    index.tsx                    路由：制作页和图片缓存实验页
+    index.tsx                    路由：登录、作品、制作、预览和图片缓存实验页
   stores/
     canvasStore.ts               多页面画布状态、历史、节点操作
   types/
@@ -139,6 +141,9 @@ public/
 scripts/
   image-cache-test-server.mjs    图片缓存测试服务
 docs/
+  3d-math-teaching-software-plan.md  面向数学教师的 2D/3D 讲课软件规划
+  preview-page-plan.md           预览页当前实现和后续规划
+  leafer-large-scale-render-optimization.md  大规模渲染方案草案
   useLeaferCanvas-logic.md       画布 hook 逻辑说明文档
 ```
 
@@ -168,7 +173,7 @@ flowchart TD
 核心约定：
 
 - `canvasStore` 是唯一真实数据源，Leafer UI 只是按 `nodeId` 维护的渲染缓存。
-- `app.tree` 负责缩放和居中，`board` 是固定 1920 x 1080 白色业务画板；画布变换、指针反算、标尺刻度共用 `geometry/boardLayout.ts`。
+- `app.tree` 负责缩放和居中，`board` 按当前页面的 `viewport` 设置尺寸；新建页面默认 1920 x 1080。画布变换、指针反算、标尺刻度共用 `geometry/boardLayout.ts`。
 - 节点同步走增量更新，不调用 `app.tree.clear()`，避免破坏 Leafer Editor 内部选择层。
 - 用户选择由 Leafer Editor 写回 store，程序化 `editor.select()` 会用同步标记屏蔽回写。
 - 窗口尺寸变化后会刷新当前 Editor 选区，保证多选框宽高跟随新的画布变换。
@@ -193,7 +198,7 @@ flowchart LR
 ```
 
 - `CanvasDocument` 保存页面字典、页面顺序和当前页面 ID。
-- `CanvasPage` 保存固定 viewport、节点字典、根节点顺序和当前选区。
+- `CanvasPage` 保存页面 viewport、节点字典、根节点顺序和当前选区。
 - `CanvasNode` 是可序列化业务节点；组节点用 `childrenIds` 表示层级，自由线条用 `points` 和 `eraserPaths` 表示笔迹与擦除。
 - `animationList` 保存节点上的动画配置；渲染时映射为 Leafer `animation`，多条按列表顺序依次播放。
 - 历史记录保存 `mutative` 正向 / 反向 patches，而不是完整画布快照。
@@ -216,39 +221,4 @@ flowchart LR
 
 ## 后续计划
 
-来自 `.agents/todo.md` 的制作页规划：
-
-- 元素隐藏与展示
-- 图片节点接入属性面板蒙层等后续能力
-- 蒙层、遮罩、阴影、内外阴影、渐变
-- 滤镜
-- 路径动画
-- 页面过渡动画
-- 更完整的自定义关键帧动画
-- 视频、音频、截图
-- 本地模型与 RAG 知识库
-- AI 对话
-- AI 绘制
-- PSD 文件解析
-- 导入与导出
-
-预览页规划：
-
-- 展示制作页的所有能力
-- 支持画笔操作
-- 支持手势控制
-
-### 预览演示页（已实现）
-
-`/preview` 路由进入预览演示页，只读展示 `canvasStore` 制作的画布并支持演示交互。
-
-- **复用制作页画布引擎**：预览页直接调用 `useLeaferCanvas`，不新建 canvas 引擎；制作内容（矩形 / 文本 / 图片 / 线条 / 动画 / 标尺吸附等）原样渲染。
-- **只读**：通过 `UseLeaferCanvasOptions.readOnly` 关闭节点编辑 / 拖拽与选区、拖拽、文本回写，制作内容不可改；只有画笔 / 橡皮擦产生的批注可写。
-- **画笔批注**：复用 `leafer-x-brush-eraser`，笔迹写入 store（`source: "preview"`），可配置颜色与粗细。
-- **橡皮擦只擦批注**：`erasableFilter` 把可擦范围收窄到 `source === "preview"` 的 line 节点，不碰制作内容（包括制作页本身的 `source: "brush"` 笔迹）。
-- **一键清除笔记 / 离开自动清理**：预览批注统一打 `source: "preview"` 标签，清除按钮（复用 `clearPreviewNotes`）和退出预览页都会跨页清掉它们，不会污染制作文档。
-- **默认鼠标模式**：进入预览默认是"鼠标"工具（只展示画布、不绘制），可切到画笔 / 橡皮擦 / 放大镜，也能随时切回鼠标。
-- **动画播放**：节点创建时写入 Leafer `animation` 自动播放一次；`replayToken` 变化（点击“播放动画”、切换页面、键盘左右键、自动轮播）会触发从头重播。
-- **演示设置**：右侧悬浮可收起工具面板（画笔 / 橡皮擦 / 放大镜、画笔颜色与粗细预设、橡皮擦粗细、清除笔记、全屏），底部可收起多页缩略图切换条（复用制作页的 page-thumbnail worker 渲染，可点击翻页、也能用键盘左右键），演示设置抽屉含自动轮播间隔。
-- **不展示标尺**：`showRuler: false`。
-- 主入口“预览”按钮从制作页跳转；详细规划见 `docs/preview-page-plan.md`。
+后续功能按 `.agents/todo.md` 跟踪，并区分待修改、待添加和需要先验证产品范围的项目。数学教学软件方向见 `docs/3d-math-teaching-software-plan.md`；预览页现状与遗留事项见 `docs/preview-page-plan.md`；大规模渲染方案是待基准测试和需求确认的技术草案，不代表近期承诺。

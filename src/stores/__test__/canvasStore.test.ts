@@ -71,8 +71,81 @@ describe("useCanvasStore", () => {
     useCanvasStore.getState().reset();
   });
 
+  it("新建页面默认尺寸为 1920 x 1080", () => {
+    expect(useCanvasStore.getState().activePage.viewport).toEqual({
+      height: 1080,
+      width: 1920,
+    });
+  });
+
+  it("修改画布尺寸后支持撤销", () => {
+    useCanvasStore.getState().updateViewport({ height: 720, width: 1280 });
+
+    expect(useCanvasStore.getState().activePage.viewport).toEqual({
+      height: 720,
+      width: 1280,
+    });
+
+    useCanvasStore.getState().undo();
+
+    expect(useCanvasStore.getState().activePage.viewport).toEqual({
+      height: 1080,
+      width: 1920,
+    });
+  });
+
+  it("拒绝非正整数画布尺寸", () => {
+    const before = useCanvasStore.getState().activePage.viewport;
+    useCanvasStore.getState().updateViewport({ height: 0, width: 1280 });
+
+    expect(useCanvasStore.getState().activePage.viewport).toEqual(before);
+    expect(useCanvasStore.getState().canUndo).toBe(false);
+  });
+
+  it("复制页面时保留画布尺寸", () => {
+    const sourceId = useCanvasStore.getState().activePageId;
+    useCanvasStore.getState().updateViewport({ height: 900, width: 1600 });
+    useCanvasStore.getState().duplicatePage(sourceId);
+
+    expect(useCanvasStore.getState().activePage.viewport).toEqual({
+      height: 900,
+      width: 1600,
+    });
+  });
+
   it("reset 后至少有一页", () => {
-    expect(useCanvasStore.getState().pageIds.length).toBeGreaterThan(0);
+    const { activePage, pageIds } = useCanvasStore.getState();
+
+    expect(pageIds).toHaveLength(1);
+    expect(activePage.rootIds).toEqual([]);
+    expect(activePage.nodeMap).toEqual({});
+  });
+
+  it("replaceDocument 替换文档并清空旧历史", () => {
+    const document = {
+      activePageId: "loaded-page",
+      pageIds: ["loaded-page"],
+      pages: {
+        "loaded-page": {
+          activeId: undefined,
+          id: "loaded-page",
+          name: "Loaded",
+          nodeMap: {},
+          rootIds: [],
+          selectedIds: [],
+          viewport: { height: 1080, width: 1920 },
+        },
+      },
+    };
+    useCanvasStore.getState().addPage();
+    expect(useCanvasStore.getState().canUndo).toBe(true);
+
+    useCanvasStore.getState().replaceDocument(document);
+
+    expect(useCanvasStore.getState().activePageId).toBe("loaded-page");
+    expect(useCanvasStore.getState().activePage.name).toBe("Loaded");
+    expect(useCanvasStore.getState().canUndo).toBe(false);
+    expect(useCanvasStore.getState().canRedo).toBe(false);
   });
 
   it("addPage 增加页面并切换 activePageId", () => {
@@ -264,7 +337,7 @@ describe("useCanvasStore", () => {
 
       expect(countLines("preview")).toBe(0);
       expect(countLines("brush")).toBe(1);
-      expect(Object.keys(useCanvasStore.getState().activePage.nodeMap).length).toBeGreaterThan(1);
+      expect(Object.keys(useCanvasStore.getState().activePage.nodeMap).length).toBeGreaterThan(0);
     });
 
     it("跨页删除所有 preview 批注", () => {

@@ -2,37 +2,37 @@ import { describe, expect, it } from "vitest";
 import { degreesToRadians, getCornerRadiusValues } from "../context";
 
 describe("getCornerRadiusValues", () => {
-  it("undefined 得到四个 0", () => {
+  it("uses zero for an undefined radius", () => {
     expect(getCornerRadiusValues(undefined)).toEqual([0, 0, 0, 0]);
   });
 
-  it("单个数字复制到四角", () => {
+  it("copies a scalar radius to every corner", () => {
     expect(getCornerRadiusValues(6)).toEqual([6, 6, 6, 6]);
   });
 
-  it("两个值按 Leafer 规则补齐", () => {
+  it("fills a two-value radius using Leafer ordering", () => {
     expect(getCornerRadiusValues([1, 2])).toEqual([1, 2, 1, 2]);
   });
 
-  it("三个值时左下用右上", () => {
+  it("fills a three-value radius using Leafer ordering", () => {
     expect(getCornerRadiusValues([1, 2, 3])).toEqual([1, 2, 3, 2]);
   });
 
-  it("四个值原样返回", () => {
+  it("returns four-value radius unchanged", () => {
     expect(getCornerRadiusValues([1, 2, 3, 4])).toEqual([1, 2, 3, 4]);
   });
 });
 
 describe("degreesToRadians", () => {
-  it("0 度为 0", () => {
+  it("converts zero degrees", () => {
     expect(degreesToRadians(0)).toBe(0);
   });
 
-  it("180 度为 π", () => {
+  it("converts 180 degrees", () => {
     expect(degreesToRadians(180)).toBe(Math.PI);
   });
 
-  it("负角度按公式换算", () => {
+  it("converts negative degrees", () => {
     expect(degreesToRadians(-90)).toBe(-Math.PI / 2);
   });
 });
