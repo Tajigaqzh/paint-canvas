@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getIndexedDbBlob } from "../idb";
 import { resolveImageBlob } from "../resolveBlob";
 
 vi.mock("../idb", () => ({
@@ -38,6 +39,19 @@ describe("resolveImageBlob", () => {
     );
 
     await expect(resolveImageBlob(url)).resolves.toMatchObject({ source: "network" });
+  });
+
+  it("IndexedDB 读取失败时降级到网络", async () => {
+    const url = `https://example.com/${crypto.randomUUID()}.png`;
+    vi.mocked(getIndexedDbBlob).mockRejectedValueOnce(new Error("IndexedDB 不可用"));
+    const fetchMock = vi.fn(async () => ({
+      blob: async () => okBlob(),
+      ok: true,
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(resolveImageBlob(url)).resolves.toMatchObject({ source: "network" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("HTTP 非 2xx 抛请求失败", async () => {

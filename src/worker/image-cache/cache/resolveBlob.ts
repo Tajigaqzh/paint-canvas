@@ -68,7 +68,13 @@ const loadUncached = async (
     return { blob: memoryHit, source: "memory" };
   }
 
-  const idbRecord = await getIndexedDbBlob(url);
+  let idbRecord;
+
+  try {
+    idbRecord = await getIndexedDbBlob(url);
+  } catch {
+    // IDB 只是缓存层；读取失败时仍应尝试网络加载。
+  }
 
   if (idbRecord?.blob.size) {
     memory.set(url, idbRecord.blob);
