@@ -172,7 +172,7 @@ export const layoutArcText = (
   const anchorIndex = align === "start" ? 0 : align === "end" ? glyphs.length - 1 : -1;
   const anchorAngle =
     anchorIndex >= 0
-      ? ((startAngle * Math.PI) / 180 + sign * glyphs[anchorIndex].angle * (Math.PI / 180))
+      ? (startAngle * Math.PI) / 180 + sign * glyphs[anchorIndex].angle * (Math.PI / 180)
       : absoluteStart;
   const anchorX = layoutRadius * Math.cos(anchorAngle);
   const anchorY = layoutRadius * Math.sin(anchorAngle);

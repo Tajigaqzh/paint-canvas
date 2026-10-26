@@ -116,8 +116,7 @@ function Home() {
     onSelectNodes: selectNodes,
     onAddDrawLine: addDrawLine,
     onApplyEraserResult: applyEraserResult,
-    onCharacterSelection: (id, range) =>
-      setCharacterSelection(range ? { id, range } : undefined),
+    onCharacterSelection: (id, range) => setCharacterSelection(range ? { id, range } : undefined),
     onUpdateNode: updateNode,
     onUpdateNodes: updateNodes,
     page: activePage,

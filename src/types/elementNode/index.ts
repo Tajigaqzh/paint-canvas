@@ -1,9 +1,5 @@
 import type { IUIInputData } from "leafer-ui";
-import type {
-  CurvedTextLayout,
-  CurvedTextStyle,
-  CurvedTextStyleRun,
-} from "leafer-x-curved-text";
+import type { CurvedTextLayout, CurvedTextStyle, CurvedTextStyleRun } from "leafer-x-curved-text";
 
 /** 画布节点类型。group 是真实层级节点，不是普通标签。 */
 export type CanvasNodeKind =

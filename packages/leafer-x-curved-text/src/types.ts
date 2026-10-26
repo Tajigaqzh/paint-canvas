@@ -1,4 +1,11 @@
-import type { IFill, IFontWeight, IGroupInputData, IShadowEffect, IStroke, ITextInputData } from "@leafer-ui/interface";
+import type {
+  IFill,
+  IFontWeight,
+  IGroupInputData,
+  IShadowEffect,
+  IStroke,
+  ITextInputData,
+} from "@leafer-ui/interface";
 import type { ArcTextLayoutOptions, CurvedTextStyle, CurvedTextStyleRun } from "./arcLayout";
 
 export type CurvedTextLayout = Omit<ArcTextLayoutOptions, "defaultStyle" | "styleRuns">;
@@ -11,7 +18,11 @@ export type CurvedTextConfig = Omit<IGroupInputData, "children"> & {
   characterEditing?: boolean;
   /** 字符选区的临时高亮填充，不会写入业务序列化数据。 */
   selectionFill?: IFill;
-  measureGrapheme?: (request: { grapheme: string; index: number; style: CurvedTextStyle }) => number;
+  measureGrapheme?: (request: {
+    grapheme: string;
+    index: number;
+    style: CurvedTextStyle;
+  }) => number;
 };
 
 export type CurvedTextData = Omit<IGroupInputData, "children"> & {

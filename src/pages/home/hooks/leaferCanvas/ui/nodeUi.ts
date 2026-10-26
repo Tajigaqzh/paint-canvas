@@ -261,7 +261,10 @@ export const getNodePatchFromUI = (ui: IUI, node: CanvasNode) => {
 };
 
 /** 增量同步曲线文字的业务字段；Leafer Group 只接收整体几何属性。 */
-export const syncCurvedTextUI = (ui: ManagedNodeUI, node: Extract<CanvasNode, { kind: "curvedText" }>) => {
+export const syncCurvedTextUI = (
+  ui: ManagedNodeUI,
+  node: Extract<CanvasNode, { kind: "curvedText" }>,
+) => {
   const curvedText = ui as unknown as CurvedText;
   // 通用 ui.set 会同步业务节点的 editable/draggable；字符编辑是运行时状态，需保留。
   curvedText.set({

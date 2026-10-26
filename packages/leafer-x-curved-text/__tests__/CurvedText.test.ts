@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CurvedText } from "../src";
 
-  const { MockGroup, MockText, MockRect } = vi.hoisted(() => {
+const { MockGroup, MockText, MockRect } = vi.hoisted(() => {
   class MockGroup {
     children: MockText[] = [];
     data: Record<string, unknown>;
@@ -122,7 +122,11 @@ describe("CurvedText", () => {
     const children = (curvedText as unknown as InstanceType<typeof MockGroup>).children;
 
     expect(children.slice(0, 3).map(({ data }) => data.fontSize)).toEqual([12, 24, 12]);
-    expect(children[1].data).toMatchObject({ fill: "#f00", stroke: "#000", strokeWidth: undefined });
+    expect(children[1].data).toMatchObject({
+      fill: "#f00",
+      stroke: "#000",
+      strokeWidth: undefined,
+    });
   });
 
   it("更新文本后重建字符对象并裁剪过期选区", () => {
@@ -154,9 +158,9 @@ describe("CurvedText", () => {
 
     curvedText.setLayout({ radius: 40 });
 
-    expect((curvedText as unknown as InstanceType<typeof MockGroup>).children[0].data.rotation).not.toBe(
-      before,
-    );
+    expect(
+      (curvedText as unknown as InstanceType<typeof MockGroup>).children[0].data.rotation,
+    ).not.toBe(before);
   });
 
   it("选区范围按字素数量裁剪并发出变更事件", () => {
@@ -262,16 +266,22 @@ describe("CurvedText", () => {
     curvedText.clearCharacterSelection();
 
     expect(curvedText.characterSelection).toBeUndefined();
-    expect((curvedText as unknown as InstanceType<typeof MockGroup>).children[0].data.fill).toBe("#f00");
+    expect((curvedText as unknown as InstanceType<typeof MockGroup>).children[0].data.fill).toBe(
+      "#f00",
+    );
   });
 
   it("选区高亮颜色可通过配置和运行时 setter 修改", () => {
     const curvedText = createCurvedText({ selectionFill: "#0a0" });
     curvedText.setCharacterSelection({ start: 0, end: 1 });
-    expect((curvedText as unknown as InstanceType<typeof MockGroup>).children[0].data.fill).toBe("#0a0");
+    expect((curvedText as unknown as InstanceType<typeof MockGroup>).children[0].data.fill).toBe(
+      "#0a0",
+    );
 
     curvedText.selectionFill = "#a00";
-    expect((curvedText as unknown as InstanceType<typeof MockGroup>).children[0].data.fill).toBe("#a00");
+    expect((curvedText as unknown as InstanceType<typeof MockGroup>).children[0].data.fill).toBe(
+      "#a00",
+    );
   });
 
   it("序列化只返回业务数据，不包含运行时选区和测量器", () => {
