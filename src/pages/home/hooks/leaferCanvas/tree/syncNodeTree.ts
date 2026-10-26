@@ -12,7 +12,8 @@ import { isAdditiveSelect } from "../tools/additiveSelect";
 import { getAnimationSignature, getLeaferAnimation } from "../ui/animation";
 import { disposeImageSource, syncImageSource } from "../ui/imageUi";
 import { syncLineGroupContent } from "../ui/lineUi";
-import { createNodeUI, getNodePatchFromUI, getNodeUIInput } from "../ui/nodeUi";
+import { createNodeUI, getNodePatchFromUI, getNodeUIInput, syncCurvedTextUI } from "../ui/nodeUi";
+import type { CurvedText } from "leafer-x-curved-text";
 
 /** 节点树增量同步所需的托管索引和 store 回调。 */
 export type NodeTreeSyncContext = {
@@ -22,6 +23,9 @@ export type NodeTreeSyncContext = {
   nodeMap: CanvasPage["nodeMap"];
   onSelectNodeRef: RefObject<(id?: string, additive?: boolean) => void>;
   onUpdateNodeRef: RefObject<(id: string, data: Partial<CanvasNode>) => void>;
+  onCharacterSelectionRef: RefObject<
+    ((id: string, selection?: { start: number; end: number }) => void) | undefined
+  >;
   pageRef: RefObject<CanvasPage>;
   uiKindMap: Map<string, CanvasNode["kind"]>;
   uiMap: Map<string, ManagedNodeUI>;
@@ -62,15 +66,32 @@ const removeManagedUI = (ctx: NodeTreeSyncContext, id: string) => {
  */
 const bindNodeUIEvents = (ctx: NodeTreeSyncContext, nodeId: string, ui: ManagedNodeUI) => {
   ui.on("tap", (event: PointerLikeEvent) => {
+    const curvedText = ui as unknown as CurvedText;
+    if ((ui as unknown as { tag?: string }).tag === "curvedText" && curvedText.characterEditing) {
+      return;
+    }
     ctx.onSelectNodeRef.current(nodeId, isAdditiveSelect(event));
   });
   ui.on(DragEvent.END, () => {
+    const curvedText = ui as unknown as CurvedText;
+    if ((ui as unknown as { tag?: string }).tag === "curvedText" && curvedText.characterEditing) {
+      return;
+    }
     const latestNode = ctx.pageRef.current.nodeMap[nodeId];
 
     if (!latestNode) return;
 
     ctx.onUpdateNodeRef.current(nodeId, getNodePatchFromUI(ui, latestNode));
   });
+  if ((ui as unknown as { tag?: string }).tag === "curvedText") {
+    const curvedText = ui as unknown as CurvedText;
+    curvedText.on("character-selection-change", (selection) => {
+      ctx.onCharacterSelectionRef.current?.(
+        nodeId,
+        selection.start === selection.end ? undefined : selection,
+      );
+    });
+  }
 };
 
 /**
@@ -113,6 +134,10 @@ const syncNodeToParent = (
     ctx.animationSignatureMap.set(nodeId, getAnimationSignature(node.animationList));
   } else {
     ui.set(getNodeUIInput(node));
+
+    if (node.kind === "curvedText") {
+      syncCurvedTextUI(ui, node);
+    }
 
     const animationSignature = getAnimationSignature(node.animationList);
 
@@ -160,7 +185,7 @@ const syncNodeToParent = (
 
   if (node.kind === "group") {
     node.childrenIds.forEach((childId, childIndex) => {
-      syncNodeToParent(ctx, reachableIds, childId, ui as ParentNodeUI, childIndex);
+      syncNodeToParent(ctx, reachableIds, childId, ui as unknown as ParentNodeUI, childIndex);
     });
   }
 };

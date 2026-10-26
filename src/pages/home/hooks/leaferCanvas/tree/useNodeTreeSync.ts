@@ -12,6 +12,7 @@ type UseNodeTreeSyncParams = Pick<
   | "isSyncingEditorSelectionRef"
   | "onSelectNodeRef"
   | "onUpdateNodeRef"
+  | "onCharacterSelectionRef"
   | "pageRef"
   | "uiKindMapRef"
   | "uiMapRef"
@@ -33,6 +34,7 @@ export const useNodeTreeSync = ({
   nodeMap,
   onSelectNodeRef,
   onUpdateNodeRef,
+  onCharacterSelectionRef,
   pageRef,
   replayToken,
   rootIds,
@@ -67,6 +69,7 @@ export const useNodeTreeSync = ({
         nodeMap,
         onSelectNodeRef,
         onUpdateNodeRef,
+        onCharacterSelectionRef,
         pageRef,
         uiKindMap,
         uiMap,

@@ -98,6 +98,36 @@ describe("layoutArcText", () => {
 
     expect(counterclockwise.glyphs[0].angle).toBe(-clockwise.glyphs[0].angle);
     expect(counterclockwise.glyphs[0].y).toBe(-clockwise.glyphs[0].y);
+    expect(counterclockwise.glyphs[0].rotation).toBeGreaterThan(90);
+  });
+
+  it("修改字距后按新的字符中心重新计算切线旋转", () => {
+    const compact = layoutArcText("abcd", { ...baseOptions, letterSpacing: 0 }, () => 10);
+    const spaced = layoutArcText("abcd", { ...baseOptions, letterSpacing: 20 }, () => 10);
+
+    expect(spaced.glyphs[0].rotation).not.toBe(compact.glyphs[0].rotation);
+    expect(spaced.glyphs[3].rotation).not.toBe(compact.glyphs[3].rotation);
+  });
+
+  it("修改半径后重新计算每个字素的切线方向", () => {
+    const small = layoutArcText("abcd", { ...baseOptions, radius: 40 }, () => 10);
+    const large = layoutArcText("abcd", { ...baseOptions, radius: 400 }, () => 10);
+
+    expect(large.glyphs[0].rotation).not.toBe(small.glyphs[0].rotation);
+    expect(large.glyphs[3].rotation).not.toBe(small.glyphs[3].rotation);
+  });
+
+  it.each([
+    ["start", 0],
+    ["end", 3],
+  ] as const)("%s 对齐在半径变化时保持锚点固定", (align, anchorIndex) => {
+    const small = layoutArcText("abcd", { ...baseOptions, align, radius: 40 }, () => 10);
+    const large = layoutArcText("abcd", { ...baseOptions, align, radius: 400 }, () => 10);
+
+    expect(small.glyphs[anchorIndex].x).toBeCloseTo(0);
+    expect(small.glyphs[anchorIndex].y).toBeCloseTo(0);
+    expect(large.glyphs[anchorIndex].x).toBeCloseTo(0);
+    expect(large.glyphs[anchorIndex].y).toBeCloseTo(0);
   });
 
   it("非法测量宽度回退为零且不会产生非有限坐标", () => {

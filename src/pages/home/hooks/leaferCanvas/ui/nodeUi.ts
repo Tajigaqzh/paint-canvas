@@ -1,5 +1,6 @@
 import "@leafer-in/animate";
 import { Ellipse, Group, Image, Polygon, Rect, Star, Text, type IUI } from "leafer-ui";
+import { CurvedText } from "leafer-x-curved-text";
 import type { CanvasNode, ManagedNodeUI, NodeUIInput } from "@/types";
 import { getLeaferAnimation } from "./animation";
 import { getLineClassPrefix, syncLineGroupContent } from "./lineUi";
@@ -53,6 +54,13 @@ export const getNodeUIInput = (node: CanvasNode): NodeUIInput => {
       fontSize: node.fontSize,
       fontWeight: node.fontWeight,
       text: node.text,
+    };
+  }
+
+  if (node.kind === "curvedText") {
+    return {
+      ...baseInput,
+      fill: node.defaultStyle.fill,
     };
   }
 
@@ -130,22 +138,33 @@ export const createNodeUI = (node: CanvasNode): ManagedNodeUI | null => {
 
   // group 是唯一可能继续承载子节点的业务节点，因此创建为 Leafer Group。
   if (node.kind === "group") {
-    return new Group(input) as ManagedNodeUI;
+    return new Group(input) as unknown as ManagedNodeUI;
   }
 
   // 椭圆族统一由 Leafer Ellipse 表达。
   if (node.kind === "ellipse") {
-    return new Ellipse(input) as ManagedNodeUI;
+    return new Ellipse(input) as unknown as ManagedNodeUI;
   }
 
   // 文本节点由 Leafer Text 表达，并交给 @leafer-in/text-editor 做双击编辑。
   if (node.kind === "text") {
-    return new Text(input) as ManagedNodeUI;
+    return new Text(input) as unknown as ManagedNodeUI;
+  }
+
+  if (node.kind === "curvedText") {
+    return new CurvedText({
+      ...input,
+      layout: node.layout,
+      text: node.text,
+      defaultStyle: node.defaultStyle,
+      styleRuns: node.styleRuns,
+      characterEditing: false,
+    }) as unknown as ManagedNodeUI;
   }
 
   // 自由线条和普通线条用 Group 表达：原线条 + 同组 eraser 轨迹。
   if (node.kind === "line") {
-    const group = new Group(input) as ManagedNodeUI;
+    const group = new Group(input) as unknown as ManagedNodeUI;
 
     syncLineGroupContent(group, node);
 
@@ -154,21 +173,21 @@ export const createNodeUI = (node: CanvasNode): ManagedNodeUI | null => {
 
   // 三角形和多边形都由 Leafer Polygon 表达。
   if (node.kind === "polygon") {
-    return new Polygon(input) as ManagedNodeUI;
+    return new Polygon(input) as unknown as ManagedNodeUI;
   }
 
   // 星形节点由 Leafer Star 表达。
   if (node.kind === "star") {
-    return new Star(input) as ManagedNodeUI;
+    return new Star(input) as unknown as ManagedNodeUI;
   }
 
   // 图片走 Leafer Image；远程 src 先换成 Blob，再 createObjectURL 赋给 url。
   if (node.kind === "image") {
-    return new Image(input) as ManagedNodeUI;
+    return new Image(input) as unknown as ManagedNodeUI;
   }
 
   // 当前剩余节点只可能是 rect。
-  return new Rect(input) as ManagedNodeUI;
+  return new Rect(input) as unknown as ManagedNodeUI;
 };
 
 /**
@@ -180,7 +199,7 @@ export const createNodeUI = (node: CanvasNode): ManagedNodeUI | null => {
  */
 export const getNodePatchFromUI = (ui: IUI, node: CanvasNode) => {
   // 文本节点尺寸由文本内容和字体决定，这里只同步位置和旋转。
-  if (node.kind === "text") {
+  if (node.kind === "text" || node.kind === "curvedText") {
     return {
       rotation: Math.round(ui.rotation ?? node.rotation ?? 0),
       x: Math.round(ui.x ?? node.x),
@@ -239,6 +258,20 @@ export const getNodePatchFromUI = (ui: IUI, node: CanvasNode) => {
     height: Math.round(ui.height ?? node.height),
     width: Math.round(ui.width ?? node.width),
   };
+};
+
+/** 增量同步曲线文字的业务字段；Leafer Group 只接收整体几何属性。 */
+export const syncCurvedTextUI = (ui: ManagedNodeUI, node: Extract<CanvasNode, { kind: "curvedText" }>) => {
+  const curvedText = ui as unknown as CurvedText;
+  // 通用 ui.set 会同步业务节点的 editable/draggable；字符编辑是运行时状态，需保留。
+  curvedText.set({
+    draggable: !curvedText.characterEditing,
+    editable: !curvedText.characterEditing,
+  });
+  curvedText.setText(node.text);
+  curvedText.setStyles(node.defaultStyle, node.styleRuns);
+  // 最后重排一次，确保半径、字距和弧度使用样式测量完成后的最终参数。
+  curvedText.setLayout(node.layout);
 };
 
 /**

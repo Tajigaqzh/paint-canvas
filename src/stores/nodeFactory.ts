@@ -130,7 +130,30 @@ export const createNode = (
     };
   }
 
-  if (kind === "text") {
+  if (kind === "text" || kind === "curvedText") {
+    if (kind === "curvedText") {
+      return {
+        animationList: [],
+        defaultStyle: { fill: "#172554", fontFamily: "Arial, sans-serif", fontSize: 32 },
+        id,
+        kind,
+        layout: {
+          align: "center",
+          bendAngle: 90,
+          direction: "clockwise",
+          letterSpacing: 1,
+          radius: 360,
+          startAngle: -90,
+        },
+        name: translateKey("textCount", { count: serial }),
+        rotation: 0,
+        styleRuns: [],
+        text: translateKey("doubleClickToEdit"),
+        transformOrigin: "center",
+        x,
+        y,
+      };
+    }
     return {
       animationList: [],
       fill: "#111827",

@@ -108,8 +108,16 @@ const isSameIdList = (left: string[], right: string[]) =>
 
 /** 获取节点的基础包围盒；文本节点没有 width / height 时按字号和文本长度估算。 */
 const getNodeBounds = (node: CanvasNode) => ({
-  height: "height" in node ? node.height : node.fontSize,
-  width: "width" in node ? node.width : Math.max(node.text.length * node.fontSize, 1),
+  height: "height" in node
+    ? node.height
+    : node.kind === "curvedText"
+      ? Math.max(node.defaultStyle.fontSize ?? 16, 1)
+      : node.fontSize,
+  width: "width" in node
+    ? node.width
+    : node.kind === "curvedText"
+      ? Math.max(node.text.length * (node.defaultStyle.fontSize ?? 16), 1)
+      : Math.max(node.text.length * node.fontSize, 1),
   x: node.x,
   y: node.y,
 });

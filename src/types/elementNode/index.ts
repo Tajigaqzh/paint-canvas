@@ -1,4 +1,9 @@
 import type { IUIInputData } from "leafer-ui";
+import type {
+  CurvedTextLayout,
+  CurvedTextStyle,
+  CurvedTextStyleRun,
+} from "leafer-x-curved-text";
 
 /** 画布节点类型。group 是真实层级节点，不是普通标签。 */
 export type CanvasNodeKind =
@@ -8,6 +13,7 @@ export type CanvasNodeKind =
   | "polygon"
   | "star"
   | "text"
+  | "curvedText"
   | "image"
   | "group";
 
@@ -15,6 +21,7 @@ export type CanvasNodeKind =
 export type CanvasMaterialKind =
   | "rect"
   | "text"
+  | "curvedText"
   | "line"
   | "triangle"
   | "polygon"
@@ -305,6 +312,15 @@ export interface TextNode extends CanvasNodeBase {
   fontWeight?: number;
 }
 
+/** 沿圆弧排列的富文本节点；字符样式按字素簇索引保存。 */
+export interface CurvedTextNode extends CanvasNodeBase {
+  kind: "curvedText";
+  text: string;
+  layout: CurvedTextLayout;
+  defaultStyle: CurvedTextStyle;
+  styleRuns: CurvedTextStyleRun[];
+}
+
 /** 分组节点。childrenIds 决定组内层级顺序。 */
 export interface GroupNode extends CanvasNodeBase {
   /** 节点类型固定为组。 */
@@ -325,5 +341,6 @@ export type CanvasNode =
   | PolygonNode
   | StarNode
   | TextNode
+  | CurvedTextNode
   | ImageNode
   | GroupNode;

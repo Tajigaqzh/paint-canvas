@@ -36,6 +36,7 @@ export function useLeaferCanvas({
   onSelectNodes,
   onUpdateNode,
   onUpdateNodes,
+  onCharacterSelection,
   page,
   readOnly,
   replayToken,
@@ -53,6 +54,7 @@ export function useLeaferCanvas({
     onSelectNodes,
     onUpdateNode,
     onUpdateNodes,
+    onCharacterSelection,
     page,
     tool,
   });
@@ -106,6 +108,7 @@ export function useLeaferCanvas({
     nodeMap,
     onSelectNodeRef: runtime.onSelectNodeRef,
     onUpdateNodeRef: runtime.onUpdateNodeRef,
+    onCharacterSelectionRef: runtime.onCharacterSelectionRef,
     pageRef: runtime.pageRef,
     replayToken,
     rootIds,

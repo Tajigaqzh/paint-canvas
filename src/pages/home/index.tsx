@@ -8,6 +8,7 @@ import { useAppMessage } from "@/hooks/useAppMessage";
 import LanguageSwitcher from "@/i18n/LanguageSwitcher";
 import { useCanvasStore } from "@/stores/canvasStore";
 import type { CanvasDocument, CanvasToolMode } from "@/types";
+import type { CharacterSelection } from "leafer-x-curved-text";
 import { getCanvasViewSize } from "./canvasFit";
 import { createEraserCursor } from "./eraserCursor";
 import CanvasContextMenu from "./components/CanvasContextMenu";
@@ -45,6 +46,9 @@ function Home() {
   const [magnifierZoom, setMagnifierZoom] = useState(3);
   const [isSaving, setIsSaving] = useState(false);
   const [isDocumentLoading, setIsDocumentLoading] = useState(false);
+  const [characterSelection, setCharacterSelection] = useState<
+    { id: string; range: CharacterSelection } | undefined
+  >();
   const [currentDocument, setCurrentDocument] = useState<DocumentRecord | null>(null);
   const initializedNewDocumentRef = useRef(false);
   const noticeRef = useRef({ message, t });
@@ -112,6 +116,8 @@ function Home() {
     onSelectNodes: selectNodes,
     onAddDrawLine: addDrawLine,
     onApplyEraserResult: applyEraserResult,
+    onCharacterSelection: (id, range) =>
+      setCharacterSelection(range ? { id, range } : undefined),
     onUpdateNode: updateNode,
     onUpdateNodes: updateNodes,
     page: activePage,
@@ -349,6 +355,11 @@ function Home() {
           canUngroup={canUngroup}
           collapsed={rightCollapsed}
           node={activeNode}
+          characterSelection={
+            activeNode?.kind === "curvedText" && characterSelection?.id === activeNode.id
+              ? characterSelection.range
+              : undefined
+          }
           onToggle={() => setRightCollapsed((value) => !value)}
           onUngroup={ungroupSelected}
           onUpdateNode={updateNode}

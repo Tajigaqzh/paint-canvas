@@ -1,9 +1,11 @@
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { Button, Divider, Empty, Form, Input, InputNumber, Select, Space } from "antd";
 import { useAppTranslation } from "@/i18n/useAppTranslation";
+import type { CharacterSelection } from "leafer-x-curved-text";
 import type {
   CanvasAnimationItem,
   CanvasNode,
+  CurvedTextNode,
   CanvasStrokeStyle,
   CanvasTransformOrigin,
 } from "@/types";
@@ -28,6 +30,7 @@ type PropertyPanelProps = {
   onUngroup: () => void;
   /** 将属性面板变更写入画布状态。 */
   onUpdateNode: (id: string, data: Partial<CanvasNode>) => void;
+  characterSelection?: CharacterSelection;
 };
 
 const toPanelNumber = (value: number | undefined) => Math.round(value ?? 0);
@@ -43,6 +46,117 @@ const getDefaultFill = (node: CanvasNode) => {
   return "#ffffff";
 };
 
+function CurvedTextProperty({
+  node,
+  characterSelection,
+  onUpdateNode,
+}: {
+  node: CurvedTextNode;
+  characterSelection?: CharacterSelection;
+  onUpdateNode: (id: string, data: Partial<CanvasNode>) => void;
+}) {
+  const updateLayout = (layout: Partial<CurvedTextNode["layout"]>) =>
+    onUpdateNode(node.id, { layout: { ...node.layout, ...layout } });
+  const updateStyle = (style: CurvedTextNode["defaultStyle"]) => {
+    if (!characterSelection) {
+      onUpdateNode(node.id, { defaultStyle: { ...node.defaultStyle, ...style } });
+      return;
+    }
+    const { start, end } = characterSelection;
+    const runs = [...node.styleRuns, { start, end, style }]
+      .sort((left, right) => left.start - right.start)
+      .map((run) => ({ ...run, style: { ...run.style } }));
+    onUpdateNode(node.id, { styleRuns: runs });
+  };
+
+  return (
+    <>
+      <label className="property-field">
+        <span>文字</span>
+        <Input
+          value={node.text}
+          onChange={(event) => onUpdateNode(node.id, { text: event.target.value })}
+        />
+      </label>
+      <div className="property-grid property-grid--two">
+        <label className="property-field">
+          <span>弯曲角度</span>
+          <InputNumber
+            min={0}
+            max={360}
+            value={toPanelNumber(node.layout.bendAngle)}
+            onChange={(value) => updateLayout({ bendAngle: Number(value ?? 0) })}
+          />
+        </label>
+        <label className="property-field">
+          <span>方向</span>
+          <Select
+            value={node.layout.direction ?? "clockwise"}
+            options={[
+              { label: "顺时针", value: "clockwise" },
+              { label: "逆时针", value: "counterclockwise" },
+            ]}
+            onChange={(direction) => updateLayout({ direction })}
+          />
+        </label>
+        <label className="property-field">
+          <span>半径</span>
+          <InputNumber
+            min={0}
+            value={toPanelNumber(node.layout.radius)}
+            onChange={(value) => updateLayout({ radius: Number(value ?? 0) })}
+          />
+        </label>
+        <label className="property-field">
+          <span>起始角度</span>
+          <InputNumber
+            value={toPanelNumber(node.layout.startAngle)}
+            onChange={(value) => updateLayout({ startAngle: Number(value ?? 0) })}
+          />
+        </label>
+        <label className="property-field">
+          <span>对齐</span>
+          <Select
+            value={node.layout.align ?? "center"}
+            options={[
+              { label: "起始", value: "start" },
+              { label: "居中", value: "center" },
+              { label: "结束", value: "end" },
+            ]}
+            onChange={(align) => updateLayout({ align })}
+          />
+        </label>
+        <label className="property-field">
+          <span>字距</span>
+          <InputNumber
+            value={toPanelNumber(node.layout.letterSpacing)}
+            onChange={(value) => updateLayout({ letterSpacing: Number(value ?? 0) })}
+          />
+        </label>
+      </div>
+      <div className="property-grid property-grid--two">
+        <label className="property-field">
+          <span>字号</span>
+          <InputNumber
+            min={1}
+            value={toPanelNumber(node.defaultStyle.fontSize)}
+            onChange={(value) => updateStyle({ fontSize: Number(value ?? 1) })}
+          />
+        </label>
+        <label className="property-field">
+          <span>文字颜色</span>
+          <Input
+            className="property-color-input"
+            type="color"
+            value={(node.defaultStyle.fill as string) ?? "#111827"}
+            onChange={(event) => updateStyle({ fill: event.target.value })}
+          />
+        </label>
+      </div>
+    </>
+  );
+}
+
 function PropertyPanel({
   collapsed,
   canUngroup,
@@ -50,6 +164,7 @@ function PropertyPanel({
   onToggle,
   onUngroup,
   onUpdateNode,
+  characterSelection,
 }: PropertyPanelProps) {
   const { t } = useAppTranslation();
   const animationList = node?.animationList ?? [];
@@ -118,7 +233,7 @@ function PropertyPanel({
                 </label>
               </div>
 
-              {node.kind !== "text" && node.kind !== "line" && (
+              {node.kind !== "text" && node.kind !== "curvedText" && node.kind !== "line" && (
                 <div className="property-grid property-grid--two">
                   <label className="property-field">
                     <span>{t("width")}</span>
@@ -148,6 +263,13 @@ function PropertyPanel({
                 <PolygonProperty node={node} onUpdateNode={onUpdateNode} />
               )}
               {node.kind === "star" && <StarProperty node={node} onUpdateNode={onUpdateNode} />}
+              {node.kind === "curvedText" && (
+                <CurvedTextProperty
+                  characterSelection={characterSelection}
+                  node={node}
+                  onUpdateNode={onUpdateNode}
+                />
+              )}
 
               {node.kind === "image" && (
                 <label className="property-field">
@@ -159,7 +281,7 @@ function PropertyPanel({
                 </label>
               )}
 
-              {node.kind !== "group" && (
+              {node.kind !== "group" && node.kind !== "curvedText" && (
                 <div className="property-paint">
                   <span className="property-paint__label">{t("appearance")}</span>
                   <div className="property-grid property-grid--two">

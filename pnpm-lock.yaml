@@ -63,6 +63,9 @@ importers:
       leafer-x-brush-eraser:
         specifier: workspace:*
         version: link:packages/leafer-x-brush-eraser
+      leafer-x-curved-text:
+        specifier: workspace:*
+        version: link:packages/leafer-x-curved-text
       leafer-x-easy-snap:
         specifier: ^1.11.0
         version: 1.11.0

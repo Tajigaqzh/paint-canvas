@@ -22,6 +22,7 @@ const curvedText = new CurvedText({
   defaultStyle: { fontFamily: "Arial", fontSize: 32, fill: "#172554" },
   styleRuns: [{ start: 0, end: 2, style: { fontSize: 40, fill: "#d9465f" } }],
   characterEditing: true,
+  selectionFill: "#7c3aed",
 });
 
 app.tree.add(curvedText);
@@ -37,6 +38,11 @@ curvedText.on("character-selection-change", ({ start, end }) => {
 - `setText(text)` 更新文本并重新布局。
 - `setLayout(partialLayout)` 更新布局参数并重新布局。
 - `setStyles(defaultStyle, styleRuns)` 更新默认样式和范围覆盖。
+- `setCharacterStyle(style)` 在有字符选区时应用局部样式；没有选区时更新默认样式。
+- `applyStyleToSelection(style)` `setCharacterStyle` 的语义别名，适合工具栏命令调用。
+- `selectAll()` 选择全部字素并返回当前对象，便于链式编辑。
+- `getCharacterStyle(index)` 读取指定字素的最终样式；越界返回 `undefined`。
+- `selectionFill` / `curvedText.selectionFill` 配置或修改字符选区的临时高亮颜色，不会写入作品数据。
 - `setCharacterSelection({ start, end })` 设置字素范围选区。
 - `clearCharacterSelection()` 清除选区。
 - `toJSON()` 返回 `CurvedTextData` 持久化数据；不要序列化插件实例本身。
@@ -50,7 +56,7 @@ curvedText.on("character-selection-change", ({ start, end }) => {
 
 排版把每个字素簇独立测量后按 advance 比例放到圆弧上。因此逐字素 Text 的 kerning、连字、复杂脚本 shaping、双向文字和 emoji 字体度量可能与整段 Text 不同；这不是整段文本轮廓变形。当前不支持多行、闭合路径、任意贝塞尔路径或非连续多段选区。
 
-选区是运行时交互状态，不写入 `toJSON()`；宿主可从 `character-selection-change` 事件读取范围并管理字符工具栏与样式编辑。字体测量回调也不会进入序列化数据。`toJSON()` 输出的 `kind: "curvedText"`、文本、布局、默认样式和样式区间可由宿主纳入自己的文档模型、历史和缩略图绘制逻辑。
+选区是运行时交互状态，不写入 `toJSON()`；宿主可从 `character-selection-change` 事件读取范围并管理字符工具栏与样式编辑。字体测量回调也不会进入序列化数据。`toJSON()` 输出的 `kind: "curvedText"`、文本、布局、默认样式和样式区间可由宿主纳入自己的文档模型、历史和缩略图绘制逻辑。选区样式只保存局部覆盖，因此后续修改默认样式仍会作用于未覆盖的字段。
 
 ## Demo 与开发
 
