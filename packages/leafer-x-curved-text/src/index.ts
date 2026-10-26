@@ -1,4 +1,6 @@
 export { splitGraphemes } from "./graphemes";
+export { CurvedText } from "./CurvedText";
+export { createCanvasGraphemeMeasurer, getCanvasFont } from "./measureText";
 export {
   layoutArcText,
   type ArcGlyphLayout,
@@ -11,3 +13,11 @@ export {
   type GraphemeMeasureRequest,
   type GraphemeMeasurer,
 } from "./arcLayout";
+export type {
+  CharacterSelection,
+  CurvedTextConfig,
+  CurvedTextData,
+  CurvedTextEvents,
+  CurvedTextGlyphInput,
+  CurvedTextLayout,
+} from "./types";

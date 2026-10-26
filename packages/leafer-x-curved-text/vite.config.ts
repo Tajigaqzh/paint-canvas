@@ -1,7 +1,11 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  root: ".",
   build: {
+    rollupOptions: {
+      input: "main.ts",
+    },
     lib: {
       entry: "src/index.ts",
       formats: ["es", "cjs"],

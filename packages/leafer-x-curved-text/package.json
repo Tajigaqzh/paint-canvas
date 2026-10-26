@@ -34,6 +34,7 @@
     }
   },
   "scripts": {
+    "dev": "vite --config vite.config.ts --open /main.html",
     "build": "vite build && tsc -p tsconfig.build.json",
     "test": "vitest",
     "test:run": "vitest run"
