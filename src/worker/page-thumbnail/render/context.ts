@@ -24,8 +24,18 @@ export const getCornerRadiusValues = (cornerRadius: CanvasCornerRadius | undefin
  * 缩略图是用 Canvas 2D 手动绘制的，所以要自己模拟 Leafer 的 origin 行为。
  */
 const getOriginPoint = (node: CanvasNode) => {
-  const width = "width" in node ? node.width : Math.max(node.text.length * node.fontSize, 1);
-  const height = "height" in node ? node.height : node.fontSize;
+  const width =
+    "width" in node
+      ? node.width
+      : node.kind === "curvedText"
+        ? Math.max(node.text.length * (node.defaultStyle.fontSize ?? 16), 1)
+        : Math.max(node.text.length * node.fontSize, 1);
+  const height =
+    "height" in node
+      ? node.height
+      : node.kind === "curvedText"
+        ? (node.defaultStyle.fontSize ?? 16)
+        : node.fontSize;
 
   switch (node.transformOrigin) {
     case "top-left":

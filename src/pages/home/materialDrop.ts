@@ -7,6 +7,7 @@ export const MATERIAL_DRAG_MIME = "application/x-paint-canvas-material";
 const MATERIAL_KINDS = new Set<string>([
   "rect",
   "text",
+  "curvedText",
   "line",
   "triangle",
   "polygon",

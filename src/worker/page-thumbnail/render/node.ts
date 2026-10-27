@@ -11,6 +11,7 @@ import {
 import { renderEllipseNode } from "./ellipse";
 import { renderLineNode } from "./line";
 import { renderRegularPolygonPath, renderStarPath } from "./polygon";
+import { layoutArcText } from "leafer-x-curved-text";
 import type { PageImages, RenderContext } from "./types";
 
 /**
@@ -75,6 +76,32 @@ export const renderNode = (
 
       withStrokeStyle(context, node, () => {
         context.strokeText(node.text, 0, 0);
+      });
+    });
+    return;
+  }
+
+  if (node.kind === "curvedText") {
+    withNodeTransform(context, node, () => {
+      const fontSize = node.defaultStyle.fontSize ?? 16;
+      const result = layoutArcText(
+        node.text,
+        { ...node.layout, defaultStyle: node.defaultStyle, styleRuns: node.styleRuns },
+        ({ grapheme, style }) => {
+          context.font = `${style.fontWeight ?? "normal"} ${style.fontSize ?? fontSize}px ${style.fontFamily ?? "sans-serif"}`;
+          return context.measureText(grapheme).width;
+        },
+      );
+      result.glyphs.forEach((glyph) => {
+        context.save();
+        context.translate(glyph.x, glyph.y);
+        context.rotate((glyph.rotation * Math.PI) / 180);
+        context.fillStyle = (glyph.style.fill as string) ?? "#111827";
+        context.font = `${glyph.style.fontWeight ?? "normal"} ${glyph.style.fontSize ?? fontSize}px ${glyph.style.fontFamily ?? "sans-serif"}`;
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.fillText(glyph.grapheme, 0, 0);
+        context.restore();
       });
     });
     return;

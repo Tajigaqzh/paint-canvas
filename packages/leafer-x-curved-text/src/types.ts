@@ -16,6 +16,8 @@ export type CurvedTextConfig = Omit<IGroupInputData, "children"> & {
   defaultStyle?: CurvedTextStyle;
   styleRuns?: CurvedTextStyleRun[];
   characterEditing?: boolean;
+  /** 字符选区的临时高亮填充，不会写入业务序列化数据。 */
+  selectionFill?: IFill;
   measureGrapheme?: (request: {
     grapheme: string;
     index: number;

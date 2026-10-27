@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { CanvasPage, UseLeaferCanvasOptions } from "@/types";
+import type { CanvasPage, ManagedNodeUI, UseLeaferCanvasOptions } from "@/types";
 import type { useRuntime } from "../core/useRuntime";
 
 type Runtime = ReturnType<typeof useRuntime>;
@@ -35,9 +35,11 @@ export const useToolInteractivity = ({
      * 放大镜只是 hover 取样，同样不能让节点跟着指针被拖走。
      */
     uiMap.forEach((ui) => {
+      const curvedText = ui as ManagedNodeUI & { characterEditing?: boolean };
+      const characterEditing = curvedText.characterEditing === true;
       ui.set({
-        draggable: canUseEditor,
-        editable: canUseEditor,
+        draggable: canUseEditor && !characterEditing,
+        editable: canUseEditor && !characterEditing,
       });
     });
   }, [nodeMap, rootIds, tool.mode, readOnly, uiMap]);

@@ -138,6 +138,11 @@ const materials = [
     icon: <TextMaterialIcon />,
   },
   {
+    key: "curvedText",
+    titleKey: "curvedText",
+    icon: <ArcMaterialIcon />,
+  },
+  {
     key: "line",
     titleKey: "line",
     icon: <LineMaterialIcon />,

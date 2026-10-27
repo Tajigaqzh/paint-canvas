@@ -21,6 +21,7 @@ export const useRuntime = ({
   onSelectNodes,
   onUpdateNode,
   onUpdateNodes,
+  onCharacterSelection,
   page,
   tool,
 }: Omit<UseLeaferCanvasOptions, "magnifierContainerRef" | "viewRef" | "viewSize">) => {
@@ -39,6 +40,7 @@ export const useRuntime = ({
   const onSelectNodesRef = useRef(onSelectNodes);
   const onUpdateNodeRef = useRef(onUpdateNode);
   const onUpdateNodesRef = useRef(onUpdateNodes);
+  const onCharacterSelectionRef = useRef(onCharacterSelection);
   // toolRef 让 pointermove / pointerup 读取最新工具模式和笔刷尺寸。
   const toolRef = useRef(tool);
   // 增量同步索引：业务节点 id -> Leafer UI / 节点类型 / 当前父容器。
@@ -55,6 +57,7 @@ export const useRuntime = ({
     onSelectNodesRef.current = onSelectNodes;
     onUpdateNodeRef.current = onUpdateNode;
     onUpdateNodesRef.current = onUpdateNodes;
+    onCharacterSelectionRef.current = onCharacterSelection;
     toolRef.current = tool;
   }, [
     onAddDrawLine,
@@ -63,6 +66,7 @@ export const useRuntime = ({
     onSelectNodes,
     onUpdateNode,
     onUpdateNodes,
+    onCharacterSelection,
     page,
     tool,
   ]);
@@ -77,6 +81,7 @@ export const useRuntime = ({
     onSelectNodesRef,
     onUpdateNodeRef,
     onUpdateNodesRef,
+    onCharacterSelectionRef,
     pageRef,
     toolRef,
     uiKindMapRef,

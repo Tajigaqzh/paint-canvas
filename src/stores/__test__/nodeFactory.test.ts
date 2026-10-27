@@ -5,6 +5,7 @@ describe("createNode", () => {
   it.each([
     ["rect", "rect"],
     ["text", "text"],
+    ["curvedText", "curvedText"],
     ["line", "line"],
     ["triangle", "polygon"],
     ["polygon", "polygon"],
@@ -45,6 +46,14 @@ describe("createNode", () => {
       endAngle: 180,
       innerRadius: 0.5,
       startAngle: -60,
+    });
+  });
+
+  it("曲线文字包含默认圆弧布局与富文本样式", () => {
+    expect(createNode("curvedText", { id: "curve", index: 0, serial: 1 })).toMatchObject({
+      defaultStyle: { fontSize: 32 },
+      layout: { bendAngle: 90, direction: "clockwise", radius: 360 },
+      styleRuns: [],
     });
   });
 });

@@ -8,6 +8,7 @@ import type {
 } from "@/types/canvas";
 import type { EditableNodeUI, EditorHandle } from "@/types/edit";
 import type { CanvasNode, LineNode } from "@/types/elementNode";
+import type { CharacterSelection } from "leafer-x-curved-text";
 
 /** 注册 @leafer-in/editor 后带有 editor 实例的 LeaferApp。 */
 export type EditableLeaferApp = LeaferApp & {
@@ -72,6 +73,8 @@ export type UseLeaferCanvasOptions = {
   onUpdateNode: (id: string, data: Partial<CanvasNode>) => void;
   /** Leafer 多选拖拽/编辑结束后，把多个节点作为一次历史记录写回 store。 */
   onUpdateNodes: (updates: CanvasNodeUpdate[]) => void;
+  /** 曲线文字字符选区变化；选区属于运行时，不写入页面数据。 */
+  onCharacterSelection?: (id: string, selection?: CharacterSelection) => void;
   /** Leafer 挂载的 DOM 容器。 */
   viewRef: RefObject<HTMLDivElement | null>;
   /** Leafer 挂载容器的实际像素尺寸（画布 shell 的内容区，不含内边距），用于重算画板缩放、居中和标尺让位。 */

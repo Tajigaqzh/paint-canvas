@@ -1,4 +1,5 @@
 import { splitGraphemes } from "./graphemes";
+import type { IFill, IFontWeight, IShadowEffect, IStroke } from "@leafer-ui/interface";
 
 export type CurvedTextDirection = "clockwise" | "counterclockwise";
 export type CurvedTextAlign = "start" | "center" | "end";
@@ -6,8 +7,12 @@ export type CurvedTextAlign = "start" | "center" | "end";
 export type CurvedTextStyle = {
   fontFamily?: string;
   fontSize?: number;
-  fontWeight?: string | number;
+  fontWeight?: IFontWeight;
   fontStyle?: string;
+  fill?: IFill;
+  stroke?: IStroke;
+  strokeWidth?: number | number[];
+  shadow?: string | IShadowEffect | IShadowEffect[];
   [key: string]: unknown;
 };
 
@@ -61,6 +66,14 @@ export type ArcTextLayoutResult = {
 const toFinite = (value: number | undefined, fallback: number) =>
   value !== undefined && Number.isFinite(value) ? value : fallback;
 
+/** 将切线角度归一化，避免 Leafer 在 180/360 度边界把字符翻转到另一侧。 */
+const normalizeRotation = (degrees: number) => {
+  let rotation = degrees % 360;
+  if (rotation > 180) rotation -= 360;
+  if (rotation <= -180) rotation += 360;
+  return rotation;
+};
+
 const getGlyphStyle = (
   index: number,
   defaultStyle: CurvedTextStyle,
@@ -111,7 +124,7 @@ export const layoutArcText = (
   }
 
   const sign = direction === "clockwise" ? 1 : -1;
-  const totalSweep = Math.abs((bendAngle * Math.PI) / 180);
+  const requestedSweep = Math.abs((bendAngle * Math.PI) / 180);
   const advances = graphemes.map((grapheme, index) => {
     const style = getGlyphStyle(index, defaultStyle, styleRuns);
     return Math.max(0, toFinite(measureGrapheme({ grapheme, index, style }), 0));
@@ -120,8 +133,14 @@ export const layoutArcText = (
     advances.reduce((sum, advance) => sum + advance, 0) +
     Math.max(0, graphemes.length - 1) * letterSpacing;
   const safeTotalAdvance = totalAdvance || graphemes.length;
+  // 半径决定单位字距对应的圆心角；bendAngle 作为最大弯曲范围约束，
+  // 这样缩小半径会真实改变每个字素的切线角度，而不是只改变离圆心的距离。
+  const minimumRadius = safeTotalAdvance / Math.max(requestedSweep, 1e-6);
+  const layoutRadius = Math.max(radius, minimumRadius);
+  const totalSweep = Math.min(requestedSweep, safeTotalAdvance / Math.max(layoutRadius, 1e-6));
   const align = options.align ?? "center";
   const alignOffset = align === "start" ? totalSweep / 2 : align === "end" ? -totalSweep / 2 : 0;
+  const absoluteStart = (startAngle * Math.PI) / 180;
   let distance = 0;
 
   const glyphs = graphemes.map((grapheme, index) => {
@@ -130,21 +149,36 @@ export const layoutArcText = (
     const centerDistance = distance + advance / 2;
     const angle = (centerDistance / safeTotalAdvance - 0.5) * totalSweep + alignOffset;
     const signedAngle = sign * angle;
-    const absoluteStart = (startAngle * Math.PI) / 180;
     const theta = absoluteStart + signedAngle;
     const glyph = {
       advance,
       angle: (signedAngle * 180) / Math.PI,
       grapheme,
       index,
-      rotation: (theta * 180) / Math.PI + sign * 90,
+      // 字符基线沿圆弧切线排列。方向只决定弧线位置，保持文字阅读方向一致；
+      // 这样修改字距、半径或方向后，所有字符都会重新按当前圆弧中心计算切线。
+      rotation: normalizeRotation((theta * 180) / Math.PI + 90),
       style,
-      x: radius * Math.cos(theta),
-      y: radius * Math.sin(theta),
+      x: layoutRadius * Math.cos(theta),
+      y: layoutRadius * Math.sin(theta),
     };
 
     distance += advance + letterSpacing;
     return glyph;
+  });
+
+  // 对齐点属于业务对象原点，而不是圆心。这样调整半径时，start/center/end
+  // 锚点保持不动，字符只在锚点周围改变弧线曲率。
+  const anchorIndex = align === "start" ? 0 : align === "end" ? glyphs.length - 1 : -1;
+  const anchorAngle =
+    anchorIndex >= 0
+      ? (startAngle * Math.PI) / 180 + sign * glyphs[anchorIndex].angle * (Math.PI / 180)
+      : absoluteStart;
+  const anchorX = layoutRadius * Math.cos(anchorAngle);
+  const anchorY = layoutRadius * Math.sin(anchorAngle);
+  glyphs.forEach((glyph) => {
+    glyph.x -= anchorX;
+    glyph.y -= anchorY;
   });
 
   const xs = glyphs.map(({ x }) => x);
@@ -155,7 +189,7 @@ export const layoutArcText = (
     direction,
     glyphs,
     height: Math.max(...ys) - Math.min(...ys),
-    radius,
+    radius: layoutRadius,
     width: Math.max(...xs) - Math.min(...xs),
   };
 };
