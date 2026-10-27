@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>leafer-x-richText demo</title>
+    <style>
+      html, body { margin: 0; height: 100%; font-family: sans-serif; }
+      #canvas { width: 100%; height: 100%; }
+      .panel { position: fixed; top: 16px; left: 16px; z-index: 2; display: flex; gap: 8px; align-items: center; padding: 10px; background: #fff; border: 1px solid #d9dee8; border-radius: 6px; }
+      button { padding: 6px 10px; cursor: pointer; }
+      #status { color: #64748b; }
+    </style>
+  </head>
+  <body>
+    <div id="canvas"></div>
+    <div class="panel">
+      <button id="red">选区变红</button>
+      <button id="large">选区放大</button>
+      <button id="bold">选区加粗</button>
+      <span id="status">双击文字后拖选字符</span>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

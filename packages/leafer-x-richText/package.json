@@ -1,0 +1,30 @@
+{
+  "name": "leafer-x-richText",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "dev": "vite --config vite.config.ts --open /main.html",
+    "build": "tsc -p tsconfig.build.json",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "@leafer-in/editor": "^2.2.3",
+    "@leafer-in/text-editor": "^2.2.3",
+    "leafer-ui": "^2.2.3"
+  },
+  "devDependencies": {
+    "@leafer-ui/interface": "2.2.3",
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.1"
+  }
+}
