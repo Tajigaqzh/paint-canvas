@@ -2,7 +2,7 @@
 // 集成 Leafer Editor，实现"选中元素 -> 双击进入编辑"的标准流程
 
 import { InnerEditor, registerInnerEditor } from '@leafer-in/editor'
-import type { RichTextPlus } from './RichTextPlus'
+import type { RichTextPlus } from './richTextPlus'
 
 @registerInnerEditor()
 export class RichTextPlusEditor extends InnerEditor {

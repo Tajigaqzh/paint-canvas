@@ -5,6 +5,7 @@ import {
   getPathBounds,
   layoutGlyphsOnPath,
   movePathAnchor,
+  normalizePolygonSides,
   resolveCirclePathStartAngle,
   sampleBezierPath,
   sampleCirclePath
@@ -19,6 +20,24 @@ describe('createRegularPolygonPath', () => {
 
   it('clamps side counts below three to a triangle', () => {
     expect(createRegularPolygonPath(2, 50)).toHaveLength(3)
+  })
+})
+
+describe('normalizePolygonSides', () => {
+  it('normalizes values below three to the minimum', () => {
+    expect(normalizePolygonSides(2)).toBe(3)
+  })
+
+  it('floors fractional values to an integer', () => {
+    expect(normalizePolygonSides(5.9)).toBe(5)
+  })
+
+  it('caps values above the supported maximum', () => {
+    expect(normalizePolygonSides(200)).toBe(128)
+  })
+
+  it('uses the minimum for non-finite values', () => {
+    expect(normalizePolygonSides(Number.NaN)).toBe(3)
   })
 })
 

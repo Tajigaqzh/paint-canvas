@@ -7,10 +7,10 @@
 ```text
 packages/leafer-x-richTextPlus/
 ├─ src/
-│  ├─ RichTextPlus.ts       # 核心 UI：数据、布局、绘制、选区、输入、撤销重做
-│  ├─ RichTextPlusEditor.ts # Leafer Editor 的内部编辑器适配
-│  ├─ RichTextData.ts   # Leafer 数据层适配，保留特殊单位值
-│  ├─ EditingManager.ts # 全局编辑实例管理
+│  ├─ richTextPlus.ts       # 核心 UI：数据、布局、绘制、选区、输入、撤销重做
+│  ├─ richTextPlusEditor.ts # Leafer Editor 的内部编辑器适配
+│  ├─ richTextData.ts   # Leafer 数据层适配，保留特殊单位值
+│  ├─ editingManager.ts # 全局编辑实例管理
 │  ├─ types.ts          # IRichTextInputData、ICharStyle、IStyleRange 等类型
 │  ├─ constants.ts      # 默认样式和文本分段规则
 │  ├─ utils.ts           # 字素分割、字体测量、字重转换等工具
@@ -19,8 +19,6 @@ packages/leafer-x-richTextPlus/
 ├─ main.html             # demo 页面和样式操作按钮
 └─ vite.config.ts        # demo 开发服务器，默认端口 5175
 ```
-
-上游原始说明保存在 `UPSTREAM-README.md`，`upstream-main.ts` 是上游 demo 的参考副本；当前可运行 demo 使用的是根目录的 `main.ts`。
 
 ## 运行方式
 
@@ -34,7 +32,7 @@ pnpm --filter leafer-x-richTextPlus dev
 
 ### 1. `RichTextPlus` 是单个自定义 UI
 
-`src/RichTextPlus.ts` 中的 `RichTextPlus` 继承 Leafer `UI`，通过装饰器声明文本、字号、填充、行高、换行和尺寸等响应式属性。构造时会：
+`src/richTextPlus.ts` 中的 `RichTextPlus` 继承 Leafer `UI`，通过装饰器声明文本、字号、填充、行高、换行和尺寸等响应式属性。构造时会：
 
 1. 创建测量用 Canvas 2D context。
 2. 从 `styleRanges` 或旧版 `styles` 导入字符样式。
@@ -67,7 +65,7 @@ Map<lineIndex, Map<charIndex, ICharStyle>>
 
 基础样式来自 `RichTextPlus.fontSize`、`RichTextPlus.fill` 等元素级属性；某个字符存在 `_styles[line][char]` 时，该字符样式覆盖基础样式。
 
-初始的 range 数据由 `_loadFromStyleRanges()` 展开为逐字符记录（`RichTextPlus.ts:3475` 附近）：
+初始的 range 数据由 `_loadFromStyleRanges()` 展开为逐字符记录（`richTextPlus.ts:3475` 附近）：
 
 ```ts
 for (let i = start; i < end; i += 1) {
@@ -86,7 +84,7 @@ for (let i = start; i < end; i += 1) {
 richText.setSelectionStyles({ fill: '#dc2626', fontSize: 58 })
 ```
 
-核心逻辑在 `RichTextPlus.ts:1184` 附近：
+核心逻辑在 `richTextPlus.ts:1184` 附近：
 
 1. 如果没有选区，直接返回。
 2. 记录撤销快照。
@@ -105,7 +103,7 @@ lineStyles.set(charIndex, { ...existing, ...style })
 
 ## 编辑器接入
 
-`RichTextPlusEditor.ts` 使用 `@registerInnerEditor()` 注册内部编辑器。双击文本后，Leafer Editor 调用 `onLoad()`：
+`richTextPlusEditor.ts` 使用 `@registerInnerEditor()` 注册内部编辑器。双击文本后，Leafer Editor 调用 `onLoad()`：
 
 - 调用 `richtext.enterEditing()`；
 - 暂停 Editor 的通用快捷键，避免和文本编辑快捷键冲突；
@@ -133,14 +131,14 @@ lineStyles.set(charIndex, { ...existing, ...style })
 
 ## 路径文字
 
-`RichTextPlus` 支持直线、圆形、自定义贝塞尔曲线和正多边形路径。多边形通过 `sides` 设置边数，可用于三角形、四边形、五边形等：
+`RichTextPlus` 支持直线、圆形、自定义贝塞尔曲线和正多边形路径。多边形通过 `sideCount` 设置边数，可用于三角形、四边形、五边形等：
 
 ```ts
 const text = new RichTextPlus({
   text: '沿路径排版',
   textPath: {
     mode: TextPathMode.Polygon,
-    sides: 5,
+    sideCount: 5,
     radius: 140,
     startAngle: -90,
     direction: 'forward',

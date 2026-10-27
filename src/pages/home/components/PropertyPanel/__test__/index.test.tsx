@@ -22,6 +22,21 @@ const textNode: TextNode = {
 };
 
 describe("PropertyPanel", () => {
+  it("invalid polygon side count displays the minimum of three", () => {
+    render(
+      <PropertyPanel
+        canUngroup={false}
+        collapsed={false}
+        node={{ ...textNode, textPath: { mode: "polygon" as ITextPathMode, sideCount: 2 } }}
+        onToggle={vi.fn()}
+        onUngroup={vi.fn()}
+        onUpdateNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("多边形边数")).toHaveValue("3");
+  });
+
   it("收起时不显示属性标题", () => {
     render(
       <PropertyPanel
@@ -139,7 +154,7 @@ describe("PropertyPanel", () => {
       <PropertyPanel
         canUngroup={false}
         collapsed={false}
-        node={{ ...textNode, textPath: { mode: "polygon" as ITextPathMode, radius: 120, sides: 5 } }}
+        node={{ ...textNode, textPath: { mode: "polygon" as ITextPathMode, radius: 120, sideCount: 5 } }}
         onToggle={vi.fn()}
         onUngroup={vi.fn()}
         onUpdateNode={vi.fn()}

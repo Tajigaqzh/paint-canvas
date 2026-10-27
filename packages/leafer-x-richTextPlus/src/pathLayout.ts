@@ -16,6 +16,11 @@ export interface IPathGlyphLayout extends IPathSample {
   rotation: number
 }
 
+export const normalizePolygonSides = (sides: number): number => {
+  if (!Number.isFinite(sides)) return 3
+  return Math.max(3, Math.min(128, Math.floor(sides)))
+}
+
 export const movePathAnchor = (
   anchors: IPathAnchor[],
   index: number,
@@ -53,7 +58,7 @@ export const resolveCirclePathStartAngle = (anchorAngle: number, align: ITextPat
 
 /** 生成以节点原点为中心的正多边形路径锚点。 */
 export const createRegularPolygonPath = (sides: number, radius: number, startAngle = -90): IPathAnchor[] => {
-  const sideCount = Math.max(3, Math.min(128, Math.floor(sides) || 3))
+  const sideCount = normalizePolygonSides(sides)
   const safeRadius = Math.max(1, radius)
   return Array.from({ length: sideCount }, (_, index) => {
     const angle = ((startAngle + index * 360 / sideCount) * Math.PI) / 180

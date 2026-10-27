@@ -221,7 +221,7 @@ function TextProperty({
     }
     updatePath({
       mode,
-      ...(mode === "polygon" && { sides: textPath.sides ?? 3 }),
+      ...(mode === "polygon" && { sideCount: textPath.sideCount ?? 3 }),
       ...(mode === "polygon" && { editing: false }),
       ...(mode === "none" && { editing: false }),
     });
@@ -294,8 +294,8 @@ function TextProperty({
                 min={3}
                 max={128}
                 precision={0}
-                value={textPath.sides ?? 3}
-                onChange={(value) => updatePath({ sides: Math.max(3, Math.min(128, Math.floor(Number(value ?? 3)))) })}
+                value={Math.max(3, Math.min(128, Math.floor(Number(textPath.sideCount) || 3)))}
+                onChange={(value) => updatePath({ sideCount: Math.max(3, Math.min(128, Math.floor(Number(value ?? 3)))) })}
               />
             </label>
           )}

@@ -74,7 +74,7 @@ export interface IPathAnchorConfig {
 export interface ITextPathConfig {
   mode?: ITextPathMode
   radius?: number
-  sides?: number
+  sideCount?: number
   startAngle?: number
   direction?: ITextPathDirection
   side?: ITextPathSide

@@ -1,7 +1,7 @@
 // EditingManager - 全局编辑管理器
 // 确保同一时间只有一个 RichTextPlus 实例在编辑状态
 
-import type { RichTextPlus } from './RichTextPlus'
+import type { RichTextPlus } from './richTextPlus'
 
 export class EditingManager {
   private static activeEditor: RichTextPlus | null = null

@@ -1,6 +1,6 @@
 // RichTextPlus 插件导出
-export { RichTextPlus } from './RichTextPlus'
-export { RichTextPlusEditor } from './RichTextPlusEditor'
+export { RichTextPlus } from './richTextPlus'
+export { RichTextPlusEditor } from './richTextPlusEditor'
 export type {
   IRichTextInputData,
   ICharStyle,
@@ -25,7 +25,7 @@ export type {
   ITextPathSide
 } from './types'
 export { TextPathMode } from './types'
-export { createRegularPolygonPath, layoutGlyphsOnPath, pointAtPathDistance, resolveCirclePathStartAngle, sampleBezierPath, sampleCirclePath } from './pathLayout'
+export { createRegularPolygonPath, layoutGlyphsOnPath, normalizePolygonSides, pointAtPathDistance, resolveCirclePathStartAngle, sampleBezierPath, sampleCirclePath } from './pathLayout'
 export {
   FONT_WEIGHT_STRING_VALUES,
   resolveFontWeightForCanvas,

@@ -13,7 +13,7 @@ import type {
   IVerticalAlign
 } from 'leafer-ui'
 import {boundsType, dataProcessor, dataType, registerUI, surfaceType, UI} from 'leafer-ui'
-import {RichTextData} from './RichTextData'
+import {RichTextData} from './richTextData'
 import type {
   ICharMetrics,
   ICharStyle,
@@ -37,7 +37,7 @@ import type {
 import {TextPathMode} from './types'
 import {RE_CJK, RE_PUNCTUATION, RE_WORD_BOUNDARY, RICHTEXT_DEFAULTS} from './constants'
 import {buildFontString, graphemeSplit, isLeaferAfterChar, measureTextWidth} from './utils'
-import {EditingManager} from './EditingManager'
+import {EditingManager} from './editingManager'
 import {
   getPathBounds,
   getPathCaret,
@@ -45,6 +45,7 @@ import {
   type IPathGlyphLayout,
   layoutGlyphsOnPath,
   movePathAnchor,
+  normalizePolygonSides,
   resolveCirclePathStartAngle,
   sampleBezierPath,
   sampleCirclePath
@@ -104,7 +105,7 @@ const PATH_CONFIG_FIELDS = {
   textPath: {
     mode: 'textPath',
     radius: 'pathRadius',
-    sides: 'pathSides',
+    sideCount: 'pathSides',
     startAngle: 'pathStartAngle',
     direction: 'pathDirection',
     side: 'pathSide',
@@ -160,7 +161,11 @@ const flattenPathConfig = (data: any): Record<string, unknown> => {
 
 const expandPathConfig = (data: any): Record<string, unknown> => {
   if (!data || typeof data !== 'object') return {}
-  return data
+  if (!data.textPath || typeof data.textPath !== 'object' || data.textPath.sideCount === undefined) return data
+  return {
+    ...data,
+    textPath: { ...data.textPath, sideCount: normalizePolygonSides(data.textPath.sideCount) }
+  }
 }
 
 /** 稳定序列化（对象 key 排序），用于样式比较 */
@@ -314,12 +319,15 @@ export class RichTextPlus extends UI {
   @boundsType({})
   declare public textPath: ITextPathConfig
 
+  // 光标配置
   @boundsType({})
   declare public textCursor: ITextCursorConfig
 
+  // 贝塞尔曲线配置
   @boundsType({})
   declare public bezier: IPathBezierConfig
 
+  // 路径控制点配置
   @boundsType({})
   declare public anchor: IPathAnchorConfig
   
@@ -348,11 +356,19 @@ export class RichTextPlus extends UI {
   declare public selectionColor: string
 
   // 内部绘制算法沿用短访问器，实际存储统一落在四个分组属性中。
+  // 路径模式
   private get _pathMode(): ITextPathMode { return this.textPath?.mode ?? TextPathMode.None }
   private set _pathMode(value: ITextPathMode) { this.textPath = { ...this.textPath, mode: value } }
+
+  // 路径半径
   private get pathRadius(): number { return this.textPath?.radius ?? 120 }
   private set pathRadius(value: number) { this.textPath = { ...this.textPath, radius: value } }
-  private get pathSides(): number { return this.textPath?.sides ?? 3 }
+  // 路径边数
+  private get pathSides(): number {
+    return normalizePolygonSides(this.textPath?.sideCount ?? 3)
+  }
+
+  // 路径起始角度
   private get pathStartAngle(): number { return this.textPath?.startAngle ?? -90 }
   private set pathStartAngle(value: number) { this.textPath = { ...this.textPath, startAngle: value } }
   private get pathDirection(): ITextPathDirection { return this.textPath?.direction ?? 'forward' }
@@ -439,35 +455,35 @@ export class RichTextPlus extends UI {
   public onPathChange?: (path: ITextPathData) => void
   
   // 内部数据
-  private _graphemes: string[] = []
-  private _lines: string[][] = []
-  private _lineMetrics: ILineMetrics[] = []
-  private _styles: StyleMap = new Map()
-  private _hiddenTextarea: HTMLTextAreaElement | null = null
-  private _cursorOpacity = 1
-  private _cursorTimer: number | null = null
-  private _inComposition = false
-  private _compositionSnapshotRecorded = false
-  private _paragraphEndLines: Set<number> = new Set()
-  private _lineHasNewline: boolean[] = []
-  private _paragraphNewlineFlags: boolean[] = []
-  private _measureCanvas: HTMLCanvasElement
-  private _measureCtx: CanvasRenderingContext2D
-  private _lastScaleSignX = 1
-  private _lastScaleSignY = 1
-  private _needsFlipRenderBounds = false
-  private _lastWorldRenderBounds: { x: number; y: number; width: number; height: number } | null = null
-  private _shadowCanvas: HTMLCanvasElement | null = null
-  private _shadowCtx: CanvasRenderingContext2D | null = null
+  private _graphemes: string[] = [] // 字符数组
+  private _lines: string[][] = []  // 行数组
+  private _lineMetrics: ILineMetrics[] = [] // 行度量
+  private _styles: StyleMap = new Map() // 样式映射
+  private _hiddenTextarea: HTMLTextAreaElement | null = null // 隐藏文本区域
+  private _cursorOpacity = 1 // 光标透明度
+  private _cursorTimer: number | null = null // 光标定时器
+  private _inComposition = false // 是否处于组合输入中
+  private _compositionSnapshotRecorded = false // 组合输入快照是否已记录
+  private _paragraphEndLines: Set<number> = new Set() // 段落结束行集合
+  private _lineHasNewline: boolean[] = [] // 行是否包含换行符
+  private _paragraphNewlineFlags: boolean[] = [] // 段落换行标志
+  private _measureCanvas: HTMLCanvasElement // 测量 canvas
+  private _measureCtx: CanvasRenderingContext2D // 测量 canvas 上下文
+  private _lastScaleSignX = 1 // 最后一次缩放符号 X
+  private _lastScaleSignY = 1 // 最后一次缩放符号 Y
+  private _needsFlipRenderBounds = false // 是否需要翻转渲染边界
+  private _lastWorldRenderBounds: { x: number; y: number; width: number; height: number } | null = null // 最后一次世界渲染边界
+  private _shadowCanvas: HTMLCanvasElement | null = null // 阴影 canvas
+  private _shadowCtx: CanvasRenderingContext2D | null = null // 阴影 canvas 上下文
   
   // 选区锚点（用于 Shift 扩展选区）
-  private _selectionAnchor: number | null = null
-  private _isMouseDown = false
+  private _selectionAnchor: number | null = null // 选区锚点
+  private _isMouseDown = false // 是否鼠标按下
 
   /** 光标亲和性：true 表示光标停在软换行行尾而不是下一行行首 */
-  private _caretUpstream = false
+  private _caretUpstream = false // 光标亲和性：true 表示光标停在软换行行尾而不是下一行行首
   /** 上下移动时记忆的目标 x（列），避免经过短行后列位丢失 */
-  private _goalX: number | null = null
+  private _goalX: number | null = null // 目标 x 值
   
   // 记录双击位置（用于 Editor 触发 enterEditing 时定位光标）
   private _pendingCursorPosition: number | null = null

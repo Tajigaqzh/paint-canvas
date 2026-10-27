@@ -70,7 +70,7 @@ document.querySelector("#inner")?.addEventListener("click", () => {
 });
 document.querySelector("#polygon")?.addEventListener("click", () => {
   circleText.set({
-    textPath: { ...circleText.textPath, mode: TextPathMode.Polygon, sides: 3, radius: 150, editing: false },
+    textPath: { ...circleText.textPath, mode: TextPathMode.Polygon, sideCount: 3, radius: 150, editing: false },
   });
 });
 document.querySelector("#generated")?.addEventListener("click", () => {
@@ -107,7 +107,7 @@ setInterval(() => {
     ? circleText.textPath.mode === TextPathMode.Circle
       ? "路径编辑：拖动路径调整半径"
       : circleText.textPath.mode === TextPathMode.Polygon
-        ? `路径编辑：拖动顶点调整半径（${circleText.textPath.sides ?? 3} 边）`
+        ? `路径编辑：拖动顶点调整半径（${circleText.textPath.sideCount ?? 3} 边）`
         : `路径编辑：${circleText.textPath.anchors?.length ?? 0} 个锚点`
     : `路径：${circleText.textPath.mode} / ${circleText.textPath.side ?? "outer"}`;
 }, 100);
