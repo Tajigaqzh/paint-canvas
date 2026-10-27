@@ -1,4 +1,11 @@
-import type { IFill, IFontWeight, IGroupInputData, IShadowEffect, IStroke, ITextInputData } from "@leafer-ui/interface";
+import type {
+  IFill,
+  IFontWeight,
+  IGroupInputData,
+  IShadowEffect,
+  IStroke,
+  ITextInputData,
+} from "@leafer-ui/interface";
 import type { ArcTextLayoutOptions, CurvedTextStyle, CurvedTextStyleRun } from "./arcLayout";
 
 export type CurvedTextLayout = Omit<ArcTextLayoutOptions, "defaultStyle" | "styleRuns">;
@@ -9,7 +16,11 @@ export type CurvedTextConfig = Omit<IGroupInputData, "children"> & {
   defaultStyle?: CurvedTextStyle;
   styleRuns?: CurvedTextStyleRun[];
   characterEditing?: boolean;
-  measureGrapheme?: (request: { grapheme: string; index: number; style: CurvedTextStyle }) => number;
+  measureGrapheme?: (request: {
+    grapheme: string;
+    index: number;
+    style: CurvedTextStyle;
+  }) => number;
 };
 
 export type CurvedTextData = Omit<IGroupInputData, "children"> & {

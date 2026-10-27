@@ -80,7 +80,11 @@ describe("CurvedText", () => {
     const children = (curvedText as unknown as MockGroup).children;
 
     expect(children.map(({ data }) => data.fontSize)).toEqual([12, 24, 12]);
-    expect(children[1].data).toMatchObject({ fill: "#f00", stroke: "#000", strokeWidth: undefined });
+    expect(children[1].data).toMatchObject({
+      fill: "#f00",
+      stroke: "#000",
+      strokeWidth: undefined,
+    });
   });
 
   it("更新文本后重建字符对象并裁剪过期选区", () => {
@@ -124,6 +128,30 @@ describe("CurvedText", () => {
     move?.({ current: children[2] });
 
     expect(curvedText.characterSelection).toEqual({ start: 0, end: 3 });
+  });
+
+  it("字符编辑关闭时不接管字符指针", () => {
+    const curvedText = new CurvedText({
+      text: "ABC",
+      layout: { bendAngle: 100, radius: 80 },
+      measureGrapheme: () => 10,
+    });
+    const first = (curvedText as unknown as MockGroup).children[0];
+
+    first.listeners.get("pointer.down")?.({ current: first });
+
+    expect(curvedText.characterSelection).toBeUndefined();
+  });
+
+  it("拖动选择范围的变化会持续发出事件", () => {
+    const curvedText = createCurvedText();
+    const children = (curvedText as unknown as MockGroup).children;
+    const listener = vi.fn();
+    curvedText.on("character-selection-change", listener);
+    children[0].listeners.get("pointer.down")?.({ current: children[0] });
+    children[2].listeners.get("pointer.move")?.({ current: children[2] });
+
+    expect(listener).toHaveBeenLastCalledWith({ start: 0, end: 3 });
   });
 
   it("清除选区并恢复字符原始颜色", () => {

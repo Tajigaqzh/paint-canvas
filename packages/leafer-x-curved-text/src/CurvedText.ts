@@ -79,7 +79,10 @@ export class CurvedText extends Group {
     this.renderGlyphs();
   }
 
-  setStyles(defaultStyle: CurvedTextStyle, styleRuns: NonNullable<CurvedTextConfig["styleRuns"]> = []) {
+  setStyles(
+    defaultStyle: CurvedTextStyle,
+    styleRuns: NonNullable<CurvedTextConfig["styleRuns"]> = [],
+  ) {
     this.defaultStyleValue = { ...defaultStyle };
     this.styleRunsValue = styleRuns.map((run) => ({ ...run, style: { ...run.style } }));
     this.clampSelection();
@@ -99,7 +102,7 @@ export class CurvedText extends Group {
     if (!this.selection) return;
     this.selection = undefined;
     this.updateSelectionPaint();
-    this.events.emit("character-selection-change", { start: 0, end: 0 });
+    if (!this.destroyedValue) this.events.emit("character-selection-change", { start: 0, end: 0 });
   }
 
   on<K extends keyof CurvedTextEvents>(type: K, listener: (event: CurvedTextEvents[K]) => void) {
@@ -143,19 +146,19 @@ export class CurvedText extends Group {
     this.removeAll();
     this.glyphIndexes = new WeakMap();
     this.glyphs = result.glyphs.map((glyph) => {
-      const input: CurvedTextGlyphInput = {
+      const input = {
         ...glyph.style,
         align: "center",
         editable: false,
         draggable: false,
-        fill: glyph.style.fill as CurvedTextGlyphInput["fill"] ?? "#111827",
+        fill: (glyph.style.fill as CurvedTextGlyphInput["fill"]) ?? "#111827",
         hittable: true,
         rotation: glyph.rotation,
         text: glyph.grapheme,
         verticalAlign: "middle",
         x: glyph.x,
         y: glyph.y,
-      };
+      } as CurvedTextGlyphInput;
       const ui = new Text(input);
       this.glyphIndexes.set(ui, glyph.index);
       ui.on("pointer.down", this.handleGlyphPointerDown);
@@ -182,15 +185,13 @@ export class CurvedText extends Group {
     this.glyphs.forEach((glyph, index) => {
       const style = this.getStyleAt(index);
       glyph.set({
-        fill: (
-          this.selection && index >= this.selection.start && index < this.selection.end
-            ? SELECTED_FILL
-            : style.fill ?? "#111827"
-        ) as CurvedTextGlyphInput["fill"],
+        fill: (this.selection && index >= this.selection.start && index < this.selection.end
+          ? SELECTED_FILL
+          : (style.fill ?? "#111827")) as CurvedTextGlyphInput["fill"],
         fontFamily: style.fontFamily ?? "sans-serif",
         fontSize: style.fontSize ?? 16,
         fontStyle: style.fontStyle ?? "normal",
-        fontWeight: style.fontWeight as CurvedTextGlyphInput["fontWeight"] ?? "normal",
+        fontWeight: (style.fontWeight as CurvedTextGlyphInput["fontWeight"]) ?? "normal",
         shadow: style.shadow as CurvedTextGlyphInput["shadow"],
         stroke: style.stroke as CurvedTextGlyphInput["stroke"],
         strokeWidth: style.strokeWidth as CurvedTextGlyphInput["strokeWidth"],
@@ -228,6 +229,7 @@ export class CurvedText extends Group {
       end: Math.max(this.dragStart, index) + 1,
     };
     this.updateSelectionPaint();
+    this.events.emit("character-selection-change", { ...this.selection });
   };
 
   private handleGlyphPointerUp = () => {
