@@ -1,4 +1,4 @@
-// RichText 数据处理类
+// RichTextPlus 数据处理类
 import { UIData } from 'leafer-ui'
 import type { IRichTextData, IUnitData } from './types'
 

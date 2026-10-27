@@ -1,4 +1,12 @@
 import type { IUIInputData } from "leafer-ui";
+import type {
+  IPathAnchor,
+  IStyleRange,
+  ITextPathAlign,
+  ITextPathDirection,
+  ITextPathMode,
+  ITextPathSide,
+} from "leafer-x-richTextPlus";
 import type { CurvedTextLayout, CurvedTextStyle, CurvedTextStyleRun } from "leafer-x-curved-text";
 
 /** 画布节点类型。group 是真实层级节点，不是普通标签。 */
@@ -163,6 +171,10 @@ export interface CanvasNodeBase {
   rotation?: number;
   /** 旋转/缩放基准点；默认 center，避免使用左上角作为旋转中心。 */
   transformOrigin?: CanvasTransformOrigin;
+  /** Leafer 编辑器对文本节点执行非等比缩放时的水平比例。 */
+  scaleX?: number;
+  /** Leafer 编辑器对文本节点执行非等比缩放时的垂直比例。 */
+  scaleY?: number;
   /** 填充色。 */
   fill?: string;
   /** 描边颜色。strokeWidth 为 0 时不会显示描边，但颜色仍然会保留。 */
@@ -306,6 +318,19 @@ export interface TextNode extends CanvasNodeBase {
   fontSize: number;
   /** 字重。 */
   fontWeight?: number;
+  /** 行高是段落级属性，不随字符样式范围变化。 */
+  lineHeight?: number;
+  /** RichText 字符级样式范围，索引按 Unicode 字素簇计算。 */
+  styleRanges?: IStyleRange[];
+  textPath?: ITextPathMode;
+  pathRadius?: number;
+  pathStartAngle?: number;
+  pathDirection?: ITextPathDirection;
+  pathSide?: ITextPathSide;
+  pathAlign?: ITextPathAlign;
+  pathClosed?: boolean;
+  pathAnchors?: IPathAnchor[];
+  pathEditing?: boolean;
 }
 
 /** 沿圆弧排列的富文本节点；字符样式按字素簇索引保存。 */

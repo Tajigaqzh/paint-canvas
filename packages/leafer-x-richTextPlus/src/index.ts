@@ -1,5 +1,5 @@
-// RichText 插件导出
-export { RichText } from './RichText'
+// RichTextPlus 插件导出
+export { RichTextPlus } from './RichTextPlus'
 export { RichTextEditor } from './RichTextEditor'
 export type {
   IRichTextInputData,
@@ -8,6 +8,16 @@ export type {
   IFontWeightString,
   IRichTextFontWeight
 } from './types'
+export type {
+  IPathAnchor,
+  IPathPoint,
+  ITextPathAlign,
+  ITextPathDirection,
+  ITextPathData,
+  ITextPathMode,
+  ITextPathSide
+} from './types'
+export { layoutGlyphsOnPath, pointAtPathDistance, resolveCirclePathStartAngle, sampleBezierPath, sampleCirclePath } from './pathLayout'
 export {
   FONT_WEIGHT_STRING_VALUES,
   resolveFontWeightForCanvas,

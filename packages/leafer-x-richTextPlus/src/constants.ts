@@ -1,4 +1,4 @@
-// RichText 常量
+// RichTextPlus 常量
 
 export const RICHTEXT_DEFAULTS = {
   // 基础字符样式

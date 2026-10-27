@@ -5,6 +5,7 @@ import "@leafer-in/resize";
 import "@leafer-in/text-editor";
 import { EditorEvent, InnerEditorEvent } from "@leafer-in/editor";
 import { App as LeaferApp, DragEvent, type IUI } from "leafer-ui";
+import type { IStyleRange } from "leafer-x-richTextPlus";
 import type {
   CanvasNodeUpdate,
   EditableLeaferApp,
@@ -145,7 +146,14 @@ const setupLeaferApp = ({
 
       if (!id || editTarget?.text === undefined) return;
 
-      onUpdateNode(id, { text: String(editTarget.text) });
+      const richText = editTarget as IUI & { toJSON?: () => Record<string, unknown> };
+      const serialized = richText.toJSON?.();
+      onUpdateNode(id, {
+        text: String(editTarget.text),
+        ...(serialized && "styleRanges" in serialized
+          ? { styleRanges: serialized.styleRanges as IStyleRange[] }
+          : {}),
+      });
     });
   }
 

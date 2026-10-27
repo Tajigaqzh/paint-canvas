@@ -1,14 +1,14 @@
-// RichTextEditor - RichText 的内部编辑器
+// RichTextEditor - RichTextPlus 的内部编辑器
 // 集成 Leafer Editor，实现"选中元素 -> 双击进入编辑"的标准流程
 
 import { InnerEditor, registerInnerEditor } from '@leafer-in/editor'
-import type { RichText } from './RichText'
+import type { RichTextPlus } from './RichTextPlus'
 
 @registerInnerEditor()
 export class RichTextEditor extends InnerEditor {
   public get tag() { return 'RichTextEditor' }
   
-  declare public editTarget: RichText
+  declare public editTarget: RichTextPlus
   
   // 保存 Editor 配置（用于恢复）
   private _savedEditorConfig: any
@@ -20,7 +20,7 @@ export class RichTextEditor extends InnerEditor {
     const richtext = this.editTarget
     const { editor } = this
     
-    // 进入 RichText 的编辑模式（不设置光标位置，让双击事件处理）
+    // 进入 RichTextPlus 的编辑模式（不设置光标位置，让双击事件处理）
     if (!richtext.isEditing) {
       richtext.enterEditing()
     }
@@ -46,7 +46,7 @@ export class RichTextEditor extends InnerEditor {
     
     // ✅ 方案4：不修改 editor.list，避免触发 innerEditor 关闭
     
-    // 重要：让 RichText 能接收 pointer 事件
+    // 重要：让 RichTextPlus 能接收 pointer 事件
     // Editor 在 innerEditing 时会停止事件传播，需要手动转发
     this.eventIds = [
       // 监听整个应用的 pointer.down
@@ -54,8 +54,13 @@ export class RichTextEditor extends InnerEditor {
         // 使用坐标+边界判断是否点击在文本上
         // 获取点击的世界坐标
         const worldPoint = { x: e.x, y: e.y }
+
+        if (richtext.pathEditing) {
+          richtext._handlePointerDown(e)
+          return
+        }
         
-        // 使用 RichText 的 hit 方法判断
+        // 使用 RichTextPlus 的 hit 方法判断
         const clickedOnText = richtext.hit(worldPoint)
         
         if (clickedOnText) {
@@ -103,7 +108,7 @@ export class RichTextEditor extends InnerEditor {
    * 更新位置（元素移动/缩放时）
    */
   public onUpdate(): void {
-    // RichText 自己管理渲染，不需要更新 DOM 位置
+    // RichTextPlus 自己管理渲染，不需要更新 DOM 位置
   }
   
   /**
@@ -113,7 +118,7 @@ export class RichTextEditor extends InnerEditor {
     const richtext = this.editTarget
     const { editor } = this
     
-    // 退出 RichText 的编辑模式
+    // 退出 RichTextPlus 的编辑模式
     if (richtext.isEditing) {
       richtext.exitEditing()
     }

@@ -355,7 +355,8 @@ function Home() {
           collapsed={rightCollapsed}
           node={activeNode}
           characterSelection={
-            activeNode?.kind === "curvedText" && characterSelection?.id === activeNode.id
+            (activeNode?.kind === "curvedText" || activeNode?.kind === "text") &&
+            characterSelection?.id === activeNode.id
               ? characterSelection.range
               : undefined
           }

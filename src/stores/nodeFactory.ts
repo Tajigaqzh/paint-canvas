@@ -159,6 +159,7 @@ export const createNode = (
       fill: "#111827",
       fontSize: 28,
       fontWeight: 600,
+      lineHeight: 42,
       id,
       kind,
       name: translateKey("textCount", { count: serial }),

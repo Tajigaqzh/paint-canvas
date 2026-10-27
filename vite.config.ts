@@ -6,7 +6,12 @@ import { defineConfig } from "vitest/config";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss(), babel({ presets: [reactCompilerPreset()] })],
+  plugins: [
+    react(),
+    tailwindcss(),
+    // React Compiler 只处理宿主 TSX；工作区插件使用的 Leafer legacy decorators 由 Vite 转译。
+    babel({ include: /[\\/]src[\\/].*\.tsx$/, presets: [reactCompilerPreset()] }),
+  ],
   optimizeDeps: {
     include: [
       "@leafer-in/animate",

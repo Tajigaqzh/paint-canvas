@@ -32,6 +32,14 @@ vi.mock("../lineUi", () => ({
   syncLineGroupContent: vi.fn(),
 }));
 
+vi.mock("leafer-x-richTextPlus", () => ({
+  RichTextPlus: class {
+    constructor(input: Record<string, unknown>) {
+      Object.assign(this, input);
+    }
+  },
+}));
+
 const lineNode = (overrides: Partial<LineNode> = {}): LineNode => ({
   height: 10,
   id: "line-1",
@@ -57,6 +65,43 @@ describe("getNodeUIInput", () => {
 });
 
 describe("getNodePatchFromUI", () => {
+  it("persists text scaling so it survives page changes", () => {
+    const node = {
+      animationList: [],
+      fill: "#111827",
+      fontSize: 28,
+      id: "text-1",
+      kind: "text",
+      name: "text",
+      text: "A",
+      x: 0,
+      y: 0,
+    } as const;
+    const patch = getNodePatchFromUI(
+      {
+        fontSize: 50,
+        lineHeight: 60,
+        rotation: 0,
+        scaleX: 1.8,
+        scaleY: 1.4,
+        styleRanges: [{ start: 0, end: 1, fill: "#ff0000" }],
+        x: 10,
+        y: 20,
+      } as never,
+      node as never,
+    );
+
+    expect(patch).toMatchObject({
+      fontSize: 50,
+      lineHeight: 60,
+      scaleX: 1.8,
+      scaleY: 1.4,
+      styleRanges: [{ start: 0, end: 1, fill: "#ff0000" }],
+      x: 10,
+      y: 20,
+    });
+  });
+
   it("persists resized child geometry and dimensions", () => {
     const node = lineNode();
     const patch = getNodePatchFromUI(
@@ -96,12 +141,77 @@ describe("getNodePatchFromUI", () => {
 });
 
 describe("createNodeUI", () => {
+  it("creates text nodes with RichTextPlus and persisted character styles", () => {
+    const styleRanges = [{ start: 0, end: 1, fill: "#ff0000" }];
+    const ui = createNodeUI({
+      animationList: [],
+      fill: "#111827",
+      fontSize: 28,
+      id: "text-1",
+      kind: "text",
+      name: "text",
+      styleRanges,
+      lineHeight: 34,
+      text: "A",
+      transformOrigin: "center",
+      x: 10,
+      y: 20,
+    });
+
+    expect(ui).toMatchObject({ lineHeight: 34, text: "A", styleRanges });
+  });
+
   it("creates the line Group using persisted dimensions", () => {
     createNodeUI(lineNode({ height: 30, width: 20 }));
 
     expect(vi.mocked(Group)).toHaveBeenCalledWith(
       expect.objectContaining({ height: 30, width: 20 }),
     );
+  });
+
+  it("restores persisted text scales when rebuilding its UI", () => {
+    const input = getNodeUIInput({
+      animationList: [],
+      fill: "#111827",
+      fontSize: 28,
+      id: "text-1",
+      kind: "text",
+      name: "text",
+      scaleX: 1.8,
+      scaleY: 1.4,
+      text: "A",
+      x: 10,
+      y: 20,
+    } as never);
+
+    expect(input).toMatchObject({ scaleX: 1.8, scaleY: 1.4 });
+  });
+
+  it("maps persisted text path data to RichTextPlus", () => {
+    const input = getNodeUIInput({
+      animationList: [],
+      fill: "#111827",
+      fontSize: 28,
+      id: "text-path-1",
+      kind: "text",
+      name: "path text",
+      pathAlign: "center",
+      pathDirection: "reverse",
+      pathRadius: 140,
+      pathSide: "inner",
+      text: "Path",
+      textPath: "circle",
+      x: 10,
+      y: 20,
+    } as never);
+
+    expect(input).toMatchObject({
+      pathAlign: "center",
+      pathDirection: "reverse",
+      pathRadius: 140,
+      pathSide: "inner",
+      textPath: "circle",
+    });
   });
 });
 

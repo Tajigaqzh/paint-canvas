@@ -1,4 +1,4 @@
-// RichText 主类 - 继承 UI，完全自定义
+// RichTextPlus 主类 - 继承 UI，完全自定义
 import { UI, registerUI, dataProcessor, boundsType, surfaceType, dataType } from 'leafer-ui'
 import type { 
   ILeaferCanvas,
@@ -21,11 +21,18 @@ import type {
   ILineMetrics, 
   StyleMap, 
   ICursorLocation, 
-  IStyleRange
+  IStyleRange,
+  IPathAnchor,
+  ITextPathMode,
+  ITextPathDirection,
+  ITextPathSide,
+  ITextPathAlign,
+  ITextPathData
 } from './types'
 import { RICHTEXT_DEFAULTS, RE_WORD_BOUNDARY, RE_PUNCTUATION, RE_CJK } from './constants'
 import { graphemeSplit, buildFontString, measureTextWidth, isLeaferAfterChar } from './utils'
 import { EditingManager } from './EditingManager'
+import { layoutGlyphsOnPath, resolveCirclePathStartAngle, sampleBezierPath, sampleCirclePath, type IPathGlyphLayout } from './pathLayout'
 
 /** 撤销栈快照 */
 interface IRichTextSnapshot {
@@ -73,8 +80,8 @@ const ELEMENT_MIRRORED_STYLE_KEYS = new Set([
 ])
 
 @registerUI()
-export class RichText extends UI {
-  public get __tag() { return 'RichText' }
+export class RichTextPlus extends UI {
+  public get __tag() { return 'RichTextPlus' }
   
   @dataProcessor(RichTextData)
   declare public __: any  // 使用 any 避免类型冲突（letterSpacing/lineHeight 支持 IUnitData）
@@ -167,6 +174,33 @@ export class RichText extends UI {
   
   @boundsType(RICHTEXT_DEFAULTS.padding)
   declare public padding: number | number[]
+
+  @boundsType('none')
+  declare public textPath: ITextPathMode
+
+  @boundsType(120)
+  declare public pathRadius: number
+
+  @boundsType(-90)
+  declare public pathStartAngle: number
+
+  @boundsType('forward')
+  declare public pathDirection: ITextPathDirection
+
+  @boundsType('outer')
+  declare public pathSide: ITextPathSide
+
+  @boundsType('center')
+  declare public pathAlign: ITextPathAlign
+
+  @boundsType(false)
+  declare public pathClosed: boolean
+
+  @boundsType([])
+  declare public pathAnchors: IPathAnchor[]
+
+  @dataType(false)
+  declare public pathEditing: boolean
   
   // 尺寸控制
   @boundsType(0)
@@ -216,6 +250,8 @@ export class RichText extends UI {
   // 回调函数
   public onEditingEntered?: () => void
   public onEditingExited?: () => void
+  public onSelectionChange?: (selection: { start: number; end: number } | undefined) => void
+  public onPathChange?: (path: ITextPathData) => void
   
   // 内部数据
   private _graphemes: string[] = []
@@ -266,6 +302,10 @@ export class RichText extends UI {
   
   // 调试模式：显示基线和行框
   public debugMode = false
+  private _pathDragIndex: number | null = null
+  private _pathDragHandle: 'anchor' | 'in' | 'out' = 'anchor'
+  private _pathChangedDuringDrag = false
+  private _pathGlyphs: IPathGlyphLayout[] = []
   
   // 保存原始 draggable 状态（进入编辑时临时禁用）
   private _savedDraggable: boolean | IAxis | undefined
@@ -292,6 +332,9 @@ export class RichText extends UI {
     // 保存回调
     if (data?.onEditingEntered) this.onEditingEntered = data.onEditingEntered
     if (data?.onEditingExited) this.onEditingExited = data.onEditingExited
+    if (data?.onSelectionChange) this.onSelectionChange = data.onSelectionChange
+    if (data?.onPathChange) this.onPathChange = data.onPathChange
+    this.pathEditing = !!data?.pathEditing
     
     // 导入样式数据（支持两种格式）
     if (data?.styleRanges) {
@@ -339,6 +382,16 @@ export class RichText extends UI {
     try {
       this._updateGraphemes()
       this._measureText()
+
+      if (this.textPath !== 'none') {
+        const pathBounds = this._getPathBounds()
+        const box = this.__layout.boxBounds
+        box.x = pathBounds.x
+        box.y = pathBounds.y
+        box.width = Math.max(1, pathBounds.width)
+        box.height = Math.max(1, pathBounds.height)
+        return
+      }
 
       const box = this.__layout.boxBounds
       const computed = this._getTextBounds()
@@ -655,6 +708,15 @@ export class RichText extends UI {
     const ctx = canvas.context as CanvasRenderingContext2D
     
     ctx.save()
+
+    if (this.textPath !== 'none') {
+      if (this.isEditing && this.selectionStart !== this.selectionEnd) this._drawPathSelection(ctx)
+      this._drawPathText(ctx)
+      if (this.isEditing && this.selectionStart === this.selectionEnd) this._drawPathCursor(ctx)
+      if (this.isEditing && this.pathEditing) this._drawPathControls(ctx)
+      ctx.restore()
+      return
+    }
     
     // 1. 绘制选区背景
     if (this.isEditing && this.selectionStart !== this.selectionEnd) {
@@ -1148,6 +1210,157 @@ export class RichText extends UI {
       height: totalHeight + padding.top + padding.bottom + strokeExpand * 2 || this._parseLineHeight(this.lineHeight, this.fontSize)
     }
   }
+
+  private _getPathSamples() {
+    if (this.textPath === 'circle') {
+      const textLength = this._lineMetrics.reduce(
+        (sum, line) => sum + line.chars.reduce(
+          (lineSum, char) => lineSum + char.width + this._parseLetterSpacing(char.style.letterSpacing, char.style.fontSize!), 0
+        ), 0
+      )
+      const radius = Math.max(this.pathRadius, textLength / (Math.PI * 2))
+      // 圆形路径是完整一圈；center 对齐的路径中点比起点多 180°。
+      // pathStartAngle 表示文字的视觉锚点，默认 -90° 应直接位于圆的上方。
+      const pathAngle = resolveCirclePathStartAngle(this.pathStartAngle, this.pathAlign)
+      return sampleCirclePath(radius, pathAngle)
+    }
+    return sampleBezierPath(this.pathAnchors ?? [], this.pathClosed)
+  }
+
+  private _getPathGlyphLayouts(): IPathGlyphLayout[] {
+    const chars = this._lineMetrics.flatMap(line => line.chars)
+    const samples = this._getPathSamples()
+    const layouts = layoutGlyphsOnPath(
+      samples,
+      chars.map(char => char.width + this._parseLetterSpacing(char.style.letterSpacing, char.style.fontSize!)),
+      { align: this.pathAlign, direction: this.pathDirection, side: this.pathSide }
+    )
+    this._pathGlyphs = layouts.map((glyph, index) => ({
+      ...glyph,
+      rotation: glyph.rotation + (chars[index]?.style.rotation ?? 0) * Math.PI / 180
+    }))
+    return this._pathGlyphs
+  }
+
+  private _getPathChars() {
+    return this._lineMetrics.flatMap((line, lineIndex) =>
+      line.chars.map((char, charIndex) => ({
+        char,
+        charIndex,
+        lineIndex,
+        linearIndex: this._locationToLinear(lineIndex, charIndex)
+      }))
+    )
+  }
+
+  private _getPathBounds(): { x: number; y: number; width: number; height: number } {
+    const samples = this._getPathSamples()
+    const glyphs = this._getPathGlyphLayouts()
+    const fontSize = Math.max(this.fontSize, ...this._lineMetrics.flatMap(line => line.chars.map(char => char.style.fontSize ?? this.fontSize)))
+    const points = glyphs.length ? glyphs : samples
+    if (!points.length) return { x: 0, y: 0, width: 1, height: Math.max(1, fontSize) }
+    const xs = points.map(point => point.x)
+    const ys = points.map(point => point.y)
+    const padding = fontSize + this._getStrokeExpand()
+    const minX = Math.min(...xs) - padding
+    const minY = Math.min(...ys) - padding
+    const maxX = Math.max(...xs) + padding
+    const maxY = Math.max(...ys) + padding
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+  }
+
+  private _drawPathText(ctx: CanvasRenderingContext2D): void {
+    const chars = this._getPathChars()
+    const glyphs = this._getPathGlyphLayouts()
+    ctx.textBaseline = 'alphabetic'
+    glyphs.forEach((glyph, index) => {
+      const item = chars[index]
+      if (!item) return
+      const style = item.char.style
+      const displayChar = this._applyTextCase(item.char.char, style.textCase, true)
+      ctx.save()
+      ctx.translate(glyph.x, glyph.y)
+      ctx.rotate(glyph.rotation)
+      ctx.font = buildFontString(style.fontSize!, style.fontFamily!, style.fontWeight, style.italic)
+      const fill = this._getFillStyle(ctx, style.fill, this.__layout.boxBounds)
+      ctx.fillStyle = fill
+      ctx.fillText(displayChar, -item.char.width / 2, 0)
+      const strokeWidth = style.strokeWidth ?? 0
+      if (style.stroke && strokeWidth > 0) {
+        ctx.strokeStyle = this._getFillStyle(ctx, style.stroke, this.__layout.boxBounds)
+        ctx.lineWidth = strokeWidth
+        ctx.strokeText(displayChar, -item.char.width / 2, 0)
+      }
+      ctx.restore()
+    })
+  }
+
+  private _drawPathSelection(ctx: CanvasRenderingContext2D): void {
+    const glyphs = this._getPathGlyphLayouts()
+    const chars = this._getPathChars()
+    ctx.fillStyle = this.selectionColor
+    for (let index = this.selectionStart; index < this.selectionEnd; index++) {
+      const glyph = glyphs[index]
+      const char = chars[index]?.char
+      if (!glyph || !char) continue
+      ctx.save()
+      ctx.translate(glyph.x, glyph.y)
+      ctx.rotate(glyph.rotation)
+      ctx.fillRect(-char.width / 2, -char.style.fontSize!, char.width, char.style.fontSize!)
+      ctx.restore()
+    }
+  }
+
+  private _drawPathCursor(ctx: CanvasRenderingContext2D): void {
+    const glyph = this._getPathGlyphLayouts()[Math.min(this.selectionStart, this._pathGlyphs.length - 1)]
+    if (!glyph) return
+    ctx.save()
+    ctx.translate(glyph.x, glyph.y)
+    ctx.rotate(glyph.rotation)
+    ctx.fillStyle = this.cursorColor
+    ctx.fillRect(0, -this.fontSize, this.cursorWidth, this.fontSize)
+    ctx.restore()
+  }
+
+  private _drawPathControls(ctx: CanvasRenderingContext2D): void {
+    ctx.save()
+    ctx.strokeStyle = 'rgba(22, 119, 255, 0.7)'
+    ctx.fillStyle = '#ffffff'
+    ctx.lineWidth = 1
+    const samples = this._getPathSamples()
+    if (samples.length > 1) {
+      ctx.beginPath()
+      samples.forEach((sample, index) => index ? ctx.lineTo(sample.x, sample.y) : ctx.moveTo(sample.x, sample.y))
+      ctx.stroke()
+    }
+    const anchors = this.textPath === 'circle'
+      ? [{ x: 0, y: -this.pathRadius }]
+      : (this.pathAnchors ?? [])
+    anchors.forEach(anchor => {
+      if ('handleIn' in anchor && anchor.handleIn) {
+        this._drawPathHandle(ctx, anchor, anchor.handleIn)
+      }
+      if ('handleOut' in anchor && anchor.handleOut) {
+        this._drawPathHandle(ctx, anchor, anchor.handleOut)
+      }
+      ctx.beginPath()
+      ctx.arc(anchor.x, anchor.y, 5, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.stroke()
+    })
+    ctx.restore()
+  }
+
+  private _drawPathHandle(ctx: CanvasRenderingContext2D, anchor: IPathAnchor, handle: { x: number; y: number }): void {
+    const x = anchor.x + handle.x
+    const y = anchor.y + handle.y
+    ctx.beginPath()
+    ctx.moveTo(anchor.x, anchor.y)
+    ctx.lineTo(x, y)
+    ctx.stroke()
+    ctx.fillRect(x - 3, y - 3, 6, 6)
+    ctx.strokeRect(x - 3, y - 3, 6, 6)
+  }
   
   // ============ 样式管理 ============
   
@@ -1205,6 +1418,18 @@ export class RichText extends UI {
     
     this._relayout()
   }
+
+  /** 由宿主数据源同步字符样式范围；运行时仍展开为逐字样式表。 */
+  public setStyleRanges(ranges: IStyleRange[] = []): void {
+    const current = this._compressToStyleRanges()
+    if (JSON.stringify(current) === JSON.stringify(ranges)) return
+    this._loadFromStyleRanges(ranges)
+    this._relayout()
+  }
+
+  public getStyleRanges(): IStyleRange[] {
+    return this._compressToStyleRanges()
+  }
   
   // ============ 坐标转换 ============
   
@@ -1246,6 +1471,26 @@ export class RichText extends UI {
   
   private _pointerToIndex(x: number, y: number): number {
     if (!this._lineMetrics.length) return 0
+
+    if (this.textPath !== 'none') {
+      const glyphs = this._getPathGlyphLayouts()
+      const chars = this._getPathChars()
+      if (!glyphs.length) return 0
+      let nearest = 0
+      let nearestDistance = Number.POSITIVE_INFINITY
+      glyphs.forEach((glyph, index) => {
+        const dx = x - glyph.x
+        const dy = y - glyph.y
+        const value = dx * dx + dy * dy
+        if (value < nearestDistance) {
+          nearest = index
+          nearestDistance = value
+        }
+      })
+      const glyph = glyphs[nearest]
+      const along = (x - glyph.x) * Math.cos(glyph.rotation) + (y - glyph.y) * Math.sin(glyph.rotation)
+      return Math.min(this._graphemes.length, (chars[nearest]?.linearIndex ?? nearest) + (along >= 0 ? 1 : 0))
+    }
 
     // 获取 padding 和调整坐标
     const padding = this._parsePadding(this.padding)
@@ -1511,6 +1756,11 @@ export class RichText extends UI {
         const finalY = baseline + padding.top
         
         ctx.save()
+        if (style.rotation) {
+          ctx.translate(finalX + char.width / 2, finalY)
+          ctx.rotate(style.rotation * Math.PI / 180)
+          ctx.translate(-(finalX + char.width / 2), -finalY)
+        }
         
         // 背景色
         if (style.textBackgroundColor) {
@@ -2253,6 +2503,11 @@ export class RichText extends UI {
   }
 
   private _getCursorLocalPosition(): { x: number; y: number } {
+    if (this.textPath !== 'none') {
+      const glyphs = this._getPathGlyphLayouts()
+      const glyph = glyphs[Math.min(this.selectionStart, glyphs.length - 1)]
+      if (glyph) return { x: glyph.x, y: glyph.y - this.fontSize }
+    }
     return this._getLocalPositionForIndex(this.selectionStart, this._caretUpstream)
   }
 
@@ -2364,6 +2619,7 @@ export class RichText extends UI {
     if (!this.editable || !this.isEditing) return
     
     const point = this.getInnerPoint(e)
+    if (this.pathEditing && this._beginPathControlDrag(point.x, point.y)) return
     const index = this._pointerToIndex(point.x, point.y)
     
     if (e.shiftKey) {
@@ -2380,6 +2636,7 @@ export class RichText extends UI {
     
     this._updateTextarea()
     this.forceRender()
+    this._notifySelectionChange()
   }
   
   /**
@@ -2389,6 +2646,10 @@ export class RichText extends UI {
     if (!this._isMouseDown || !this.isEditing) return
     
     const point = this.getInnerPoint(e)
+    if (this._pathDragIndex !== null) {
+      this._movePathControl(point.x, point.y)
+      return
+    }
     const index = this._pointerToIndex(point.x, point.y)
     
     if (this._selectionAnchor !== null) {
@@ -2398,6 +2659,7 @@ export class RichText extends UI {
     
     this._updateTextarea()
     this.forceRender()
+    this._notifySelectionChange()
   }
   
   /**
@@ -2405,6 +2667,157 @@ export class RichText extends UI {
    */
   public _handlePointerUp(_e: any): void {
     this._isMouseDown = false
+    this._pathDragIndex = null
+    if (this._pathChangedDuringDrag) {
+      this._pathChangedDuringDrag = false
+      this._notifyPathChange()
+    }
+  }
+
+  /** 开启路径编辑后，点击空白轨迹会新增锚点，点击锚点可拖动。 */
+  public setPathEditing(value: boolean): void {
+    this.pathEditing = value
+    this.forceRender()
+  }
+
+  public setPathAnchors(anchors: IPathAnchor[], closed = this.pathClosed): void {
+    this.textPath = 'custom'
+    this.pathClosed = closed
+    this.pathAnchors = anchors.map(anchor => ({
+      ...anchor,
+      handleIn: anchor.handleIn ? { ...anchor.handleIn } : undefined,
+      handleOut: anchor.handleOut ? { ...anchor.handleOut } : undefined
+    }))
+    this._notifyPathChange()
+    this._relayout()
+  }
+
+  public addPathAnchor(anchor: IPathAnchor, index = this.pathAnchors?.length ?? 0): void {
+    const anchors = [...(this.pathAnchors ?? [])]
+    anchors.splice(Math.max(0, Math.min(anchors.length, index)), 0, { ...anchor })
+    this.setPathAnchors(anchors)
+  }
+
+  public removePathAnchor(index: number): void {
+    const anchors = [...(this.pathAnchors ?? [])]
+    if (index < 0 || index >= anchors.length) return
+    anchors.splice(index, 1)
+    this.setPathAnchors(anchors)
+  }
+
+  /** 把圆形预设转换为四段三次贝塞尔曲线，之后可自由增删和拖动锚点。 */
+  public convertCircleToPath(): void {
+    const radius = Math.max(1, this.pathRadius)
+    const handle = radius * 0.5522847498
+    this.setPathAnchors([
+      { x: 0, y: -radius, handleIn: { x: -handle, y: 0 }, handleOut: { x: handle, y: 0 } },
+      { x: radius, y: 0, handleIn: { x: 0, y: -handle }, handleOut: { x: 0, y: handle } },
+      { x: 0, y: radius, handleIn: { x: handle, y: 0 }, handleOut: { x: -handle, y: 0 } },
+      { x: -radius, y: 0, handleIn: { x: 0, y: handle }, handleOut: { x: 0, y: -handle } }
+    ], true)
+  }
+
+  private _beginPathControlDrag(x: number, y: number): boolean {
+    const threshold = 12
+    if (this.textPath === 'circle') {
+      const hit = Math.hypot(x, y)
+      if (Math.abs(hit - this.pathRadius) <= threshold) {
+        this._pathDragIndex = 0
+        this._isMouseDown = true
+        return true
+      }
+      return false
+    }
+    const anchors = this.pathAnchors ?? []
+    let nearest = -1
+    let nearestDistance = threshold
+    anchors.forEach((anchor, index) => {
+      for (const handle of ['handleIn', 'handleOut'] as const) {
+        const point = anchor[handle]
+        if (!point) continue
+        const current = Math.hypot(x - anchor.x - point.x, y - anchor.y - point.y)
+        if (current <= nearestDistance) {
+          nearest = index
+          nearestDistance = current
+          this._pathDragHandle = handle === 'handleIn' ? 'in' : 'out'
+        }
+      }
+      const current = Math.hypot(x - anchor.x, y - anchor.y)
+      if (current <= nearestDistance) {
+        nearest = index
+        nearestDistance = current
+        this._pathDragHandle = 'anchor'
+      }
+    })
+    if (nearest >= 0) {
+      this._pathDragIndex = nearest
+      this._isMouseDown = true
+      return true
+    }
+    const samples = this._getPathSamples()
+    let closestSample = -1
+    let closestDistance = threshold * threshold * 4
+    samples.forEach((sample, index) => {
+      const dx = sample.x - x
+      const dy = sample.y - y
+      const candidate = dx * dx + dy * dy
+      if (candidate < closestDistance) {
+        closestDistance = candidate
+        closestSample = index
+      }
+    })
+    if (anchors.length < 32 && closestSample >= 0) {
+      const segment = Math.min(anchors.length - 1, Math.floor(closestSample / Math.max(1, samples.length / Math.max(1, anchors.length - 1))))
+      const index = Math.max(0, segment + 1)
+      const nextAnchors = [...anchors]
+      nextAnchors.splice(index, 0, { x, y })
+      this.pathAnchors = nextAnchors
+      this._pathDragIndex = index
+      this._pathDragHandle = 'anchor'
+      this._pathChangedDuringDrag = true
+      this._isMouseDown = true
+      this._relayout()
+      return true
+    }
+    return false
+  }
+
+  private _movePathControl(x: number, y: number): void {
+    if (this._pathDragIndex === null) return
+    if (this.textPath === 'circle') {
+      this.pathRadius = Math.max(8, Math.hypot(x, y))
+      this._pathChangedDuringDrag = true
+    } else {
+      const anchors = [...(this.pathAnchors ?? [])]
+      const anchor = anchors[this._pathDragIndex]
+      if (!anchor) return
+      if (this._pathDragHandle === 'anchor') {
+        anchors[this._pathDragIndex] = { ...anchor, x, y }
+      } else {
+        const key = this._pathDragHandle === 'in' ? 'handleIn' : 'handleOut'
+        anchors[this._pathDragIndex] = { ...anchor, [key]: { x: x - anchor.x, y: y - anchor.y } }
+      }
+      this.pathAnchors = anchors
+      this._pathChangedDuringDrag = true
+    }
+    this._relayout()
+  }
+
+  private _notifyPathChange(): void {
+    this.onPathChange?.({
+      textPath: this.textPath,
+      pathRadius: this.pathRadius,
+      pathStartAngle: this.pathStartAngle,
+      pathDirection: this.pathDirection,
+      pathSide: this.pathSide,
+      pathAlign: this.pathAlign,
+      pathClosed: this.pathClosed,
+      pathAnchors: (this.pathAnchors ?? []).map(anchor => ({
+        ...anchor,
+        handleIn: anchor.handleIn ? { ...anchor.handleIn } : undefined,
+        handleOut: anchor.handleOut ? { ...anchor.handleOut } : undefined
+      }))
+    })
   }
   
   // 三击选行（监听 tap 事件计数实现）
@@ -2499,6 +2912,7 @@ export class RichText extends UI {
     this._destroyHiddenTextarea()
     this._stopCursorBlink()
     this.selectionStart = this.selectionEnd = 0
+    this._notifySelectionChange()
     
     // 清除管理器状态
     EditingManager.clearActive(this)
@@ -2726,6 +3140,7 @@ export class RichText extends UI {
     if (newText === oldText) {
       this.selectionStart = this._codeUnitToGraphemeIndex(this._hiddenTextarea.selectionStart)
       this.selectionEnd = this._codeUnitToGraphemeIndex(this._hiddenTextarea.selectionEnd)
+      this._notifySelectionChange()
       return
     }
 
@@ -2770,6 +3185,7 @@ export class RichText extends UI {
     this.text = newText
     this.selectionStart = this._codeUnitToGraphemeIndexWith(newText, newG, this._hiddenTextarea.selectionStart)
     this.selectionEnd = this._codeUnitToGraphemeIndexWith(newText, newG, this._hiddenTextarea.selectionEnd)
+    this._notifySelectionChange()
     this._caretUpstream = false
     this._goalX = null
 
@@ -3037,6 +3453,15 @@ export class RichText extends UI {
       this._selectionAnchor = null
       this.selectionStart = this.selectionEnd = newPos
     }
+    this._notifySelectionChange()
+  }
+
+  private _notifySelectionChange(): void {
+    this.onSelectionChange?.(
+      this.isEditing && this.selectionStart !== this.selectionEnd
+        ? { start: this.selectionStart, end: this.selectionEnd }
+        : undefined,
+    )
   }
   
   // ============ 选区操作 ============
@@ -3046,6 +3471,7 @@ export class RichText extends UI {
     this.selectionEnd = this._graphemes.length
     this._updateTextarea()
     this.forceRender()
+    this._notifySelectionChange()
   }
   
   private _selectWord(index: number): void {
@@ -3086,6 +3512,7 @@ export class RichText extends UI {
     this._goalX = null
     this._updateTextarea()
     this.forceRender()
+    this._notifySelectionChange()
   }
 
   private _selectLine(index: number): void {
@@ -3100,6 +3527,7 @@ export class RichText extends UI {
     this._goalX = null
     this._updateTextarea()
     this.forceRender()
+    this._notifySelectionChange()
   }
   
   // ============ 光标动画 ============
@@ -3595,9 +4023,7 @@ export class RichText extends UI {
     
     // ✅ 使用 styleRanges（简洁格式）
     const styleRanges = this._compressToStyleRanges()
-    if (styleRanges.length > 0) {
-      json.styleRanges = styleRanges
-    }
+    json.styleRanges = styleRanges
     
     // 移除不需要导出的内部属性
     delete json.hitBox

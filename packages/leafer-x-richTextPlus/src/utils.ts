@@ -1,4 +1,4 @@
-// RichText 工具函数
+// RichTextPlus 工具函数
 
 import type { IFontWeightString } from './types'
 

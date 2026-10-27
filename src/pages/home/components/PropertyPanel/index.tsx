@@ -1,11 +1,13 @@
-import { LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { EditOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { Button, Divider, Empty, Form, Input, InputNumber, Select, Space } from "antd";
 import { useAppTranslation } from "@/i18n/useAppTranslation";
+import type { ICharStyle } from "leafer-x-richTextPlus";
 import type { CharacterSelection } from "leafer-x-curved-text";
 import type {
   CanvasAnimationItem,
   CanvasNode,
   CurvedTextNode,
+  TextNode,
   CanvasStrokeStyle,
   CanvasTransformOrigin,
 } from "@/types";
@@ -16,6 +18,7 @@ import RectProperty from "./nodeProperty/RectProperty";
 import StarProperty from "./nodeProperty/StarProperty";
 import AnimationSection from "./animation/AnimationSection";
 import { applyAnimationListRules } from "./animation/animationOrder";
+import { applyTextStyleRange } from "./textStyle";
 
 type PropertyPanelProps = {
   /** 属性栏是否收起。 */
@@ -44,6 +47,17 @@ const getDefaultFill = (node: CanvasNode) => {
   if (node.kind === "rect") return "#4f46e5";
 
   return "#ffffff";
+};
+
+const getSelectedTextStyle = (node: TextNode, selection?: CharacterSelection): ICharStyle => {
+  const index = selection?.start ?? -1;
+  const style = node.styleRanges?.find((range) => index >= range.start && index < range.end);
+  return {
+    fill: (style?.fill as ICharStyle["fill"]) ?? node.fill,
+    fontSize: style?.fontSize ?? node.fontSize,
+    fontWeight: (style?.fontWeight ?? node.fontWeight) as ICharStyle["fontWeight"],
+    rotation: style?.rotation ?? 0,
+  };
 };
 
 function CurvedTextProperty({
@@ -157,6 +171,171 @@ function CurvedTextProperty({
   );
 }
 
+function TextProperty({
+  node,
+  characterSelection,
+  onUpdateNode,
+}: {
+  node: TextNode;
+  characterSelection?: CharacterSelection;
+  onUpdateNode: (id: string, data: Partial<CanvasNode>) => void;
+}) {
+  const selectedStyle = getSelectedTextStyle(node, characterSelection);
+  const updateStyle = (style: Partial<ICharStyle>) => {
+    if (characterSelection) {
+      onUpdateNode(node.id, {
+        styleRanges: applyTextStyleRange(
+          node.text,
+          node.styleRanges ?? [],
+          characterSelection,
+          style,
+        ),
+      });
+      return;
+    }
+
+    const next: Partial<TextNode> = {};
+    if (style.fill !== undefined) next.fill = style.fill as string;
+    if (style.fontSize !== undefined) next.fontSize = style.fontSize;
+    if (style.fontWeight !== undefined && typeof style.fontWeight === "number") {
+      next.fontWeight = style.fontWeight;
+    }
+    onUpdateNode(node.id, next);
+  };
+  const updateTextPath = (textPath: NonNullable<TextNode["textPath"]>) => {
+    if (textPath === "custom" && !node.pathAnchors?.length) {
+      onUpdateNode(node.id, {
+        textPath,
+        pathEditing: true,
+        pathAnchors: [
+          { x: -180, y: 0, handleOut: { x: 90, y: -120 } },
+          { x: 0, y: -90, handleIn: { x: -70, y: -40 }, handleOut: { x: 70, y: 40 } },
+          { x: 180, y: 0, handleIn: { x: -90, y: -120 } },
+        ],
+      });
+      return;
+    }
+    onUpdateNode(node.id, { textPath, ...(textPath === "none" && { pathEditing: false }) });
+  };
+
+  return (
+    <div className="property-grid property-grid--two">
+      <label className="property-field">
+        <span>文字颜色</span>
+        <Input
+          className="property-color-input"
+          type="color"
+          value={(selectedStyle.fill as string) ?? "#111827"}
+          onChange={(event) => updateStyle({ fill: event.target.value })}
+        />
+      </label>
+      <label className="property-field">
+        <span>字号</span>
+        <InputNumber
+          min={1}
+          value={toPanelNumber(selectedStyle.fontSize)}
+          onChange={(value) => updateStyle({ fontSize: Number(value ?? 1) })}
+        />
+      </label>
+      <label className="property-field">
+        <span>字重</span>
+        <Select
+          value={(selectedStyle.fontWeight as number) ?? 400}
+          options={[400, 500, 600, 700, 800].map((value) => ({ label: String(value), value }))}
+          onChange={(fontWeight) =>
+            updateStyle({ fontWeight: fontWeight as ICharStyle["fontWeight"] })
+          }
+        />
+      </label>
+      <label className="property-field">
+        <span>行高</span>
+        <InputNumber
+          min={1}
+          value={toPanelNumber(node.lineHeight ?? node.fontSize * 1.5)}
+          onChange={(value) => onUpdateNode(node.id, { lineHeight: Number(value ?? 1) })}
+        />
+      </label>
+      <label className="property-field">
+        <span>文字路径</span>
+        <Select
+          value={node.textPath ?? "none"}
+          options={[
+            { label: "直线", value: "none" },
+            { label: "圆形", value: "circle" },
+            { label: "自定义曲线", value: "custom" },
+          ]}
+          onChange={updateTextPath}
+        />
+      </label>
+      {node.textPath && node.textPath !== "none" && (
+        <>
+          <label className="property-field">
+            <span>路径半径</span>
+            <InputNumber
+              min={8}
+              value={toPanelNumber(node.pathRadius ?? 120)}
+              onChange={(value) => onUpdateNode(node.id, { pathRadius: Number(value ?? 120) })}
+            />
+          </label>
+          <label className="property-field">
+            <span>文字朝向</span>
+            <Select
+              value={node.pathSide ?? "outer"}
+              options={[{ label: "外侧", value: "outer" }, { label: "内侧", value: "inner" }]}
+              onChange={(pathSide) => onUpdateNode(node.id, { pathSide })}
+            />
+          </label>
+          <label className="property-field">
+            <span>路径方向</span>
+            <Select
+              value={node.pathDirection ?? "forward"}
+              options={[{ label: "正向", value: "forward" }, { label: "反向", value: "reverse" }]}
+              onChange={(pathDirection) => onUpdateNode(node.id, { pathDirection })}
+            />
+          </label>
+          <label className="property-field">
+            <span>路径对齐</span>
+            <Select
+              value={node.pathAlign ?? "center"}
+              options={[
+                { label: "起点", value: "start" },
+                { label: "居中", value: "center" },
+                { label: "终点", value: "end" },
+              ]}
+              onChange={(pathAlign) => onUpdateNode(node.id, { pathAlign })}
+            />
+          </label>
+          {node.textPath === "circle" && (
+            <label className="property-field">
+              <span>起始角度</span>
+              <InputNumber
+                value={toPanelNumber(node.pathStartAngle ?? -90)}
+                onChange={(value) => onUpdateNode(node.id, { pathStartAngle: Number(value ?? -90) })}
+              />
+            </label>
+          )}
+          <Button
+            icon={<EditOutlined />}
+            type={node.pathEditing ? "primary" : "default"}
+            onClick={() => onUpdateNode(node.id, { pathEditing: !node.pathEditing })}
+          >
+            编辑路径
+          </Button>
+        </>
+      )}
+      {characterSelection && (
+        <label className="property-field">
+          <span>字符旋转</span>
+          <InputNumber
+            value={toPanelNumber(selectedStyle.rotation)}
+            onChange={(value) => updateStyle({ rotation: Number(value ?? 0) })}
+          />
+        </label>
+      )}
+    </div>
+  );
+}
+
 function PropertyPanel({
   collapsed,
   canUngroup,
@@ -192,7 +371,7 @@ function PropertyPanel({
   };
 
   return (
-    <aside className="canvas-maker__properties" data-collapsed={collapsed}>
+    <aside className="canvas-maker__properties" data-collapsed={collapsed} data-rt-panel>
       <div className="panel-title">
         {!collapsed && <span>{t("properties")}</span>}
         <Button
@@ -270,6 +449,13 @@ function PropertyPanel({
                   onUpdateNode={onUpdateNode}
                 />
               )}
+              {node.kind === "text" && (
+                <TextProperty
+                  characterSelection={characterSelection}
+                  node={node}
+                  onUpdateNode={onUpdateNode}
+                />
+              )}
 
               {node.kind === "image" && (
                 <label className="property-field">
@@ -281,7 +467,7 @@ function PropertyPanel({
                 </label>
               )}
 
-              {node.kind !== "group" && node.kind !== "curvedText" && (
+              {node.kind !== "group" && node.kind !== "curvedText" && node.kind !== "text" && (
                 <div className="property-paint">
                   <span className="property-paint__label">{t("appearance")}</span>
                   <div className="property-grid property-grid--two">

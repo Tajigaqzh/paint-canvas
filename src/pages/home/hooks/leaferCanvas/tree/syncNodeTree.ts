@@ -14,6 +14,7 @@ import { disposeImageSource, syncImageSource } from "../ui/imageUi";
 import { syncLineGroupContent } from "../ui/lineUi";
 import { createNodeUI, getNodePatchFromUI, getNodeUIInput, syncCurvedTextUI } from "../ui/nodeUi";
 import type { CurvedText } from "leafer-x-curved-text";
+import type { RichTextPlus } from "leafer-x-richTextPlus";
 
 /** 节点树增量同步所需的托管索引和 store 回调。 */
 export type NodeTreeSyncContext = {
@@ -92,6 +93,15 @@ const bindNodeUIEvents = (ctx: NodeTreeSyncContext, nodeId: string, ui: ManagedN
       );
     });
   }
+  if (ctx.pageRef.current.nodeMap[nodeId]?.kind === "text") {
+    const richText = ui as unknown as RichTextPlus;
+    richText.onSelectionChange = (selection) => {
+      ctx.onCharacterSelectionRef.current?.(nodeId, selection);
+    };
+    richText.onPathChange = (path) => {
+      ctx.onUpdateNodeRef.current(nodeId, path);
+    };
+  }
 };
 
 /**
@@ -137,6 +147,9 @@ const syncNodeToParent = (
 
     if (node.kind === "curvedText") {
       syncCurvedTextUI(ui, node);
+    }
+    if (node.kind === "text") {
+      (ui as unknown as RichTextPlus).setStyleRanges(node.styleRanges);
     }
 
     const animationSignature = getAnimationSignature(node.animationList);

@@ -1,6 +1,8 @@
 import "@leafer-in/animate";
-import { Ellipse, Group, Image, Polygon, Rect, Star, Text, type IUI } from "leafer-ui";
+import { Ellipse, Group, Image, Polygon, Rect, Star, type IUI } from "leafer-ui";
 import { CurvedText } from "leafer-x-curved-text";
+import { RichTextPlus } from "leafer-x-richTextPlus";
+import type { IStyleRange, ITextPathData } from "leafer-x-richTextPlus";
 import type { CanvasNode, ManagedNodeUI, NodeUIInput } from "@/types";
 import { getLeaferAnimation } from "./animation";
 import { getLineClassPrefix, syncLineGroupContent } from "./lineUi";
@@ -47,13 +49,27 @@ export const getNodeUIInput = (node: CanvasNode): NodeUIInput => {
     };
   }
 
-  // 文本节点没有业务 width / height，位置和文本样式直接交给 Leafer Text。
+  // 文本节点的宽高也写入业务数据，避免 Editor 缩放只停留在运行时 scaleX / scaleY。
   if (node.kind === "text") {
     return {
       ...baseInput,
+      editable: true,
       fontSize: node.fontSize,
       fontWeight: node.fontWeight,
+      fill: node.fill,
+      lineHeight: node.lineHeight,
+      pathAlign: node.pathAlign,
+      pathAnchors: node.pathAnchors,
+      pathClosed: node.pathClosed,
+      pathDirection: node.pathDirection,
+      pathEditing: node.pathEditing,
+      pathRadius: node.pathRadius,
+      pathSide: node.pathSide,
+      pathStartAngle: node.pathStartAngle,
+      scaleX: node.scaleX ?? 1,
+      scaleY: node.scaleY ?? 1,
       text: node.text,
+      textPath: node.textPath,
     };
   }
 
@@ -146,9 +162,9 @@ export const createNodeUI = (node: CanvasNode): ManagedNodeUI | null => {
     return new Ellipse(input) as unknown as ManagedNodeUI;
   }
 
-  // 文本节点由 Leafer Text 表达，并交给 @leafer-in/text-editor 做双击编辑。
+  // 文本节点由 RichTextPlus 表达，支持逐字样式与内部编辑器。
   if (node.kind === "text") {
-    return new Text(input) as unknown as ManagedNodeUI;
+    return new RichTextPlus({ ...input, styleRanges: node.styleRanges }) as unknown as ManagedNodeUI;
   }
 
   if (node.kind === "curvedText") {
@@ -198,8 +214,38 @@ export const createNodeUI = (node: CanvasNode): ManagedNodeUI | null => {
  * 再交给 canvasStore 形成一次可撤销的业务更新。
  */
 export const getNodePatchFromUI = (ui: IUI, node: CanvasNode) => {
-  // 文本节点尺寸由文本内容和字体决定，这里只同步位置和旋转。
+  // RichTextPlus 的编辑器缩放使用 scaleX / scaleY，按原字段持久化以便切页重建。
   if (node.kind === "text" || node.kind === "curvedText") {
+    if (node.kind === "text") {
+      const richText = ui as IUI & Partial<ITextPathData> & {
+        fontSize?: number;
+        lineHeight?: number;
+        styleRanges?: IStyleRange[];
+        toJSON?: () => { styleRanges?: IStyleRange[] };
+      };
+      const serialized = richText.toJSON?.();
+      const styleRanges = richText.styleRanges ?? serialized?.styleRanges;
+      return {
+        ...(typeof richText.fontSize === "number" && { fontSize: richText.fontSize }),
+        ...(typeof richText.lineHeight === "number" && { lineHeight: richText.lineHeight }),
+        rotation: Math.round(ui.rotation ?? node.rotation ?? 0),
+        scaleX: Number(ui.scaleX ?? node.scaleX ?? 1),
+        scaleY: Number(ui.scaleY ?? node.scaleY ?? 1),
+        ...(styleRanges && { styleRanges }),
+        ...(richText.textPath && richText.textPath !== 'none' && {
+          textPath: richText.textPath,
+          pathRadius: richText.pathRadius,
+          pathStartAngle: richText.pathStartAngle,
+          pathDirection: richText.pathDirection,
+          pathSide: richText.pathSide,
+          pathAlign: richText.pathAlign,
+          pathClosed: richText.pathClosed,
+          pathAnchors: richText.pathAnchors,
+        }),
+        x: Math.round(ui.x ?? node.x),
+        y: Math.round(ui.y ?? node.y),
+      };
+    }
     return {
       rotation: Math.round(ui.rotation ?? node.rotation ?? 0),
       x: Math.round(ui.x ?? node.x),

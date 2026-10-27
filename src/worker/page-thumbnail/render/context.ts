@@ -26,13 +26,13 @@ export const getCornerRadiusValues = (cornerRadius: CanvasCornerRadius | undefin
 const getOriginPoint = (node: CanvasNode) => {
   const width =
     "width" in node
-      ? node.width
+      ? (node.width ?? 1)
       : node.kind === "curvedText"
         ? Math.max(node.text.length * (node.defaultStyle.fontSize ?? 16), 1)
         : Math.max(node.text.length * node.fontSize, 1);
   const height =
     "height" in node
-      ? node.height
+      ? (node.height ?? 1)
       : node.kind === "curvedText"
         ? (node.defaultStyle.fontSize ?? 16)
         : node.fontSize;

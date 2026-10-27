@@ -1,4 +1,4 @@
-# leafer-x-richText
+# leafer-x-richTextPlus
 
 Leafer 富文本插件：支持按字符设置样式的可编辑文本元素，行为类似 Fabric.js IText，完整支持 Leafer 文本样式规范，导出格式兼容 Figma 的 `styleRanges`。
 
@@ -51,9 +51,9 @@ Leafer 富文本插件：支持按字符设置样式的可编辑文本元素，�
 ## 安装
 
 ```bash
-npm install leafer-x-richText
+npm install leafer-x-richTextPlus
 # 或从仓库安装
-npm install git+https://github.com/paiDaXing-web/leafer-x-richText.git
+npm install git+https://github.com/paiDaXing-web/leafer-x-richTextPlus.git
 ```
 
 依赖：`leafer-ui`、`@leafer-in/editor`（若使用 Leafer 编辑器）。
@@ -62,7 +62,7 @@ npm install git+https://github.com/paiDaXing-web/leafer-x-richText.git
 
 ```ts
 import { App } from 'leafer-ui'
-import { RichText } from 'leafer-x-richText'
+import { RichText } from 'leafer-x-richTextPlus'
 // 引入即自动注册内部编辑器，无需额外调用
 
 const app = new App({
@@ -309,11 +309,11 @@ RichText 在**逐字测量与绘制**的前提下，对段落级 `lineHeight`、
 ### 安装（可选）
 
 ```ts
-import { install } from 'leafer-x-richText'
-install()  // 仅当未通过主入口 "leafer-x-richText" 引入时需调用
+import { install } from 'leafer-x-richTextPlus'
+install()  // 仅当未通过主入口 "leafer-x-richTextPlus" 引入时需调用
 ```
 
-引入 `leafer-x-richText` 时已自动注册内部编辑器，一般无需单独 `install()`。
+引入 `leafer-x-richTextPlus` 时已自动注册内部编辑器，一般无需单独 `install()`。
 
 ---
 
@@ -593,7 +593,7 @@ app.tree.add(clone)
 ## 项目结构
 
 ```
-leafer-x-richText/
+leafer-x-richTextPlus/
 ├── src/
 │   ├── richtext/
 │   │   ├── index.ts        # 插件入口与 install

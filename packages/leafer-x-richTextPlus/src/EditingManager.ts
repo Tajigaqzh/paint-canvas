@@ -1,16 +1,16 @@
 // EditingManager - 全局编辑管理器
-// 确保同一时间只有一个 RichText 实例在编辑状态
+// 确保同一时间只有一个 RichTextPlus 实例在编辑状态
 
-import type { RichText } from './RichText'
+import type { RichTextPlus } from './RichTextPlus'
 
 export class EditingManager {
-  private static activeEditor: RichText | null = null
+  private static activeEditor: RichTextPlus | null = null
   
   /**
    * 请求进入编辑模式
    * 如果有其他实例正在编辑，会先退出
    */
-  static requestEditing(editor: RichText): void {
+  static requestEditing(editor: RichTextPlus): void {
     if (EditingManager.activeEditor && EditingManager.activeEditor !== editor) {
       EditingManager.activeEditor.exitEditing()
     }
@@ -20,7 +20,7 @@ export class EditingManager {
   /**
    * 清除活动编辑器
    */
-  static clearActive(editor: RichText): void {
+  static clearActive(editor: RichTextPlus): void {
     if (EditingManager.activeEditor === editor) {
       EditingManager.activeEditor = null
     }
@@ -29,7 +29,7 @@ export class EditingManager {
   /**
    * 获取当前活动编辑器
    */
-  static getActive(): RichText | null {
+  static getActive(): RichTextPlus | null {
     return EditingManager.activeEditor
   }
 }

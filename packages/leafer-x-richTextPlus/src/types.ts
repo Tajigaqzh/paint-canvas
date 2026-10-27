@@ -1,4 +1,4 @@
-// RichText 类型定义
+// RichTextPlus 类型定义
 import type { 
   IUIInputData, 
   IUIData, 
@@ -30,8 +30,32 @@ export type IFontWeightString =
   | 'extra-bold' // 800
   | 'black' // 900
 
-/** RichText 元素与字符级字重（Leafer 原有 + 上列命名字符串） */
+/** RichTextPlus 元素与字符级字重（Leafer 原有 + 上列命名字符串） */
 export type IRichTextFontWeight = IFontWeight | IFontWeightString
+
+export type IPathPoint = { x: number; y: number }
+
+/** 曲线路径锚点；控制柄相对锚点坐标。 */
+export interface IPathAnchor extends IPathPoint {
+  handleIn?: IPathPoint
+  handleOut?: IPathPoint
+}
+
+export type ITextPathMode = 'none' | 'circle' | 'custom'
+export type ITextPathDirection = 'forward' | 'reverse'
+export type ITextPathSide = 'inner' | 'outer'
+export type ITextPathAlign = 'start' | 'center' | 'end'
+
+export interface ITextPathData {
+  textPath: ITextPathMode
+  pathRadius: number
+  pathStartAngle: number
+  pathDirection: ITextPathDirection
+  pathSide: ITextPathSide
+  pathAlign: ITextPathAlign
+  pathClosed: boolean
+  pathAnchors: IPathAnchor[]
+}
 
 // 重新导出类型供外部使用
 export type {
@@ -66,6 +90,8 @@ export interface ICharStyle {
   fontSize?: number
   fontFamily?: string
   fontWeight?: IRichTextFontWeight
+  /** 单字旋转角度（度）；在路径文字中覆盖沿路径自动计算的切线角度。 */
+  rotation?: number
   italic?: boolean
   
   // 文本格式
@@ -118,7 +144,7 @@ export interface ILineMetrics {
 export type ICaretAffinity = 'downstream' | 'upstream'
 
 /**
- * RichText 输入数据
+ * RichTextPlus 输入数据
  */
 export interface IRichTextInputData extends IUIInputData {
   text?: string
@@ -179,14 +205,26 @@ export interface IRichTextInputData extends IUIInputData {
   cursorColor?: string
   cursorWidth?: number
   selectionColor?: string
+
+  textPath?: ITextPathMode
+  pathRadius?: number
+  pathStartAngle?: number
+  pathDirection?: ITextPathDirection
+  pathSide?: ITextPathSide
+  pathAlign?: ITextPathAlign
+  pathClosed?: boolean
+  pathAnchors?: IPathAnchor[]
+  pathEditing?: boolean
   
   // 回调（可选，避免 emit 问题）
   onEditingEntered?: () => void
   onEditingExited?: () => void
+  onSelectionChange?: (selection: { start: number; end: number } | undefined) => void
+  onPathChange?: (path: ITextPathData) => void
 }
 
 /**
- * RichText 数据（计算数据）
+ * RichTextPlus 数据（计算数据）
  * 注意：letterSpacing 和 lineHeight 保持 number | IUnitData 以支持灵活输入
  */
 export interface IRichTextData extends Omit<IUIData, 'fill' | 'stroke' | 'letterSpacing' | 'lineHeight'> {
@@ -244,6 +282,15 @@ export interface IRichTextData extends Omit<IUIData, 'fill' | 'stroke' | 'letter
   cursorColor?: string
   cursorWidth?: number
   selectionColor?: string
+  textPath?: ITextPathMode
+  pathRadius?: number
+  pathStartAngle?: number
+  pathDirection?: ITextPathDirection
+  pathSide?: ITextPathSide
+  pathAlign?: ITextPathAlign
+  pathClosed?: boolean
+  pathAnchors?: IPathAnchor[]
+  pathEditing?: boolean
 }
 
 /**
@@ -262,6 +309,8 @@ export interface IStyleRange {
   fontSize?: number
   fontFamily?: string
   fontWeight?: IRichTextFontWeight
+  /** 单字旋转角度（度）；在路径文字中覆盖沿路径自动计算的切线角度。 */
+  rotation?: number
   fill?: IFill
   stroke?: any
   strokeWidth?: number

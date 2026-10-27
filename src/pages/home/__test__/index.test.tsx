@@ -30,6 +30,13 @@ vi.mock("@leafer-in/editor", () => ({
   },
 }));
 vi.mock("@leafer-in/text-editor", () => ({}));
+vi.mock("leafer-x-richTextPlus", () => ({
+  RichTextPlus: class {
+    constructor(data: Record<string, unknown>) {
+      Object.assign(this, data);
+    }
+  },
+}));
 
 // 吸附插件构造时会校验 App 实例，页面用例里的 MockApp 不满足，这里只保留可调用的空壳。
 vi.mock("leafer-x-easy-snap", () => ({
