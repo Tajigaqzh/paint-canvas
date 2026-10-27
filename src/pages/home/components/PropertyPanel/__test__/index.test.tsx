@@ -108,8 +108,6 @@ describe("PropertyPanel", () => {
         { start: 1, end: 3, fontSize: 40 },
       ],
     });
-
-
   });
 
   it("选区存在时行高仍作为整段属性更新", () => {
@@ -136,7 +134,10 @@ describe("PropertyPanel", () => {
       <PropertyPanel
         canUngroup={false}
         collapsed={false}
-        node={{ ...textNode, textPath: { mode: "circle" as ITextPathMode, radius: 140, side: "inner" } }}
+        node={{
+          ...textNode,
+          textPath: { mode: "circle" as ITextPathMode, radius: 140, side: "inner" },
+        }}
         onToggle={vi.fn()}
         onUngroup={vi.fn()}
         onUpdateNode={vi.fn()}
@@ -154,7 +155,10 @@ describe("PropertyPanel", () => {
       <PropertyPanel
         canUngroup={false}
         collapsed={false}
-        node={{ ...textNode, textPath: { mode: "polygon" as ITextPathMode, radius: 120, sideCount: 5 } }}
+        node={{
+          ...textNode,
+          textPath: { mode: "polygon" as ITextPathMode, radius: 120, sideCount: 5 },
+        }}
         onToggle={vi.fn()}
         onUngroup={vi.fn()}
         onUpdateNode={vi.fn()}

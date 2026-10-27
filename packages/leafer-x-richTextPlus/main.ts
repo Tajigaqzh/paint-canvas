@@ -70,7 +70,13 @@ document.querySelector("#inner")?.addEventListener("click", () => {
 });
 document.querySelector("#polygon")?.addEventListener("click", () => {
   circleText.set({
-    textPath: { ...circleText.textPath, mode: TextPathMode.Polygon, sideCount: 3, radius: 150, editing: false },
+    textPath: {
+      ...circleText.textPath,
+      mode: TextPathMode.Polygon,
+      sideCount: 3,
+      radius: 150,
+      editing: false,
+    },
   });
 });
 document.querySelector("#generated")?.addEventListener("click", () => {

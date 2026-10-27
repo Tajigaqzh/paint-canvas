@@ -7,6 +7,7 @@ Leafer 富文本插件：支持按字符设置样式的可编辑文本元素，�
 ## 特性
 
 ### 核心功能
+
 - **按字符样式**：选中文字后可单独设置颜色、字体、字号、粗体、斜体、装饰线、背景色、大小写等
 - **完整编辑**：光标、选区、输入法、复制粘贴、撤销重做
 - **交互**：单击选中、双击进入编辑/选词、三击选行、拖拽选区
@@ -16,12 +17,14 @@ Leafer 富文本插件：支持按字符设置样式的可编辑文本元素，�
 ### 完整的 Leafer 文本样式支持
 
 #### 字符级样式（可对选中文字单独设置）
+
 - **基础样式**：`fontSize`, `fontFamily`, `fontWeight`, `fill`（纯色/渐变）, `stroke`（描边）, `strokeWidth`, `italic`
 - **文本格式**：`textCase`（大小写转换）, `textDecoration`（下划线/删除线）
 - **字间距**：`letterSpacing`（`number` 为像素；`IUnitData` 中 `percent` 为相对**元素 `fontSize`** 的倍数，语义与 Leafer `Text` 的 `UnitConvert.number` 一致）
 - **背景**：`textBackgroundColor`
 
 #### 阴影效果（对齐 Leafer 官方 Text 实现）
+
 - **外阴影**：`shadow`（支持 color/blur/x/y/spread/blendMode，可数组多阴影）
 - **内阴影**：`innerShadow`（同上，阴影限制在文字形状内部）
 - 阴影不影响文本框尺寸（仅扩展渲染边界）
@@ -29,6 +32,7 @@ Leafer 富文本插件：支持按字符设置样式的可编辑文本元素，�
 - `spread` 以文本框中心为原点整体缩放（与 Leafer 官方 `getShadowTransform` 一致）
 
 #### 段落属性（作用于整个元素）
+
 - **行高**：`lineHeight`（默认 `{ type: 'percent', value: 1.5 }`，与 Leafer `Text` 一致；详见下文「行高、字间距与 Leafer 对齐」）
 - **对齐**：`textAlign`（左/中/右/两端对齐）, `verticalAlign`（垂直对齐）
 - **内边距**：`padding`（支持单值或四值数组 [上,右,下,左]）
@@ -37,6 +41,7 @@ Leafer 富文本插件：支持按字符设置样式的可编辑文本元素，�
 - **自动尺寸**：`autoWidth`（自动宽度）, `autoHeight`（自动高度）, `autoSizeAlign`
 
 ### 高级排版特性
+
 - ✅ **行框与基线**：行高、字符垂直位置与 Leafer 原生 `Text` 对齐（同一套基线公式，参照元素 `fontSize`）；在逐字编辑、同行多字号的情况下，面板里填写的 `lineHeight` / `letterSpacing` 仍与原生文本一致
 - ✅ **两端对齐**：自动调整字符间距填满整行（支持 justify/both 等模式）
 - ✅ **自动换行**：固定宽度下按单词边界或强制断词换行
@@ -61,64 +66,65 @@ npm install git+https://github.com/paiDaXing-web/leafer-x-richTextPlus.git
 ## 快速开始
 
 ```ts
-import { App } from 'leafer-ui'
-import { RichText } from 'leafer-x-richTextPlus'
+import { App } from "leafer-ui";
+import { RichText } from "leafer-x-richTextPlus";
 // 引入即自动注册内部编辑器，无需额外调用
 
 const app = new App({
-  view: document.getElementById('canvas'),
+  view: document.getElementById("canvas"),
   width: 800,
   height: 600,
   tree: {},
-  editor: {}  // 启用编辑器才能双击进入编辑
-})
+  editor: {}, // 启用编辑器才能双击进入编辑
+});
 
 // 示例1：自动宽高文本（默认）
 const autoText = new RichText({
   x: 100,
   y: 100,
-  text: '可编辑富文本\n支持多行',
+  text: "可编辑富文本\n支持多行",
   fontSize: 24,
-  fill: '#333',
+  fill: "#333",
   editable: true,
   // autoWidth: true,  // 默认值
   // autoHeight: true  // 默认值
-})
+});
 
 // 示例2：固定宽度 + 自动换行
 const fixedWidthText = new RichText({
   x: 100,
   y: 300,
-  text: '这是一段很长的文本，会自动换行...',
+  text: "这是一段很长的文本，会自动换行...",
   fontSize: 20,
   width: 300,
-  autoWidth: false,  // 固定宽度
-  autoHeight: true,  // 高度自动
-  textWrap: 'normal', // 启用换行
-  textAlign: 'justify', // 两端对齐
-  lineHeight: { type: 'percent', value: 1.8 }, // 1.8× 元素 fontSize，与 Leafer 一致
-  padding: 15
-})
+  autoWidth: false, // 固定宽度
+  autoHeight: true, // 高度自动
+  textWrap: "normal", // 启用换行
+  textAlign: "justify", // 两端对齐
+  lineHeight: { type: "percent", value: 1.8 }, // 1.8× 元素 fontSize，与 Leafer 一致
+  padding: 15,
+});
 
 // 示例3：多样式文本
 const styledText = new RichText({
   x: 500,
   y: 100,
-  text: '多样式文本示例',
+  text: "多样式文本示例",
   fontSize: 24,
   styleRanges: [
-    { start: 0, end: 3, fontSize: 32, fontWeight: 'bold', fill: '#ff0000' },
-    { start: 3, end: 5, italic: true, fill: '#0066ff', textCase: 'upper' },
-    { start: 5, end: 7, textDecoration: 'under', fill: '#00aa00' }
-  ]
-})
+    { start: 0, end: 3, fontSize: 32, fontWeight: "bold", fill: "#ff0000" },
+    { start: 3, end: 5, italic: true, fill: "#0066ff", textCase: "upper" },
+    { start: 5, end: 7, textDecoration: "under", fill: "#00aa00" },
+  ],
+});
 
-app.tree.add(autoText)
-app.tree.add(fixedWidthText)
-app.tree.add(styledText)
+app.tree.add(autoText);
+app.tree.add(fixedWidthText);
+app.tree.add(styledText);
 ```
 
 ### 交互方式
+
 - **单击**文本：选中元素（由 Leafer Editor 处理）
 - **双击**文本：进入编辑模式，可输入、选区、设置样式
 - **点击画布空白**：退出编辑
@@ -142,29 +148,30 @@ app.tree.add(styledText)
 
 ```ts
 const linearGradient = {
-  type: 'linear',
-  from: 'left',
-  to: 'right',
+  type: "linear",
+  from: "left",
+  to: "right",
   stops: [
-    { offset: 0, color: '#ff4d4f' },
-    { offset: 1, color: '#52c41a' }
-  ]
-}
+    { offset: 0, color: "#ff4d4f" },
+    { offset: 1, color: "#52c41a" },
+  ],
+};
 
-richtext.setSelectionStyles({ fill: linearGradient })
+richtext.setSelectionStyles({ fill: linearGradient });
 ```
+
 ### 描边示例
 
 ```ts
 richtext.setSelectionStyles({
-  stroke: { type: 'solid', color: '#ff0000' },
+  stroke: { type: "solid", color: "#ff0000" },
   strokeWidth: 2,
-  strokeAlign: 'outside',
-  strokeCap: 'round',
-  strokeJoin: 'round',
+  strokeAlign: "outside",
+  strokeCap: "round",
+  strokeJoin: "round",
   dashPattern: [6, 4],
-  dashOffset: 0
-})
+  dashOffset: 0,
+});
 ```
 
 ### 阴影示例
@@ -172,47 +179,48 @@ richtext.setSelectionStyles({
 ```ts
 // 外阴影（整体效果，不受 textOverflow 裁剪）
 const shadowText = new RichText({
-  text: '带阴影的文本',
+  text: "带阴影的文本",
   fontSize: 32,
-  fill: '#333',
+  fill: "#333",
   shadow: {
-    color: 'rgba(0, 0, 0, 0.5)',
+    color: "rgba(0, 0, 0, 0.5)",
     blur: 8,
     x: 0,
     y: 4,
-    spread: 0           // 扩散：以文本框中心整体缩放阴影
-  }
-})
+    spread: 0, // 扩散：以文本框中心整体缩放阴影
+  },
+});
 
 // 内阴影
 const innerShadowText = new RichText({
-  text: '内阴影文本',
+  text: "内阴影文本",
   fontSize: 48,
-  fill: '#fff',
+  fill: "#fff",
   innerShadow: {
-    color: 'rgba(0, 0, 0, 0.6)',
+    color: "rgba(0, 0, 0, 0.6)",
     blur: 6,
     x: 2,
     y: 2,
-    spread: 0
-  }
-})
+    spread: 0,
+  },
+});
 
 // 多阴影（数组形式）
 const multiShadow = new RichText({
-  text: '多重阴影',
+  text: "多重阴影",
   fontSize: 36,
   shadow: [
-    { color: 'rgba(255, 0, 0, 0.5)', blur: 10, x: -4, y: -4 },
-    { color: 'rgba(0, 0, 255, 0.5)', blur: 10, x: 4, y: 4 }
-  ]
-})
+    { color: "rgba(255, 0, 0, 0.5)", blur: 10, x: -4, y: -4 },
+    { color: "rgba(0, 0, 255, 0.5)", blur: 10, x: 4, y: 4 },
+  ],
+});
 
 // 通过面板/API 设置阴影
 richtext.setFullTextStyles({
-  shadow: { color: '#000', blur: 12, x: 0, y: 6, spread: 4 }
-} as any)
+  shadow: { color: "#000", blur: 12, x: 0, y: 6, spread: 4 },
+} as any);
 ```
+
 4. **设置整段样式**：选中元素（不进入编辑），调用 `richtext.setFullTextStyles({ fontWeight: 'bold' })`，只修改指定属性
 5. **退出编辑**：ESC 或点击空白（或 `richtext.exitEditing()`）
 
@@ -222,14 +230,14 @@ richtext.setFullTextStyles({
 
 ```typescript
 // 场景1：整段设置加粗（保留原有颜色等样式）
-richtext.setFullTextStyles({ fontWeight: 'bold' })
+richtext.setFullTextStyles({ fontWeight: "bold" });
 // 结果：所有字符变为加粗，但原有的不同颜色、字号等都保留
 
 // 场景2：选区设置样式
-richtext.enterEditing()
-richtext.selectionStart = 0
-richtext.selectionEnd = 5
-richtext.setSelectionStyles({ fill: '#ff0000', fontSize: 32 })
+richtext.enterEditing();
+richtext.selectionStart = 0;
+richtext.selectionEnd = 5;
+richtext.setSelectionStyles({ fill: "#ff0000", fontSize: 32 });
 // 结果：只有选中的5个字符变为红色32号字
 ```
 
@@ -238,28 +246,28 @@ richtext.setSelectionStyles({ fill: '#ff0000', fontSize: 32 })
 ```typescript
 // 自动宽高（默认）- 宽高随内容调整
 const auto = new RichText({
-  text: '自动调整',
-  autoWidth: true,   // 默认值
-  autoHeight: true   // 默认值
-})
+  text: "自动调整",
+  autoWidth: true, // 默认值
+  autoHeight: true, // 默认值
+});
 
 // 固定宽度 + 自动换行
 const fixed = new RichText({
-  text: '很长的文本会自动换行...',
+  text: "很长的文本会自动换行...",
   width: 300,
-  autoWidth: false,  // 关闭自动宽度
-  textWrap: 'normal' // 启用换行
-})
+  autoWidth: false, // 关闭自动宽度
+  textWrap: "normal", // 启用换行
+});
 
 // 固定宽高 + 溢出处理
 const container = new RichText({
-  text: '内容很多...',
+  text: "内容很多...",
   width: 400,
   height: 200,
   autoWidth: false,
   autoHeight: false,
-  textOverflow: '...'  // 超出显示省略号
-})
+  textOverflow: "...", // 超出显示省略号
+});
 ```
 
 ### 高级排版
@@ -267,30 +275,30 @@ const container = new RichText({
 ```typescript
 // 两端对齐 + 不同字号混排
 const justified = new RichText({
-  text: '两端对齐示例文本',
+  text: "两端对齐示例文本",
   width: 400,
   autoWidth: false,
-  textAlign: 'justify',  // 两端对齐
-  lineHeight: { type: 'percent', value: 1.8 },
+  textAlign: "justify", // 两端对齐
+  lineHeight: { type: "percent", value: 1.8 },
   padding: [10, 20, 10, 20],
   styleRanges: [
-    { start: 0, end: 2, fontSize: 32 },  // 大字号
-    { start: 2, end: 4, fontSize: 16 }   // 小字号
-  ]
+    { start: 0, end: 2, fontSize: 32 }, // 大字号
+    { start: 2, end: 4, fontSize: 16 }, // 小字号
+  ],
   // justify 下非段末行会拉开字距填满行宽；行高/基线与 Leafer Text 数值一致
-})
+});
 ```
 
 ### 行高、字间距与 Leafer `Text` 对齐
 
 RichText 在**逐字测量与绘制**的前提下，对段落级 `lineHeight`、`letterSpacing` 采用与 Leafer 相同的单位规则（等价于 `UnitConvert.number(..., fontSize)`）：
 
-| 写法 | 含义 |
-|------|------|
-| **纯数字** | 像素（px），例如 `lineHeight: 32` 表示行高 32px，`letterSpacing: 2` 表示字间距 2px |
+| 写法                             | 含义                                                                                                                       |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **纯数字**                       | 像素（px），例如 `lineHeight: 32` 表示行高 32px，`letterSpacing: 2` 表示字间距 2px                                         |
 | **`{ type: 'percent', value }`** | 倍数 × **元素** `fontSize`，例如 `{ type: 'percent', value: 1.5 }` 表示行高为 `1.5 × fontSize`（Leafer `Text` 默认即如此） |
-| **`{ type: 'px', value }`** | 显式像素 |
-| **字符级 `letterSpacing`** | `percent` 的参照为**该字符样式**的 `fontSize`（若未设则回落到元素 `fontSize`） |
+| **`{ type: 'px', value }`**      | 显式像素                                                                                                                   |
+| **字符级 `letterSpacing`**       | `percent` 的参照为**该字符样式**的 `fontSize`（若未设则回落到元素 `fontSize`）                                             |
 
 **注意**：若希望与 Leafer 面板里常见的「行高倍数」一致，应使用 `{ type: 'percent', value: 1.5 }`，而不是写 `lineHeight: 1.5`（后者在 Leafer 与本插件中均表示 **1.5px** 行高）。
 
@@ -309,8 +317,8 @@ RichText 在**逐字测量与绘制**的前提下，对段落级 `lineHeight`、
 ### 安装（可选）
 
 ```ts
-import { install } from 'leafer-x-richTextPlus'
-install()  // 仅当未通过主入口 "leafer-x-richTextPlus" 引入时需调用
+import { install } from "leafer-x-richTextPlus";
+install(); // 仅当未通过主入口 "leafer-x-richTextPlus" 引入时需调用
 ```
 
 引入 `leafer-x-richTextPlus` 时已自动注册内部编辑器，一般无需单独 `install()`。
@@ -325,73 +333,73 @@ install()  // 仅当未通过主入口 "leafer-x-richTextPlus" 引入时需调�
 
 **基础属性**
 
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `text` | `string` | `''` | 文本内容 |
-| `x`, `y` | `number` | - | 位置 |
+| 属性       | 类型      | 默认值 | 说明       |
+| ---------- | --------- | ------ | ---------- |
+| `text`     | `string`  | `''`   | 文本内容   |
+| `x`, `y`   | `number`  | -      | 位置       |
 | `editable` | `boolean` | `true` | 是否可编辑 |
 
 **字符样式（基础，可被字符级样式覆盖）**
 
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `fontSize` | `number` | `16` | 字号 |
-| `fontFamily` | `string` | `'Arial, sans-serif'` | 字体 |
-| `fontWeight` | `IRichTextFontWeight` | `'normal'` | 字重：Leafer 的 `normal`/`bold`/数值 + 命名字符串（如 `thin`、`medium`、`semi-bold`、`black` 等），与原生 `Text` 映射一致 |
-| `fill` | `IFill` | `'#000000'` | 填充色（纯色/渐变/图像） |
-| `stroke` | `IStroke` | `undefined` | 描边（纯色/渐变/图案/多描边） |
-| `strokeWidth` | `number` | `0` | 描边宽度 |
-| `strokeAlign` | `'inside' \| 'center' \| 'outside'` | `'outside'` | 描边对齐方式 |
-| `strokeCap` | `'none' \| 'round' \| 'square'` | `'none'` | 描边端点形状 |
-| `strokeJoin` | `'miter' \| 'bevel' \| 'round'` | `'miter'` | 描边拐角处理 |
-| `dashPattern` | `number[]` | `undefined` | 虚线描边间隔 |
-| `dashOffset` | `number` | `0` | 虚线起点偏移 |
-| `shadow` | `object \| object[]` | `undefined` | 外阴影（支持 color/blur/x/y/spread/blendMode） |
-| `innerShadow` | `object \| object[]` | `undefined` | 内阴影（同上，限制在文字形状内部） |
-| `italic` | `boolean` | `false` | 是否斜体 |
-| `textCase` | `ITextCase` | `'none'` | 大小写（none/upper/lower/title） |
-| `textDecoration` | `ITextDecoration` | `'none'` | 装饰线（none/under/delete/under-delete） |
-| `letterSpacing` | `number \| IUnitData` | `0` | 字间距（纯数字=px；`percent` 相对元素 `fontSize`，见上文） |
+| 属性             | 类型                                | 默认值                | 说明                                                                                                                      |
+| ---------------- | ----------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `fontSize`       | `number`                            | `16`                  | 字号                                                                                                                      |
+| `fontFamily`     | `string`                            | `'Arial, sans-serif'` | 字体                                                                                                                      |
+| `fontWeight`     | `IRichTextFontWeight`               | `'normal'`            | 字重：Leafer 的 `normal`/`bold`/数值 + 命名字符串（如 `thin`、`medium`、`semi-bold`、`black` 等），与原生 `Text` 映射一致 |
+| `fill`           | `IFill`                             | `'#000000'`           | 填充色（纯色/渐变/图像）                                                                                                  |
+| `stroke`         | `IStroke`                           | `undefined`           | 描边（纯色/渐变/图案/多描边）                                                                                             |
+| `strokeWidth`    | `number`                            | `0`                   | 描边宽度                                                                                                                  |
+| `strokeAlign`    | `'inside' \| 'center' \| 'outside'` | `'outside'`           | 描边对齐方式                                                                                                              |
+| `strokeCap`      | `'none' \| 'round' \| 'square'`     | `'none'`              | 描边端点形状                                                                                                              |
+| `strokeJoin`     | `'miter' \| 'bevel' \| 'round'`     | `'miter'`             | 描边拐角处理                                                                                                              |
+| `dashPattern`    | `number[]`                          | `undefined`           | 虚线描边间隔                                                                                                              |
+| `dashOffset`     | `number`                            | `0`                   | 虚线起点偏移                                                                                                              |
+| `shadow`         | `object \| object[]`                | `undefined`           | 外阴影（支持 color/blur/x/y/spread/blendMode）                                                                            |
+| `innerShadow`    | `object \| object[]`                | `undefined`           | 内阴影（同上，限制在文字形状内部）                                                                                        |
+| `italic`         | `boolean`                           | `false`               | 是否斜体                                                                                                                  |
+| `textCase`       | `ITextCase`                         | `'none'`              | 大小写（none/upper/lower/title）                                                                                          |
+| `textDecoration` | `ITextDecoration`                   | `'none'`              | 装饰线（none/under/delete/under-delete）                                                                                  |
+| `letterSpacing`  | `number \| IUnitData`               | `0`                   | 字间距（纯数字=px；`percent` 相对元素 `fontSize`，见上文）                                                                |
 
 **段落属性（作用于整个元素）**
 
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `lineHeight` | `number \| IUnitData` | `{ type: 'percent', value: 1.5 }` | 行高：纯数字=px；`percent` 为 × 元素 `fontSize`（与 Leafer 默认一致） |
-| `textAlign` | `ITextAlign` | `'left'` | 水平对齐（left/center/right/justify/both） |
-| `verticalAlign` | `IVerticalAlign` | `'top'` | 垂直对齐（top/middle/bottom） |
-| `padding` | `number \| number[]` | `0` | 内边距（单值或 [上,右,下,左]） |
-| `paraIndent` | `number` | `0` | 段落首行缩进 |
-| `paraSpacing` | `number` | `0` | 新段首行前追加的垂直间距（`\n` 分段后与 Leafer `paraStart` 一致） |
-| `textWrap` | `ITextWrap` | `'normal'` | 换行规则（normal/none/break） |
-| `textOverflow` | `IOverflow \| string` | `'show'` | 溢出处理（show/hide/自定义省略符） |
-| `autoSizeAlign` | `boolean` | `true` | 自动尺寸时是否对齐 |
+| 属性            | 类型                  | 默认值                            | 说明                                                                  |
+| --------------- | --------------------- | --------------------------------- | --------------------------------------------------------------------- |
+| `lineHeight`    | `number \| IUnitData` | `{ type: 'percent', value: 1.5 }` | 行高：纯数字=px；`percent` 为 × 元素 `fontSize`（与 Leafer 默认一致） |
+| `textAlign`     | `ITextAlign`          | `'left'`                          | 水平对齐（left/center/right/justify/both）                            |
+| `verticalAlign` | `IVerticalAlign`      | `'top'`                           | 垂直对齐（top/middle/bottom）                                         |
+| `padding`       | `number \| number[]`  | `0`                               | 内边距（单值或 [上,右,下,左]）                                        |
+| `paraIndent`    | `number`              | `0`                               | 段落首行缩进                                                          |
+| `paraSpacing`   | `number`              | `0`                               | 新段首行前追加的垂直间距（`\n` 分段后与 Leafer `paraStart` 一致）     |
+| `textWrap`      | `ITextWrap`           | `'normal'`                        | 换行规则（normal/none/break）                                         |
+| `textOverflow`  | `IOverflow \| string` | `'show'`                          | 溢出处理（show/hide/自定义省略符）                                    |
+| `autoSizeAlign` | `boolean`             | `true`                            | 自动尺寸时是否对齐                                                    |
 
 **尺寸控制**
 
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `width` | `number` | `0` | 固定宽度（0 或未设置时自动） |
-| `height` | `number` | `0` | 固定高度（0 或未设置时自动） |
-| `autoWidth` | `boolean` | `true` | 自动宽度（宽度随内容调整） |
-| `autoHeight` | `boolean` | `true` | 自动高度（高度随内容调整） |
+| 属性         | 类型      | 默认值 | 说明                         |
+| ------------ | --------- | ------ | ---------------------------- |
+| `width`      | `number`  | `0`    | 固定宽度（0 或未设置时自动） |
+| `height`     | `number`  | `0`    | 固定高度（0 或未设置时自动） |
+| `autoWidth`  | `boolean` | `true` | 自动宽度（宽度随内容调整）   |
+| `autoHeight` | `boolean` | `true` | 自动高度（高度随内容调整）   |
 
 **样式数据**
 
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| `styleRanges` | `IStyleRange[]` | 按范围设置的样式（推荐格式） |
-| `styles` | `object` | 旧版按行/字索引的样式（兼容） |
+| 属性          | 类型            | 说明                          |
+| ------------- | --------------- | ----------------------------- |
+| `styleRanges` | `IStyleRange[]` | 按范围设置的样式（推荐格式）  |
+| `styles`      | `object`        | 旧版按行/字索引的样式（兼容） |
 
 **编辑器相关**
 
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `cursorColor` | `string` | `'#000000'` | 光标颜色 |
-| `cursorWidth` | `number` | `2` | 光标宽度 |
-| `selectionColor` | `string` | `'rgba(17,119,255,0.3)'` | 选区高亮色 |
-| `onEditingEntered` | `() => void` | - | 进入编辑时回调 |
-| `onEditingExited` | `() => void` | - | 退出编辑时回调 |
+| 属性               | 类型         | 默认值                   | 说明           |
+| ------------------ | ------------ | ------------------------ | -------------- |
+| `cursorColor`      | `string`     | `'#000000'`              | 光标颜色       |
+| `cursorWidth`      | `number`     | `2`                      | 光标宽度       |
+| `selectionColor`   | `string`     | `'rgba(17,119,255,0.3)'` | 选区高亮色     |
+| `onEditingEntered` | `() => void` | -                        | 进入编辑时回调 |
+| `onEditingExited`  | `() => void` | -                        | 退出编辑时回调 |
 
 #### 样式范围 `IStyleRange`
 
@@ -399,36 +407,36 @@ install()  // 仅当未通过主入口 "leafer-x-richTextPlus" 引入时需调�
 
 ```ts
 interface IStyleRange {
-  start: number   // 起始索引（含）
-  end: number     // 结束索引（不含）
-  
+  start: number; // 起始索引（含）
+  end: number; // 结束索引（不含）
+
   // 基础样式
-  fontSize?: number
-  fontFamily?: string
-  fontWeight?: IRichTextFontWeight
-  fill?: IFill
-  stroke?: IStroke
-  strokeWidth?: number
-  strokeAlign?: 'inside' | 'center' | 'outside'
-  strokeCap?: 'none' | 'round' | 'square'
-  strokeJoin?: 'miter' | 'bevel' | 'round'
-  dashPattern?: number[]
-  dashOffset?: number
-  italic?: boolean
-  
+  fontSize?: number;
+  fontFamily?: string;
+  fontWeight?: IRichTextFontWeight;
+  fill?: IFill;
+  stroke?: IStroke;
+  strokeWidth?: number;
+  strokeAlign?: "inside" | "center" | "outside";
+  strokeCap?: "none" | "round" | "square";
+  strokeJoin?: "miter" | "bevel" | "round";
+  dashPattern?: number[];
+  dashOffset?: number;
+  italic?: boolean;
+
   // 文本格式
-  textCase?: ITextCase
-  textDecoration?: ITextDecoration
-  letterSpacing?: number | IUnitData
-  textBackgroundColor?: string
-  
+  textCase?: ITextCase;
+  textDecoration?: ITextDecoration;
+  letterSpacing?: number | IUnitData;
+  textBackgroundColor?: string;
+
   // 阴影效果
-  shadow?: IShadowEffect | IShadowEffect[]
-  innerShadow?: IShadowEffect | IShadowEffect[]
+  shadow?: IShadowEffect | IShadowEffect[];
+  innerShadow?: IShadowEffect | IShadowEffect[];
 
   // 兼容旧属性
-  underline?: boolean
-  linethrough?: boolean
+  underline?: boolean;
+  linethrough?: boolean;
 }
 ```
 
@@ -439,32 +447,32 @@ interface IStyleRange {
 ```ts
 interface ICharStyle {
   // 基础样式
-  fill?: IFill
-  stroke?: IStroke
-  strokeWidth?: number
-  strokeAlign?: 'inside' | 'center' | 'outside'
-  strokeCap?: 'none' | 'round' | 'square'
-  strokeJoin?: 'miter' | 'bevel' | 'round'
-  dashPattern?: number[]
-  dashOffset?: number
-  fontSize?: number
-  fontFamily?: string
-  fontWeight?: IRichTextFontWeight
-  italic?: boolean
-  
+  fill?: IFill;
+  stroke?: IStroke;
+  strokeWidth?: number;
+  strokeAlign?: "inside" | "center" | "outside";
+  strokeCap?: "none" | "round" | "square";
+  strokeJoin?: "miter" | "bevel" | "round";
+  dashPattern?: number[];
+  dashOffset?: number;
+  fontSize?: number;
+  fontFamily?: string;
+  fontWeight?: IRichTextFontWeight;
+  italic?: boolean;
+
   // 文本格式
-  textCase?: ITextCase           // 大小写：none/upper/lower/title
-  textDecoration?: ITextDecoration  // 装饰线：none/under/delete/under-delete
-  letterSpacing?: number | IUnitData  // 字间距（单位规则见「行高、字间距与 Leafer 对齐」）
-  textBackgroundColor?: string
+  textCase?: ITextCase; // 大小写：none/upper/lower/title
+  textDecoration?: ITextDecoration; // 装饰线：none/under/delete/under-delete
+  letterSpacing?: number | IUnitData; // 字间距（单位规则见「行高、字间距与 Leafer 对齐」）
+  textBackgroundColor?: string;
 
   // 阴影效果
-  shadow?: IShadowEffect | IShadowEffect[]
-  innerShadow?: IShadowEffect | IShadowEffect[]
-  
+  shadow?: IShadowEffect | IShadowEffect[];
+  innerShadow?: IShadowEffect | IShadowEffect[];
+
   // 兼容旧属性（自动转换为 textDecoration）
-  underline?: boolean
-  linethrough?: boolean
+  underline?: boolean;
+  linethrough?: boolean;
 }
 ```
 
@@ -473,46 +481,54 @@ interface ICharStyle {
 ```ts
 // 富文本字重（在 Leafer IFontWeight 基础上增加 CSS 风格命名字符串，便于与面板 / Figma 习惯一致）
 type IFontWeightString =
-  | 'thin' | 'extra-light' | 'light' | 'normal' | 'medium'
-  | 'semi-bold' | 'bold' | 'extra-bold' | 'black'
-type IRichTextFontWeight = IFontWeight | IFontWeightString
+  | "thin"
+  | "extra-light"
+  | "light"
+  | "normal"
+  | "medium"
+  | "semi-bold"
+  | "bold"
+  | "extra-bold"
+  | "black";
+type IRichTextFontWeight = IFontWeight | IFontWeightString;
 
 // 大小写
-type ITextCase = 'title' | 'upper' | 'lower' | 'none'
+type ITextCase = "title" | "upper" | "lower" | "none";
 
 // 装饰线
-type ITextDecoration = ITextDecorationType | ITextDecorationData
-type ITextDecorationType = 'none' | 'under' | 'delete' | 'under-delete'
+type ITextDecoration = ITextDecorationType | ITextDecorationData;
+type ITextDecorationType = "none" | "under" | "delete" | "under-delete";
 
 interface ITextDecorationData {
-  type: ITextDecorationType
-  color: string  // 装饰线颜色
-  offset?: number  // 下划线偏移
+  type: ITextDecorationType;
+  color: string; // 装饰线颜色
+  offset?: number; // 下划线偏移
 }
 
 // 单位数据
 interface IUnitData {
-  type: 'percent' | 'px'
-  value: number
+  type: "percent" | "px";
+  value: number;
 }
 
 // 文本对齐
-type ITextAlign = 'left' | 'center' | 'right' | 'justify' | 'justify-letter' | 'both' | 'both-letter'
+type ITextAlign =
+  "left" | "center" | "right" | "justify" | "justify-letter" | "both" | "both-letter";
 
 // 换行规则
-type ITextWrap = 'normal' | 'none' | 'break'
+type ITextWrap = "normal" | "none" | "break";
 
 // 溢出处理
-type IOverflow = 'show' | 'hide' | string  // 字符串为自定义省略符
+type IOverflow = "show" | "hide" | string; // 字符串为自定义省略符
 
 // 阴影效果（与 Leafer ILeafShadowEffect 对齐）
 interface IShadowEffect {
-  color?: string          // 阴影颜色，支持 rgba/hex
-  blur?: number           // 模糊半径，默认 0
-  x?: number              // X 方向偏移，默认 0
-  y?: number              // Y 方向偏移，默认 0
-  spread?: number         // 扩散值，以文本框中心整体缩放阴影（>0 放大，<0 缩小）
-  blendMode?: string      // 混合模式，如 'normal', 'multiply' 等
+  color?: string; // 阴影颜色，支持 rgba/hex
+  blur?: number; // 模糊半径，默认 0
+  x?: number; // X 方向偏移，默认 0
+  y?: number; // Y 方向偏移，默认 0
+  spread?: number; // 扩散值，以文本框中心整体缩放阴影（>0 放大，<0 缩小）
+  blendMode?: string; // 混合模式，如 'normal', 'multiply' 等
 }
 ```
 
@@ -520,12 +536,12 @@ interface IShadowEffect {
 
 ### 实例属性
 
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| `text` | `string` | 文本内容，可读写 |
-| `isEditing` | `boolean` | 是否处于编辑状态 |
-| `selectionStart` | `number` | 选区起始索引（线性字符下标，含） |
-| `selectionEnd` | `number` | 选区结束索引（线性字符下标，不含） |
+| 属性             | 类型      | 说明                               |
+| ---------------- | --------- | ---------------------------------- |
+| `text`           | `string`  | 文本内容，可读写                   |
+| `isEditing`      | `boolean` | 是否处于编辑状态                   |
+| `selectionStart` | `number`  | 选区起始索引（线性字符下标，含）   |
+| `selectionEnd`   | `number`  | 选区结束索引（线性字符下标，不含） |
 
 #### selectionStart / selectionEnd 用法与实时性
 
@@ -538,34 +554,34 @@ interface IShadowEffect {
 - **示例**：
   ```ts
   // 读取：当前选区/光标
-  const start = richtext.selectionStart
-  const end = richtext.selectionEnd
-  const selectedText = richtext.text.slice(start, end)
+  const start = richtext.selectionStart;
+  const end = richtext.selectionEnd;
+  const selectedText = richtext.text.slice(start, end);
 
   // 写入：设置选区（需在编辑状态下），改完后需 forceRender 才能更新画布
-  richtext.selectionStart = 0
-  richtext.selectionEnd = 5
-  richtext.forceRender()
+  richtext.selectionStart = 0;
+  richtext.selectionEnd = 5;
+  richtext.forceRender();
   ```
 
 ---
 
 ### 实例方法
 
-| 方法 | 说明 |
-|------|------|
-| `enterEditing(cursorPosition?: number)` | 进入编辑模式，可选传入初始光标索引 |
-| `exitEditing()` | 退出编辑模式 |
-| `refocus()` | 编辑状态下将焦点拉回内部输入（如点完面板按钮后调用） |
-| `setSelectionStyles(style: Partial<ICharStyle>)` | 为当前选区设置样式（需有选区） |
-| `setFullTextStyles(style: Partial<ICharStyle>)` | 为整段文本设置样式，只修改指定属性，保留其他样式差异 |
-| `getSelectionStyles(): ICharStyle[]` | 获取当前选区各字符的样式数组 |
-| `getStyleAt(index: number): ICharStyle` | 获取指定位置的字符样式 |
-| `clearSelectionStyles()` | 清除当前选区的字符级样式，恢复为基础样式 |
-| `clearFullTextStyles()` | 清除整段文本的字符级样式 |
-| `selectAll()` | 全选 |
-| `undo()` / `redo()` | 撤销 / 重做 |
-| `toJSON()` | 导出 JSON，包含 `styleRanges`（与 Figma 风格一致） |
+| 方法                                             | 说明                                                 |
+| ------------------------------------------------ | ---------------------------------------------------- |
+| `enterEditing(cursorPosition?: number)`          | 进入编辑模式，可选传入初始光标索引                   |
+| `exitEditing()`                                  | 退出编辑模式                                         |
+| `refocus()`                                      | 编辑状态下将焦点拉回内部输入（如点完面板按钮后调用） |
+| `setSelectionStyles(style: Partial<ICharStyle>)` | 为当前选区设置样式（需有选区）                       |
+| `setFullTextStyles(style: Partial<ICharStyle>)`  | 为整段文本设置样式，只修改指定属性，保留其他样式差异 |
+| `getSelectionStyles(): ICharStyle[]`             | 获取当前选区各字符的样式数组                         |
+| `getStyleAt(index: number): ICharStyle`          | 获取指定位置的字符样式                               |
+| `clearSelectionStyles()`                         | 清除当前选区的字符级样式，恢复为基础样式             |
+| `clearFullTextStyles()`                          | 清除整段文本的字符级样式                             |
+| `selectAll()`                                    | 全选                                                 |
+| `undo()` / `redo()`                              | 撤销 / 重做                                          |
+| `toJSON()`                                       | 导出 JSON，包含 `styleRanges`（与 Figma 风格一致）   |
 
 ---
 
@@ -578,14 +594,14 @@ interface IShadowEffect {
 
 ```ts
 // 导出
-const json = richtext.toJSON()
+const json = richtext.toJSON();
 
 // 导入
 const clone = new RichText({
   ...json,
-  styleRanges: json.styleRanges
-})
-app.tree.add(clone)
+  styleRanges: json.styleRanges,
+});
+app.tree.add(clone);
 ```
 
 ---
@@ -608,6 +624,5 @@ leafer-x-richTextPlus/
 ├── package.json
 └── README.md
 ```
-
 
 MIT

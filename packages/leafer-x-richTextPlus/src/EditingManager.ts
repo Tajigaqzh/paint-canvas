@@ -1,35 +1,35 @@
 // EditingManager - 全局编辑管理器
 // 确保同一时间只有一个 RichTextPlus 实例在编辑状态
 
-import type { RichTextPlus } from './richTextPlus'
+import type { RichTextPlus } from "./richTextPlus";
 
 export class EditingManager {
-  private static activeEditor: RichTextPlus | null = null
-  
+  private static activeEditor: RichTextPlus | null = null;
+
   /**
    * 请求进入编辑模式
    * 如果有其他实例正在编辑，会先退出
    */
   static requestEditing(editor: RichTextPlus): void {
     if (EditingManager.activeEditor && EditingManager.activeEditor !== editor) {
-      EditingManager.activeEditor.exitEditing()
+      EditingManager.activeEditor.exitEditing();
     }
-    EditingManager.activeEditor = editor
+    EditingManager.activeEditor = editor;
   }
-  
+
   /**
    * 清除活动编辑器
    */
   static clearActive(editor: RichTextPlus): void {
     if (EditingManager.activeEditor === editor) {
-      EditingManager.activeEditor = null
+      EditingManager.activeEditor = null;
     }
   }
-  
+
   /**
    * 获取当前活动编辑器
    */
   static getActive(): RichTextPlus | null {
-    return EditingManager.activeEditor
+    return EditingManager.activeEditor;
   }
 }

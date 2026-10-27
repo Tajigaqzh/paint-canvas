@@ -2,7 +2,13 @@ import "@leafer-in/animate";
 import { Ellipse, Group, Image, Polygon, Rect, Star, type IUI } from "leafer-ui";
 import { CurvedText } from "leafer-x-curved-text";
 import { RichTextPlus } from "leafer-x-richTextPlus";
-import type { IStyleRange, ITextCursorConfig, IPathBezierConfig, IPathAnchorConfig, ITextPathConfig } from "leafer-x-richTextPlus";
+import type {
+  IStyleRange,
+  ITextCursorConfig,
+  IPathBezierConfig,
+  IPathAnchorConfig,
+  ITextPathConfig,
+} from "leafer-x-richTextPlus";
 import type { CanvasNode, ManagedNodeUI, NodeUIInput } from "@/types";
 import { getLeaferAnimation } from "./animation";
 import { getLineClassPrefix, syncLineGroupContent } from "./lineUi";
@@ -159,7 +165,10 @@ export const createNodeUI = (node: CanvasNode): ManagedNodeUI | null => {
 
   // 文本节点由 RichTextPlus 表达，支持逐字样式与内部编辑器。
   if (node.kind === "text") {
-    return new RichTextPlus({ ...input, styleRanges: node.styleRanges }) as unknown as ManagedNodeUI;
+    return new RichTextPlus({
+      ...input,
+      styleRanges: node.styleRanges,
+    }) as unknown as ManagedNodeUI;
   }
 
   if (node.kind === "curvedText") {

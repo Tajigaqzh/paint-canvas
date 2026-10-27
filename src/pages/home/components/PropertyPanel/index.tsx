@@ -295,7 +295,11 @@ function TextProperty({
                 max={128}
                 precision={0}
                 value={Math.max(3, Math.min(128, Math.floor(Number(textPath.sideCount) || 3)))}
-                onChange={(value) => updatePath({ sideCount: Math.max(3, Math.min(128, Math.floor(Number(value ?? 3)))) })}
+                onChange={(value) =>
+                  updatePath({
+                    sideCount: Math.max(3, Math.min(128, Math.floor(Number(value ?? 3)))),
+                  })
+                }
               />
             </label>
           )}
@@ -303,7 +307,10 @@ function TextProperty({
             <span>文字朝向</span>
             <Select
               value={textPath.side ?? "outer"}
-              options={[{ label: "外侧", value: "outer" }, { label: "内侧", value: "inner" }]}
+              options={[
+                { label: "外侧", value: "outer" },
+                { label: "内侧", value: "inner" },
+              ]}
               onChange={(side) => updatePath({ side })}
             />
           </label>
@@ -311,7 +318,10 @@ function TextProperty({
             <span>路径方向</span>
             <Select
               value={textPath.direction ?? "forward"}
-              options={[{ label: "正向", value: "forward" }, { label: "反向", value: "reverse" }]}
+              options={[
+                { label: "正向", value: "forward" },
+                { label: "反向", value: "reverse" },
+              ]}
               onChange={(direction) => updatePath({ direction })}
             />
           </label>

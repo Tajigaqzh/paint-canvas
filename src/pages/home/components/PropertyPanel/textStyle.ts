@@ -5,7 +5,9 @@ import type { CharacterSelection } from "leafer-x-curved-text";
 export const splitGraphemes = (text: string): string[] => {
   const Segmenter = (Intl as any).Segmenter;
   if (Segmenter) {
-    const segments = new Segmenter(undefined, { granularity: "grapheme" }).segment(text) as Iterable<{ segment: string }>;
+    const segments = new Segmenter(undefined, { granularity: "grapheme" }).segment(
+      text,
+    ) as Iterable<{ segment: string }>;
     return Array.from(segments, ({ segment }) => segment);
   }
   return Array.from(text);
@@ -27,18 +29,27 @@ export const applyTextStyleRange = (
       styles.set(index, { ...styles.get(index), ...style });
     }
   });
-  for (let index = Math.max(0, selection.start); index < Math.min(selection.end, count); index += 1) {
+  for (
+    let index = Math.max(0, selection.start);
+    index < Math.min(selection.end, count);
+    index += 1
+  ) {
     styles.set(index, { ...styles.get(index), ...patch });
   }
   const result: IStyleRange[] = [];
-  [...styles.entries()].sort(([left], [right]) => left - right).forEach(([index, style]) => {
-    const previous = result.at(-1);
-    if (previous && previous.end === index && JSON.stringify(styleOf(previous)) === JSON.stringify(style)) {
-      previous.end = index + 1;
-    } else {
-      result.push({ start: index, end: index + 1, ...style });
-    }
-  });
+  [...styles.entries()]
+    .sort(([left], [right]) => left - right)
+    .forEach(([index, style]) => {
+      const previous = result.at(-1);
+      if (
+        previous &&
+        previous.end === index &&
+        JSON.stringify(styleOf(previous)) === JSON.stringify(style)
+      ) {
+        previous.end = index + 1;
+      } else {
+        result.push({ start: index, end: index + 1, ...style });
+      }
+    });
   return result;
 };
-

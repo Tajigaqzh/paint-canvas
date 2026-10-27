@@ -60,7 +60,7 @@ pnpm --filter leafer-x-richTextPlus dev
 内部样式表 `_styles` 是两层 Map：
 
 ```ts
-Map<lineIndex, Map<charIndex, ICharStyle>>
+Map<lineIndex, Map<charIndex, ICharStyle>>;
 ```
 
 基础样式来自 `RichTextPlus.fontSize`、`RichTextPlus.fill` 等元素级属性；某个字符存在 `_styles[line][char]` 时，该字符样式覆盖基础样式。
@@ -69,8 +69,8 @@ Map<lineIndex, Map<charIndex, ICharStyle>>
 
 ```ts
 for (let i = start; i < end; i += 1) {
-  const loc = this._linearToLocation(i)
-  this._styles.get(loc.lineIndex)!.set(loc.charIndex, { ...style })
+  const loc = this._linearToLocation(i);
+  this._styles.get(loc.lineIndex)!.set(loc.charIndex, { ...style });
 }
 ```
 
@@ -81,7 +81,7 @@ for (let i = start; i < end; i += 1) {
 编辑状态下，实例维护两个线性字素索引：`selectionStart` 和 `selectionEnd`。调用：
 
 ```ts
-richText.setSelectionStyles({ fill: '#dc2626', fontSize: 58 })
+richText.setSelectionStyles({ fill: "#dc2626", fontSize: 58 });
 ```
 
 核心逻辑在 `richTextPlus.ts:1184` 附近：
@@ -93,8 +93,8 @@ richText.setSelectionStyles({ fill: '#dc2626', fontSize: 58 })
 5. 将新样式与该字符已有样式合并，而不是覆盖全部样式：
 
 ```ts
-const existing = lineStyles.get(charIndex) || {}
-lineStyles.set(charIndex, { ...existing, ...style })
+const existing = lineStyles.get(charIndex) || {};
+lineStyles.set(charIndex, { ...existing, ...style });
 ```
 
 6. 调用 `_relayout()`，重新测量并重绘。
@@ -118,9 +118,9 @@ lineStyles.set(charIndex, { ...existing, ...style })
 
 ```ts
 [
-  { start: 0, end: 2, fill: '#d9465f', fontWeight: 'bold' },
-  { start: 8, end: 10, fontSize: 54 }
-]
+  { start: 0, end: 2, fill: "#d9465f", fontWeight: "bold" },
+  { start: 8, end: 10, fontSize: 54 },
+];
 ```
 
 运行时样式是逐字符 Map，导出时 `_compressToStyleRanges()` 会把相邻且样式相同的字符重新合并为 range，减少 JSON 体积。旧版 `styles` 格式仍可读写，用于兼容按行/字符索引的历史数据。
@@ -135,17 +135,17 @@ lineStyles.set(charIndex, { ...existing, ...style })
 
 ```ts
 const text = new RichTextPlus({
-  text: '沿路径排版',
+  text: "沿路径排版",
   textPath: {
     mode: TextPathMode.Polygon,
     sideCount: 5,
     radius: 140,
     startAngle: -90,
-    direction: 'forward',
-    side: 'outer',
-    align: 'center',
+    direction: "forward",
+    side: "outer",
+    align: "center",
   },
-})
+});
 ```
 
 `textPath.side: 'outer'` 让字身朝路径外侧展开，`inner` 朝内侧展开。`direction` 只控制阅读方向，不会隐式改变内外侧。
@@ -159,20 +159,20 @@ text.setPathAnchors([
   { x: -180, y: 0, handleOut: { x: 90, y: -120 } },
   { x: 0, y: -90, handleIn: { x: -70, y: -40 }, handleOut: { x: 70, y: 40 } },
   { x: 180, y: 0, handleIn: { x: -90, y: -120 } },
-])
-text.setPathEditing(true)
+]);
+text.setPathEditing(true);
 ```
 
 也可以注册运行时生成器。回调根据当前路径设置和文字总长度返回路径锚点，坐标相对文字节点原点，控制柄相对所属锚点。回调应保持纯函数语义；它不会写入 JSON，加载文档后需由宿主重新注册。
 
 ```ts
 text.setPathGenerator(({ textLength, textPath }) => {
-  const radius = Math.max(textPath.radius ?? 120, textLength / 4)
+  const radius = Math.max(textPath.radius ?? 120, textLength / 4);
   return Array.from({ length: 6 }, (_, index) => {
-    const angle = (Math.PI * 2 * index) / 6 - Math.PI / 2
-    return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius }
-  })
-})
+    const angle = (Math.PI * 2 * index) / 6 - Math.PI / 2;
+    return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
+  });
+});
 ```
 
 调用 `setPathGenerator()` 不传回调可移除生成器；锚点数据仍可通过 `setPathAnchors()` 显式设置。
@@ -182,7 +182,7 @@ text.setPathGenerator(({ textLength, textPath }) => {
 字符级旋转直接扩展在 `IStyleRange` 上：
 
 ```ts
-styleRanges: [{ start: 2, end: 3, rotation: 15 }]
+styleRanges: [{ start: 2, end: 3, rotation: 15 }];
 ```
 
 ### 锚点删除菜单
@@ -196,11 +196,10 @@ styleRanges: [{ start: 2, end: 3, rotation: 15 }]
 ```ts
 const text = new RichTextPlus({
   pathAnchorMenuEnabled: true,
-  pathAnchorMenuBackground: '#ffffff',
-  pathAnchorMenuDeleteColor: '#dc2626',
+  pathAnchorMenuBackground: "#ffffff",
+  pathAnchorMenuDeleteColor: "#dc2626",
   pathAnchorMenuBorderRadius: 8,
-})
+});
 ```
 
 路径文字中该角度叠加在自动切线角度上；普通文字中则围绕字符中心旋转。
-
