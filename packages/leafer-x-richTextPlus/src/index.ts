@@ -1,6 +1,6 @@
 // RichTextPlus 插件导出
 export { RichTextPlus } from './RichTextPlus'
-export { RichTextEditor } from './RichTextEditor'
+export { RichTextPlusEditor } from './RichTextPlusEditor'
 export type {
   IRichTextInputData,
   ICharStyle,
@@ -10,14 +10,22 @@ export type {
 } from './types'
 export type {
   IPathAnchor,
+  IPathAnchorConfig,
+  IPathAnchorMenuConfig,
+  IPathBezierConfig,
   IPathPoint,
+  ITextCursorConfig,
+  ITextPathConfig,
   ITextPathAlign,
   ITextPathDirection,
   ITextPathData,
+  ITextPathGenerator,
+  ITextPathGeneratorContext,
   ITextPathMode,
   ITextPathSide
 } from './types'
-export { layoutGlyphsOnPath, pointAtPathDistance, resolveCirclePathStartAngle, sampleBezierPath, sampleCirclePath } from './pathLayout'
+export { TextPathMode } from './types'
+export { createRegularPolygonPath, layoutGlyphsOnPath, pointAtPathDistance, resolveCirclePathStartAngle, sampleBezierPath, sampleCirclePath } from './pathLayout'
 export {
   FONT_WEIGHT_STRING_VALUES,
   resolveFontWeightForCanvas,
@@ -27,12 +35,12 @@ export {
 } from './utils'
 
 import { Plugin } from 'leafer-ui'
-Plugin.add('RichTextEditor', 'editor')
+Plugin.add('RichTextPlusEditor', 'editor')
 
 /** 
  * 安装插件（注册内部编辑器）
  * 引入本包时已自动注册，仅需在未通过主入口引入时调用
  */
 export function install(): void {
-  Plugin.add('RichTextEditor', 'editor')
+  Plugin.add('RichTextPlusEditor', 'editor')
 }

@@ -8,13 +8,13 @@
 packages/leafer-x-richTextPlus/
 ├─ src/
 │  ├─ RichTextPlus.ts       # 核心 UI：数据、布局、绘制、选区、输入、撤销重做
-│  ├─ RichTextEditor.ts # Leafer Editor 的内部编辑器适配
+│  ├─ RichTextPlusEditor.ts # Leafer Editor 的内部编辑器适配
 │  ├─ RichTextData.ts   # Leafer 数据层适配，保留特殊单位值
 │  ├─ EditingManager.ts # 全局编辑实例管理
 │  ├─ types.ts          # IRichTextInputData、ICharStyle、IStyleRange 等类型
 │  ├─ constants.ts      # 默认样式和文本分段规则
 │  ├─ utils.ts           # 字素分割、字体测量、字重转换等工具
-│  └─ index.ts           # 导出 API，并注册 RichTextEditor
+│  └─ index.ts           # 导出 API，并注册 RichTextPlusEditor
 ├─ main.ts               # 本仓库的最小可运行 demo
 ├─ main.html             # demo 页面和样式操作按钮
 └─ vite.config.ts        # demo 开发服务器，默认端口 5175
@@ -38,7 +38,7 @@ pnpm --filter leafer-x-richTextPlus dev
 
 1. 创建测量用 Canvas 2D context。
 2. 从 `styleRanges` 或旧版 `styles` 导入字符样式。
-3. 设置 `editInner = 'RichTextEditor'`，让 Leafer Editor 使用插件自己的内部编辑器。
+3. 设置 `editInner = 'RichTextPlusEditor'`，让 Leafer Editor 使用插件自己的内部编辑器。
 4. 绑定指针和键盘相关事件。
 5. 触发布局计算和首次渲染。
 
@@ -105,7 +105,7 @@ lineStyles.set(charIndex, { ...existing, ...style })
 
 ## 编辑器接入
 
-`RichTextEditor.ts` 使用 `@registerInnerEditor()` 注册内部编辑器。双击文本后，Leafer Editor 调用 `onLoad()`：
+`RichTextPlusEditor.ts` 使用 `@registerInnerEditor()` 注册内部编辑器。双击文本后，Leafer Editor 调用 `onLoad()`：
 
 - 调用 `richtext.enterEditing()`；
 - 暂停 Editor 的通用快捷键，避免和文本编辑快捷键冲突；
@@ -133,23 +133,28 @@ lineStyles.set(charIndex, { ...existing, ...style })
 
 ## 路径文字
 
-`RichTextPlus` 支持直线、圆形和自定义三次贝塞尔路径：
+`RichTextPlus` 支持直线、圆形、自定义贝塞尔曲线和正多边形路径。多边形通过 `sides` 设置边数，可用于三角形、四边形、五边形等：
 
 ```ts
 const text = new RichTextPlus({
   text: '沿路径排版',
-  textPath: 'circle',
-  pathRadius: 140,
-  pathStartAngle: -90,
-  pathDirection: 'forward',
-  pathSide: 'outer',
-  pathAlign: 'center',
+  textPath: {
+    mode: TextPathMode.Polygon,
+    sides: 5,
+    radius: 140,
+    startAngle: -90,
+    direction: 'forward',
+    side: 'outer',
+    align: 'center',
+  },
 })
 ```
 
-`pathSide: 'outer'` 让字身朝圆弧外侧展开，`inner` 让字身朝圆心展开。`pathDirection` 只控制阅读方向，不会隐式改变内外侧。
+`textPath.side: 'outer'` 让字身朝路径外侧展开，`inner` 朝内侧展开。`direction` 只控制阅读方向，不会隐式改变内外侧。
 
-自定义路径使用 `pathAnchors`：
+圆形和正多边形都支持路径编辑。开启后拖动圆周控制点或多边形顶点即可调整半径；正多边形的边数和起始角度保持不变。
+
+自定义贝塞尔路径使用锚点：
 
 ```ts
 text.setPathAnchors([
@@ -160,12 +165,43 @@ text.setPathAnchors([
 text.setPathEditing(true)
 ```
 
+也可以注册运行时生成器。回调根据当前路径设置和文字总长度返回路径锚点，坐标相对文字节点原点，控制柄相对所属锚点。回调应保持纯函数语义；它不会写入 JSON，加载文档后需由宿主重新注册。
+
+```ts
+text.setPathGenerator(({ textLength, textPath }) => {
+  const radius = Math.max(textPath.radius ?? 120, textLength / 4)
+  return Array.from({ length: 6 }, (_, index) => {
+    const angle = (Math.PI * 2 * index) / 6 - Math.PI / 2
+    return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius }
+  })
+})
+```
+
+调用 `setPathGenerator()` 不传回调可移除生成器；锚点数据仍可通过 `setPathAnchors()` 显式设置。
+
 路径编辑状态会绘制轨迹、锚点和控制柄。拖动结束后触发一次 `onPathChange`，宿主应把返回的路径数据写回自己的数据源。`convertCircleToPath()` 可将圆形转换为四段贝塞尔路径，再继续增加、删除或移动锚点。
 
 字符级旋转直接扩展在 `IStyleRange` 上：
 
 ```ts
 styleRanges: [{ start: 2, end: 3, rotation: 15 }]
+```
+
+### 锚点删除菜单
+
+路径编辑时双击锚点可选中它。`pathAnchorMenuEnabled` 默认 `false`：关闭时按 Delete/Backspace 删除选中的锚点；开启时显示可触摸的“删除锚点”菜单，并禁用这两个键的锚点删除。
+
+菜单外观可通过 `pathAnchorMenuBackground`、`pathAnchorMenuColor`、`pathAnchorMenuDeleteColor`、`pathAnchorMenuBorderColor`、`pathAnchorMenuBorderRadius`、`pathAnchorMenuFontSize`、`pathAnchorMenuPadding` 和 `pathAnchorMenuShadow` 配置。
+
+路径参考线、锚点和控制柄的显示样式也可配置；`pathAnchorActiveFill` 单独控制选中锚点的实心颜色。未显式配置的路径外观字段不会写入 `toJSON()`；菜单关闭时菜单开关和菜单样式字段也不会写入。
+
+```ts
+const text = new RichTextPlus({
+  pathAnchorMenuEnabled: true,
+  pathAnchorMenuBackground: '#ffffff',
+  pathAnchorMenuDeleteColor: '#dc2626',
+  pathAnchorMenuBorderRadius: 8,
+})
 ```
 
 路径文字中该角度叠加在自动切线角度上；普通文字中则围绕字符中心旋转。

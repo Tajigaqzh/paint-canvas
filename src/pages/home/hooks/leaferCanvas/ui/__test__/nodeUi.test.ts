@@ -62,6 +62,47 @@ describe("getNodeUIInput", () => {
       width: 20,
     });
   });
+
+  it("maps configurable RichTextPlus path and caret appearance", () => {
+    const input = getNodeUIInput({
+      fontSize: 28,
+      id: "text-1",
+      kind: "text",
+      name: "text",
+      text: "A",
+      textCursor: { color: "#ff0000", width: 3 },
+      anchor: {
+        activeFill: "#1677ff",
+        fill: "#ffffff",
+        radius: 8,
+        menu: {
+          enabled: true,
+          background: "#eeeeee",
+          deleteColor: "#aa0000",
+          borderRadius: 10,
+        },
+      },
+      bezier: { guideColor: "#00aa88", guideWidth: 2, handleSize: 10 },
+      x: 0,
+      y: 0,
+    });
+
+    expect(input).toMatchObject({
+      textCursor: { color: "#ff0000", width: 3 },
+      anchor: {
+        activeFill: "#1677ff",
+        fill: "#ffffff",
+        radius: 8,
+        menu: {
+          enabled: true,
+          background: "#eeeeee",
+          deleteColor: "#aa0000",
+          borderRadius: 10,
+        },
+      },
+      bezier: { guideColor: "#00aa88", guideWidth: 2, handleSize: 10 },
+    });
+  });
 });
 
 describe("getNodePatchFromUI", () => {
@@ -99,6 +140,42 @@ describe("getNodePatchFromUI", () => {
       styleRanges: [{ start: 0, end: 1, fill: "#ff0000" }],
       x: 10,
       y: 20,
+    });
+  });
+
+  it("persists grouped RichTextPlus configuration from its serialized data", () => {
+    const node = {
+      animationList: [],
+      fontSize: 28,
+      id: "text-1",
+      kind: "text",
+      name: "text",
+      text: "A",
+      x: 0,
+      y: 0,
+    } as const;
+    const patch = getNodePatchFromUI(
+      {
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        toJSON: () => ({
+          textPath: { mode: "custom", anchors: [{ x: 0, y: 0 }] },
+          bezier: { guideWidth: 2 },
+          anchor: { activeFill: "#1677ff" },
+          textCursor: { color: "#ff0000" },
+        }),
+        x: 0,
+        y: 0,
+      } as never,
+      node as never,
+    );
+
+    expect(patch).toMatchObject({
+      textPath: { mode: "custom", anchors: [{ x: 0, y: 0 }] },
+      bezier: { guideWidth: 2 },
+      anchor: { activeFill: "#1677ff" },
+      textCursor: { color: "#ff0000" },
     });
   });
 
@@ -187,7 +264,14 @@ describe("createNodeUI", () => {
     expect(input).toMatchObject({ scaleX: 1.8, scaleY: 1.4 });
   });
 
-  it("maps persisted text path data to RichTextPlus", () => {
+  it("maps grouped persisted text path data to RichTextPlus", () => {
+    const textPath = {
+      align: "center",
+      direction: "reverse",
+      mode: "circle",
+      radius: 140,
+      side: "inner",
+    } as const;
     const input = getNodeUIInput({
       animationList: [],
       fill: "#111827",
@@ -195,22 +279,14 @@ describe("createNodeUI", () => {
       id: "text-path-1",
       kind: "text",
       name: "path text",
-      pathAlign: "center",
-      pathDirection: "reverse",
-      pathRadius: 140,
-      pathSide: "inner",
       text: "Path",
-      textPath: "circle",
+      textPath,
       x: 10,
       y: 20,
     } as never);
 
     expect(input).toMatchObject({
-      pathAlign: "center",
-      pathDirection: "reverse",
-      pathRadius: 140,
-      pathSide: "inner",
-      textPath: "circle",
+      textPath,
     });
   });
 });

@@ -41,20 +41,76 @@ export interface IPathAnchor extends IPathPoint {
   handleOut?: IPathPoint
 }
 
-export type ITextPathMode = 'none' | 'circle' | 'custom'
+export interface IPathBezierConfig {
+  guideColor?: string
+  guideWidth?: number
+  handleFill?: string
+  handleStroke?: string
+  handleSize?: number
+  handleLineWidth?: number
+}
+
+export interface IPathAnchorMenuConfig {
+  enabled?: boolean
+  background?: string
+  color?: string
+  deleteColor?: string
+  borderColor?: string
+  borderRadius?: number
+  fontSize?: number
+  padding?: string
+  shadow?: string
+}
+
+export interface IPathAnchorConfig {
+  fill?: string
+  activeFill?: string
+  stroke?: string
+  radius?: number
+  lineWidth?: number
+  menu?: IPathAnchorMenuConfig
+}
+
+export interface ITextPathConfig {
+  mode?: ITextPathMode
+  radius?: number
+  sides?: number
+  startAngle?: number
+  direction?: ITextPathDirection
+  side?: ITextPathSide
+  align?: ITextPathAlign
+  closed?: boolean
+  anchors?: IPathAnchor[]
+  editing?: boolean
+}
+
+export interface ITextCursorConfig {
+  color?: string
+  width?: number
+}
+
+export enum TextPathMode {
+  None = 'none',
+  Circle = 'circle',
+  Custom = 'custom',
+  Polygon = 'polygon'
+}
+export type ITextPathMode = TextPathMode
+
+/** 自定义路径生成器接收的当前文字路径上下文。坐标以文字节点原点为基准。 */
+export interface ITextPathGeneratorContext {
+  textLength: number
+  textPath: Readonly<ITextPathConfig>
+}
+
+/** 返回路径锚点；控制柄相对所属锚点，坐标以文字节点原点为基准。 */
+export type ITextPathGenerator = (context: ITextPathGeneratorContext) => IPathAnchor[]
 export type ITextPathDirection = 'forward' | 'reverse'
 export type ITextPathSide = 'inner' | 'outer'
 export type ITextPathAlign = 'start' | 'center' | 'end'
 
 export interface ITextPathData {
-  textPath: ITextPathMode
-  pathRadius: number
-  pathStartAngle: number
-  pathDirection: ITextPathDirection
-  pathSide: ITextPathSide
-  pathAlign: ITextPathAlign
-  pathClosed: boolean
-  pathAnchors: IPathAnchor[]
+  textPath: ITextPathConfig
 }
 
 // 重新导出类型供外部使用
@@ -202,19 +258,12 @@ export interface IRichTextInputData extends IUIInputData {
   styles?: any
   
   // 编辑相关
-  cursorColor?: string
-  cursorWidth?: number
+  textCursor?: ITextCursorConfig
   selectionColor?: string
+  bezier?: IPathBezierConfig
+  anchor?: IPathAnchorConfig
 
-  textPath?: ITextPathMode
-  pathRadius?: number
-  pathStartAngle?: number
-  pathDirection?: ITextPathDirection
-  pathSide?: ITextPathSide
-  pathAlign?: ITextPathAlign
-  pathClosed?: boolean
-  pathAnchors?: IPathAnchor[]
-  pathEditing?: boolean
+  textPath?: ITextPathConfig
   
   // 回调（可选，避免 emit 问题）
   onEditingEntered?: () => void
@@ -279,18 +328,11 @@ export interface IRichTextData extends Omit<IUIData, 'fill' | 'stroke' | 'letter
   // 字符级样式
   styles?: any
   
-  cursorColor?: string
-  cursorWidth?: number
+  textCursor?: ITextCursorConfig
   selectionColor?: string
-  textPath?: ITextPathMode
-  pathRadius?: number
-  pathStartAngle?: number
-  pathDirection?: ITextPathDirection
-  pathSide?: ITextPathSide
-  pathAlign?: ITextPathAlign
-  pathClosed?: boolean
-  pathAnchors?: IPathAnchor[]
-  pathEditing?: boolean
+  bezier?: IPathBezierConfig
+  anchor?: IPathAnchorConfig
+  textPath?: ITextPathConfig
 }
 
 /**

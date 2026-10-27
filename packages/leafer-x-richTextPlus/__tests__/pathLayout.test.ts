@@ -1,10 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import {
+  createRegularPolygonPath,
+  getPathCaret,
+  getPathBounds,
   layoutGlyphsOnPath,
+  movePathAnchor,
   resolveCirclePathStartAngle,
   sampleBezierPath,
   sampleCirclePath
 } from '../src/pathLayout'
+
+describe('createRegularPolygonPath', () => {
+  it('creates the requested number of vertices around the origin', () => {
+    const anchors = createRegularPolygonPath(5, 100)
+    expect(anchors).toHaveLength(5)
+    expect(Math.hypot(anchors[0].x, anchors[0].y)).toBeCloseTo(100)
+  })
+
+  it('clamps side counts below three to a triangle', () => {
+    expect(createRegularPolygonPath(2, 50)).toHaveLength(3)
+  })
+})
 
 describe('sampleBezierPath', () => {
   it('samples a straight two-anchor path with its total length', () => {
@@ -21,6 +37,40 @@ describe('sampleBezierPath', () => {
       { x: 100, y: 0, handleIn: { x: -50, y: 100 } }
     ])
     expect(Math.max(...samples.map(point => point.y))).toBeGreaterThan(70)
+  })
+})
+
+describe('getPathBounds', () => {
+  it('includes every path, glyph, and control point with padding', () => {
+    expect(getPathBounds([
+      { x: 10, y: 20 },
+      { x: 50, y: -10 },
+      { x: -5, y: 30 }
+    ], 4)).toEqual({ x: -9, y: -14, width: 63, height: 48 })
+  })
+
+  it('returns empty bounds when there are no points', () => {
+    expect(getPathBounds([], 4)).toEqual({ x: 0, y: 0, width: 0, height: 0 })
+  })
+})
+
+describe('movePathAnchor', () => {
+  const anchors = [{ x: 10, y: 20, handleOut: { x: 5, y: 8 } }]
+
+  it('moves an anchor without changing its relative handles or the source path', () => {
+    expect(movePathAnchor(anchors, 0, 'anchor', 30, 40)).toEqual([
+      { x: 30, y: 40, handleOut: { x: 5, y: 8 } }
+    ])
+    expect(anchors[0]).toEqual({ x: 10, y: 20, handleOut: { x: 5, y: 8 } })
+  })
+
+  it('moves an incoming or outgoing handle in anchor-relative coordinates', () => {
+    expect(movePathAnchor(anchors, 0, 'out', 22, 35)[0].handleOut).toEqual({ x: 12, y: 15 })
+    expect(movePathAnchor(anchors, 0, 'in', 4, 9)[0].handleIn).toEqual({ x: -6, y: -11 })
+  })
+
+  it('keeps the path unchanged when the anchor index is out of range', () => {
+    expect(movePathAnchor(anchors, 2, 'anchor', 30, 40)).toBe(anchors)
   })
 })
 
@@ -54,5 +104,28 @@ describe('layoutGlyphsOnPath', () => {
     const outer = layoutGlyphsOnPath(path, [20], { side: 'outer' })[0]
     const inner = layoutGlyphsOnPath(path, [20], { side: 'inner' })[0]
     expect(inner.rotation - outer.rotation).toBeCloseTo(Math.PI)
+  })
+})
+
+describe('getPathCaret', () => {
+  const samples = sampleBezierPath([{ x: 0, y: 0 }, { x: 100, y: 0 }])
+  const glyph = layoutGlyphsOnPath(samples, [20], { align: 'start' })[0]
+  const reverseGlyph = layoutGlyphsOnPath(samples, [20], { align: 'start', direction: 'reverse' })[0]
+
+  it('places the caret at the leading edge before the first glyph', () => {
+    expect(getPathCaret(samples, glyph, 20)).toEqual({ x: 0, y: 0, rotation: -Math.PI / 2 })
+  })
+
+  it('places the caret at the trailing edge after the current glyph', () => {
+    expect(getPathCaret(samples, glyph, 20, { atEnd: true })).toEqual({ x: 20, y: 0, rotation: -Math.PI / 2 })
+  })
+
+  it('reverses the caret normal with reverse and inner path orientation', () => {
+    expect(getPathCaret(samples, reverseGlyph, 20, { atEnd: true, direction: 'reverse' })).toEqual({
+      x: 80,
+      y: 0,
+      rotation: Math.PI / 2
+    })
+    expect(getPathCaret(samples, glyph, 20, { atEnd: true, side: 'inner' }).rotation).toBeCloseTo(Math.PI / 2)
   })
 })

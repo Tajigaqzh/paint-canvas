@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { TextNode } from "@/types";
+import type { ITextPathMode } from "leafer-x-richTextPlus";
 import PropertyPanel from "../index";
 
 const textNode: TextNode = {
@@ -120,7 +121,7 @@ describe("PropertyPanel", () => {
       <PropertyPanel
         canUngroup={false}
         collapsed={false}
-        node={{ ...textNode, pathRadius: 140, pathSide: "inner", textPath: "circle" }}
+        node={{ ...textNode, textPath: { mode: "circle" as ITextPathMode, radius: 140, side: "inner" } }}
         onToggle={vi.fn()}
         onUngroup={vi.fn()}
         onUpdateNode={vi.fn()}
@@ -130,6 +131,23 @@ describe("PropertyPanel", () => {
     expect(screen.getByLabelText("路径半径")).toHaveValue("140");
     expect(screen.getByText("文字朝向")).toBeTruthy();
     expect(screen.getByText("起始角度")).toBeTruthy();
+    expect(screen.getByText("编辑路径").closest("button")).toBeTruthy();
+  });
+
+  it("正多边形文字提供边数和路径编辑入口", () => {
+    render(
+      <PropertyPanel
+        canUngroup={false}
+        collapsed={false}
+        node={{ ...textNode, textPath: { mode: "polygon" as ITextPathMode, radius: 120, sides: 5 } }}
+        onToggle={vi.fn()}
+        onUngroup={vi.fn()}
+        onUpdateNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("多边形边数")).toHaveValue("5");
+    expect(screen.getByText("编辑路径").closest("button")).toBeTruthy();
   });
 
   it("选中文字可写入字符旋转角度", () => {

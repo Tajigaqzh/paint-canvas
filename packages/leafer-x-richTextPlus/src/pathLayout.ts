@@ -16,9 +16,53 @@ export interface IPathGlyphLayout extends IPathSample {
   rotation: number
 }
 
+export const movePathAnchor = (
+  anchors: IPathAnchor[],
+  index: number,
+  handle: 'anchor' | 'in' | 'out',
+  x: number,
+  y: number
+): IPathAnchor[] => {
+  const anchor = anchors[index]
+  if (!anchor) return anchors
+
+  const next = [...anchors]
+  if (handle === 'anchor') {
+    next[index] = { ...anchor, x, y }
+  } else {
+    const key = handle === 'in' ? 'handleIn' : 'handleOut'
+    next[index] = { ...anchor, [key]: { x: x - anchor.x, y: y - anchor.y } }
+  }
+  return next
+}
+
+export const getPathBounds = (points: IPathPoint[], padding: number) => {
+  if (!points.length) return { x: 0, y: 0, width: 0, height: 0 }
+  const xs = points.map(point => point.x)
+  const ys = points.map(point => point.y)
+  const minX = Math.min(...xs) - padding
+  const minY = Math.min(...ys) - padding
+  const maxX = Math.max(...xs) + padding
+  const maxY = Math.max(...ys) + padding
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+}
+
 /** 把圆形文字的视觉锚点角度换算为完整圆路径的采样起点。 */
 export const resolveCirclePathStartAngle = (anchorAngle: number, align: ITextPathAlign) =>
   align === 'center' ? anchorAngle - 180 : anchorAngle
+
+/** 生成以节点原点为中心的正多边形路径锚点。 */
+export const createRegularPolygonPath = (sides: number, radius: number, startAngle = -90): IPathAnchor[] => {
+  const sideCount = Math.max(3, Math.min(128, Math.floor(sides) || 3))
+  const safeRadius = Math.max(1, radius)
+  return Array.from({ length: sideCount }, (_, index) => {
+    const angle = ((startAngle + index * 360 / sideCount) * Math.PI) / 180
+    return {
+      x: safeRadius * Math.cos(angle),
+      y: safeRadius * Math.sin(angle)
+    }
+  })
+}
 
 const distance = (a: IPathPoint, b: IPathPoint) => Math.hypot(b.x - a.x, b.y - a.y)
 
@@ -120,6 +164,29 @@ export const pointAtPathDistance = (samples: IPathSample[], target: number): IPa
     }
   }
   return { ...samples.at(-1)! }
+}
+
+export const getPathCaret = (
+  samples: IPathSample[],
+  glyph: IPathGlyphLayout,
+  advance: number,
+  options: {
+    atEnd?: boolean
+    direction?: ITextPathDirection
+    side?: ITextPathSide
+    rotation?: number
+  } = {}
+) => {
+  const reverse = options.direction === 'reverse'
+  const direction = reverse ? -1 : 1
+  const offset = (options.atEnd ? 1 : -1) * direction * Math.max(0, advance) / 2
+  const point = pointAtPathDistance(samples, glyph.distance + offset)
+  const textRotation = point.angle + (reverse ? Math.PI : 0) + (options.side === 'inner' ? Math.PI : 0) + (options.rotation ?? 0)
+  return {
+    x: point.x,
+    y: point.y,
+    rotation: textRotation - Math.PI / 2
+  }
 }
 
 export const layoutGlyphsOnPath = (

@@ -1,5 +1,5 @@
 import { App } from "leafer-ui";
-import { RichTextPlus } from "./src";
+import { RichTextPlus, TextPathMode } from "./src";
 
 const app = new App({
   view: document.querySelector("#canvas") as HTMLElement,
@@ -29,10 +29,12 @@ const circleText = new RichTextPlus({
   fontSize: 36,
   fill: "#087f8c",
   editable: true,
-  textPath: "circle",
-  pathRadius: 150,
-  pathAlign: "center",
-  pathSide: "outer",
+  textPath: {
+    mode: TextPathMode.Circle,
+    radius: 150,
+    align: "center",
+    side: "outer",
+  },
   styleRanges: [
     { start: 0, end: 1, fill: "#e76f51", rotation: 0 },
     { start: 7, end: 9, fontSize: 44, fontWeight: "bold" },
@@ -53,15 +55,35 @@ const apply = (style: Parameters<RichTextPlus["setSelectionStyles"]>[0]) => {
 };
 
 document.querySelector("#circle")?.addEventListener("click", () => {
-  circleText.textPath = "circle";
-  circleText.pathSide = "outer";
-  circleText.pathRadius = 150;
+  circleText.set({
+    textPath: { ...circleText.textPath, mode: TextPathMode.Circle, side: "outer", radius: 150 },
+  });
   circleText.setPathEditing(false);
-  circleText.forceRender();
 });
 document.querySelector("#inner")?.addEventListener("click", () => {
-  circleText.pathSide = circleText.pathSide === "inner" ? "outer" : "inner";
-  circleText.forceRender();
+  circleText.set({
+    textPath: {
+      ...circleText.textPath,
+      side: circleText.textPath.side === "inner" ? "outer" : "inner",
+    },
+  });
+});
+document.querySelector("#polygon")?.addEventListener("click", () => {
+  circleText.set({
+    textPath: { ...circleText.textPath, mode: TextPathMode.Polygon, sides: 3, radius: 150, editing: false },
+  });
+});
+document.querySelector("#generated")?.addEventListener("click", () => {
+  circleText.set({
+    textPath: { ...circleText.textPath, mode: TextPathMode.Custom, closed: true, editing: false },
+  });
+  circleText.setPathGenerator(() =>
+    Array.from({ length: 10 }, (_, index) => {
+      const angle = (Math.PI * 2 * index) / 10 - Math.PI / 2;
+      const radius = index % 2 === 0 ? 150 : 70;
+      return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
+    }),
+  );
 });
 document.querySelector("#custom")?.addEventListener("click", () => {
   circleText.setPathAnchors([
@@ -72,8 +94,7 @@ document.querySelector("#custom")?.addEventListener("click", () => {
   circleText.setPathEditing(true);
 });
 document.querySelector("#editPath")?.addEventListener("click", () => {
-  if (circleText.textPath === "circle") circleText.convertCircleToPath();
-  circleText.setPathEditing(!circleText.pathEditing);
+  circleText.setPathEditing(!circleText.textPath.editing);
 });
 
 document.querySelector("#red")?.addEventListener("click", () => apply({ fill: "#dc2626" }));
@@ -82,9 +103,13 @@ document.querySelector("#bold")?.addEventListener("click", () => apply({ fontWei
 setInterval(() => {
   updateStatus();
   const pathStatus = document.querySelector("#path-status") as HTMLElement;
-  pathStatus.textContent = circleText.pathEditing
-    ? `路径编辑：${circleText.pathAnchors?.length ?? 0} 个锚点`
-    : `路径：${circleText.textPath} / ${circleText.pathSide}`;
+  pathStatus.textContent = circleText.textPath.editing
+    ? circleText.textPath.mode === TextPathMode.Circle
+      ? "路径编辑：拖动路径调整半径"
+      : circleText.textPath.mode === TextPathMode.Polygon
+        ? `路径编辑：拖动顶点调整半径（${circleText.textPath.sides ?? 3} 边）`
+        : `路径编辑：${circleText.textPath.anchors?.length ?? 0} 个锚点`
+    : `路径：${circleText.textPath.mode} / ${circleText.textPath.side ?? "outer"}`;
 }, 100);
 
 window.addEventListener("beforeunload", () => app.destroy());

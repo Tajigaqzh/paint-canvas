@@ -1,11 +1,10 @@
 import type { IUIInputData } from "leafer-ui";
 import type {
-  IPathAnchor,
+  IPathAnchorConfig,
+  IPathBezierConfig,
+  ITextCursorConfig,
+  ITextPathConfig,
   IStyleRange,
-  ITextPathAlign,
-  ITextPathDirection,
-  ITextPathMode,
-  ITextPathSide,
 } from "leafer-x-richTextPlus";
 import type { CurvedTextLayout, CurvedTextStyle, CurvedTextStyleRun } from "leafer-x-curved-text";
 
@@ -322,15 +321,10 @@ export interface TextNode extends CanvasNodeBase {
   lineHeight?: number;
   /** RichText 字符级样式范围，索引按 Unicode 字素簇计算。 */
   styleRanges?: IStyleRange[];
-  textPath?: ITextPathMode;
-  pathRadius?: number;
-  pathStartAngle?: number;
-  pathDirection?: ITextPathDirection;
-  pathSide?: ITextPathSide;
-  pathAlign?: ITextPathAlign;
-  pathClosed?: boolean;
-  pathAnchors?: IPathAnchor[];
-  pathEditing?: boolean;
+  textPath?: ITextPathConfig;
+  textCursor?: ITextCursorConfig;
+  bezier?: IPathBezierConfig;
+  anchor?: IPathAnchorConfig;
 }
 
 /** 沿圆弧排列的富文本节点；字符样式按字素簇索引保存。 */

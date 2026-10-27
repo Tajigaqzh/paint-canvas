@@ -1,38 +1,54 @@
 // RichTextPlus 主类 - 继承 UI，完全自定义
-import { UI, registerUI, dataProcessor, boundsType, surfaceType, dataType } from 'leafer-ui'
-import type { 
+import type {
+  IAxis,
+  IFill,
   ILeaferCanvas,
+  IOverflow,
+  IStroke,
+  ITextAlign,
   ITextCase,
   ITextDecoration,
   ITextWrap,
-  IOverflow,
-  ITextAlign,
-  IVerticalAlign,
-  IAxis,
   IUnitData,
-  IFill,
-  IStroke
+  IVerticalAlign
 } from 'leafer-ui'
-import { RichTextData } from './RichTextData'
-import type { 
-  IRichTextInputData,
-  ICharStyle, 
-  ICharMetrics, 
-  ILineMetrics, 
-  StyleMap, 
-  ICursorLocation, 
-  IStyleRange,
+import {boundsType, dataProcessor, dataType, registerUI, surfaceType, UI} from 'leafer-ui'
+import {RichTextData} from './RichTextData'
+import type {
+  ICharMetrics,
+  ICharStyle,
+  ICursorLocation,
+  ILineMetrics,
   IPathAnchor,
-  ITextPathMode,
-  ITextPathDirection,
-  ITextPathSide,
+  IPathAnchorConfig,
+  IPathBezierConfig,
+  ITextCursorConfig,
+  ITextPathConfig,
+  IRichTextInputData,
+  IStyleRange,
   ITextPathAlign,
-  ITextPathData
+  ITextPathData,
+  ITextPathDirection,
+  ITextPathGenerator,
+  ITextPathMode,
+  ITextPathSide,
+  StyleMap
 } from './types'
-import { RICHTEXT_DEFAULTS, RE_WORD_BOUNDARY, RE_PUNCTUATION, RE_CJK } from './constants'
-import { graphemeSplit, buildFontString, measureTextWidth, isLeaferAfterChar } from './utils'
-import { EditingManager } from './EditingManager'
-import { layoutGlyphsOnPath, resolveCirclePathStartAngle, sampleBezierPath, sampleCirclePath, type IPathGlyphLayout } from './pathLayout'
+import {TextPathMode} from './types'
+import {RE_CJK, RE_PUNCTUATION, RE_WORD_BOUNDARY, RICHTEXT_DEFAULTS} from './constants'
+import {buildFontString, graphemeSplit, isLeaferAfterChar, measureTextWidth} from './utils'
+import {EditingManager} from './EditingManager'
+import {
+  getPathBounds,
+  getPathCaret,
+  createRegularPolygonPath,
+  type IPathGlyphLayout,
+  layoutGlyphsOnPath,
+  movePathAnchor,
+  resolveCirclePathStartAngle,
+  sampleBezierPath,
+  sampleCirclePath
+} from './pathLayout'
 
 /** 撤销栈快照 */
 interface IRichTextSnapshot {
@@ -48,6 +64,104 @@ interface IRichTextSnapshot {
 const UNDO_STACK_LIMIT = 200
 /** 连续输入合并窗口（ms） */
 const UNDO_COALESCE_MS = 600
+const PATH_APPEARANCE_KEYS = [
+  'cursorColor',
+  'cursorWidth',
+  'textPath',
+  'pathRadius',
+  'pathSides',
+  'pathStartAngle',
+  'pathDirection',
+  'pathSide',
+  'pathAlign',
+  'pathClosed',
+  'pathAnchors',
+  'pathEditing',
+  'pathGuideColor',
+  'pathGuideWidth',
+  'pathAnchorFill',
+  'pathAnchorStroke',
+  'pathAnchorActiveFill',
+  'pathAnchorRadius',
+  'pathAnchorLineWidth',
+  'pathHandleFill',
+  'pathHandleStroke',
+  'pathHandleSize',
+  'pathHandleLineWidth',
+  'pathAnchorMenuEnabled',
+  'pathAnchorMenuBackground',
+  'pathAnchorMenuColor',
+  'pathAnchorMenuDeleteColor',
+  'pathAnchorMenuBorderColor',
+  'pathAnchorMenuBorderRadius',
+  'pathAnchorMenuFontSize',
+  'pathAnchorMenuPadding',
+  'pathAnchorMenuShadow'
+] as const
+
+const PATH_CONFIG_FIELDS = {
+  textCursor: { color: 'cursorColor', width: 'cursorWidth' },
+  textPath: {
+    mode: 'textPath',
+    radius: 'pathRadius',
+    sides: 'pathSides',
+    startAngle: 'pathStartAngle',
+    direction: 'pathDirection',
+    side: 'pathSide',
+    align: 'pathAlign',
+    closed: 'pathClosed',
+    anchors: 'pathAnchors',
+    editing: 'pathEditing'
+  },
+  bezier: {
+    guideColor: 'pathGuideColor',
+    guideWidth: 'pathGuideWidth',
+    handleFill: 'pathHandleFill',
+    handleStroke: 'pathHandleStroke',
+    handleSize: 'pathHandleSize',
+    handleLineWidth: 'pathHandleLineWidth'
+  },
+  anchor: {
+    fill: 'pathAnchorFill',
+    activeFill: 'pathAnchorActiveFill',
+    stroke: 'pathAnchorStroke',
+    radius: 'pathAnchorRadius',
+    lineWidth: 'pathAnchorLineWidth'
+  },
+  menu: {
+    enabled: 'pathAnchorMenuEnabled',
+    background: 'pathAnchorMenuBackground',
+    color: 'pathAnchorMenuColor',
+    deleteColor: 'pathAnchorMenuDeleteColor',
+    borderColor: 'pathAnchorMenuBorderColor',
+    borderRadius: 'pathAnchorMenuBorderRadius',
+    fontSize: 'pathAnchorMenuFontSize',
+    padding: 'pathAnchorMenuPadding',
+    shadow: 'pathAnchorMenuShadow'
+  }
+} as const
+
+const flattenPathConfig = (data: any): Record<string, unknown> => {
+  if (!data || typeof data !== 'object') return {}
+  const flattened: Record<string, unknown> = {}
+  const assign = (source: any, fields: Record<string, string>) => {
+    if (!source) return
+    Object.entries(fields).forEach(([key, field]) => {
+      if (source[key] !== undefined) flattened[field] = source[key]
+    })
+  }
+  assign(data.textCursor, PATH_CONFIG_FIELDS.textCursor)
+  assign(data.textPath, PATH_CONFIG_FIELDS.textPath)
+  assign(data.bezier, PATH_CONFIG_FIELDS.bezier)
+  assign(data.anchor, PATH_CONFIG_FIELDS.anchor)
+  assign(data.anchor?.menu, PATH_CONFIG_FIELDS.menu)
+  return flattened
+}
+
+const expandPathConfig = (data: any): Record<string, unknown> => {
+  if (!data || typeof data !== 'object') return {}
+  return data
+}
 
 /** 稳定序列化（对象 key 排序），用于样式比较 */
 function stableStringify(value: any): string {
@@ -88,145 +202,216 @@ export class RichTextPlus extends UI {
   
   // ============ 数据属性（响应式）============
   
-  // 文本内容
+  // 文本内容，支持换行。
   @boundsType('')
   declare public text: string
   
-  // 基础字符样式
+  // 默认字号，单位为业务坐标像素；可被字符级样式覆盖。
   @boundsType(RICHTEXT_DEFAULTS.fontSize)
   declare public fontSize: number
   
+  // 默认字体族，按 CSS font-family 格式填写。
   @boundsType(RICHTEXT_DEFAULTS.fontFamily)
   declare public fontFamily: string
   
+  // 默认字重，兼容 Leafer 字重数值和常用字重名称。
   @boundsType(RICHTEXT_DEFAULTS.fontWeight)
   declare public fontWeight: any
   
+  // 默认文字填充，可使用纯色或 Leafer 支持的填充。
   @surfaceType(RICHTEXT_DEFAULTS.fill)
   declare public fill: IFill
   
+  // 默认文字描边，可使用纯色或 Leafer 支持的描边。
   @surfaceType(RICHTEXT_DEFAULTS.stroke)
   declare public stroke: IStroke
   
+  // 默认文字描边宽度，单位为业务坐标像素。
   @boundsType(RICHTEXT_DEFAULTS.strokeWidth)
   declare public strokeWidth: number
   
+  // 默认描边相对字形轮廓的位置。
   @boundsType(RICHTEXT_DEFAULTS.strokeAlign)
   declare public strokeAlign: 'inside' | 'center' | 'outside'
   
+  // 默认描边端点形状。
   @boundsType(RICHTEXT_DEFAULTS.strokeCap)
   declare public strokeCap: 'none' | 'round' | 'square'
   
+  // 默认描边拐角连接形状。
   @boundsType(RICHTEXT_DEFAULTS.strokeJoin)
   declare public strokeJoin: 'miter' | 'bevel' | 'round'
   
+  // 默认描边虚线间隔；undefined 表示实线。
   @boundsType(RICHTEXT_DEFAULTS.dashPattern)
   declare public dashPattern: number[] | undefined
   
+  // 默认虚线起始偏移，单位为业务坐标像素。
   @boundsType(RICHTEXT_DEFAULTS.dashOffset)
   declare public dashOffset: number
   
+  // 默认外阴影效果。
   @surfaceType(RICHTEXT_DEFAULTS.shadow)
   declare public shadow: any
   
+  // 默认内阴影效果。
   @surfaceType(RICHTEXT_DEFAULTS.innerShadow)
   declare public innerShadow: any
   
+  // 默认是否使用斜体。
   @boundsType(RICHTEXT_DEFAULTS.italic)
   declare public italic: boolean
   
-  // 文本格式
+  // 默认大小写转换方式。
   @surfaceType(RICHTEXT_DEFAULTS.textCase)
   declare public textCase: ITextCase
   
+  // 默认文字装饰，如下划线或删除线。
   @surfaceType(RICHTEXT_DEFAULTS.textDecoration)
   declare public textDecoration: ITextDecoration
   
-  // 间距
+  // 默认字符间距，支持数值或 Leafer 单位对象。
   @boundsType(RICHTEXT_DEFAULTS.letterSpacing)
   declare public letterSpacing: number | IUnitData
   
+  // 默认行高，支持数值或 Leafer 单位对象。
   @boundsType(RICHTEXT_DEFAULTS.lineHeight)
   declare public lineHeight: number | IUnitData
   
-  // 换行与溢出
+  // 默认自动换行策略。
   @boundsType(RICHTEXT_DEFAULTS.textWrap)
   declare public textWrap: ITextWrap
   
+  // 默认文本溢出处理方式。
   @boundsType(RICHTEXT_DEFAULTS.textOverflow)
   declare public textOverflow: IOverflow | string
   
-  // 段落属性
+  // 段首缩进，单位为业务坐标像素。
   @boundsType(RICHTEXT_DEFAULTS.paraIndent)
   declare public paraIndent: number
   
+  // 段落之间的额外间距，单位为业务坐标像素。
   @boundsType(RICHTEXT_DEFAULTS.paraSpacing)
   declare public paraSpacing: number
   
+  // 默认水平对齐方式。
   @boundsType(RICHTEXT_DEFAULTS.textAlign)
   declare public textAlign: ITextAlign
   
+  // 固定高度文本框中的默认垂直对齐方式。
   @boundsType(RICHTEXT_DEFAULTS.verticalAlign)
   declare public verticalAlign: IVerticalAlign
   
+  // 自动调整尺寸时是否根据对齐方式补偿文字位置。
   @dataType(RICHTEXT_DEFAULTS.autoSizeAlign)
   declare public autoSizeAlign: boolean
   
+  // 文本内边距，顺序和单位遵循 Leafer padding 约定。
   @boundsType(RICHTEXT_DEFAULTS.padding)
   declare public padding: number | number[]
 
-  @boundsType('none')
-  declare public textPath: ITextPathMode
+  // 路径、光标和控制点设置通过分组对象暴露。
+  @boundsType({})
+  declare public textPath: ITextPathConfig
 
-  @boundsType(120)
-  declare public pathRadius: number
+  @boundsType({})
+  declare public textCursor: ITextCursorConfig
 
-  @boundsType(-90)
-  declare public pathStartAngle: number
+  @boundsType({})
+  declare public bezier: IPathBezierConfig
 
-  @boundsType('forward')
-  declare public pathDirection: ITextPathDirection
-
-  @boundsType('outer')
-  declare public pathSide: ITextPathSide
-
-  @boundsType('center')
-  declare public pathAlign: ITextPathAlign
-
-  @boundsType(false)
-  declare public pathClosed: boolean
-
-  @boundsType([])
-  declare public pathAnchors: IPathAnchor[]
-
-  @dataType(false)
-  declare public pathEditing: boolean
+  @boundsType({})
+  declare public anchor: IPathAnchorConfig
   
-  // 尺寸控制
+  // 固定文本框宽度；autoWidth 为 true 时由内容决定。
   @boundsType(0)
   declare public width: number
   
+  // 固定文本框高度；autoHeight 为 true 时由内容决定。
   @boundsType(0)
   declare public height: number
   
+  // 是否根据文本内容自动计算宽度。
   @boundsType(RICHTEXT_DEFAULTS.autoWidth)
   declare public autoWidth: boolean
   
+  // 是否根据文本内容自动计算高度。
   @boundsType(RICHTEXT_DEFAULTS.autoHeight)
   declare public autoHeight: boolean
   
-  // 编辑相关
+  // 是否允许进入文本编辑模式。
   @boundsType(true)
   declare public editable: boolean
   
-  @surfaceType(RICHTEXT_DEFAULTS.cursorColor)
-  declare public cursorColor: string
-  
-  @surfaceType(RICHTEXT_DEFAULTS.cursorWidth)
-  declare public cursorWidth: number
-  
+  // 文本选区背景颜色。
   @surfaceType(RICHTEXT_DEFAULTS.selectionColor)
   declare public selectionColor: string
+
+  // 内部绘制算法沿用短访问器，实际存储统一落在四个分组属性中。
+  private get _pathMode(): ITextPathMode { return this.textPath?.mode ?? TextPathMode.None }
+  private set _pathMode(value: ITextPathMode) { this.textPath = { ...this.textPath, mode: value } }
+  private get pathRadius(): number { return this.textPath?.radius ?? 120 }
+  private set pathRadius(value: number) { this.textPath = { ...this.textPath, radius: value } }
+  private get pathSides(): number { return this.textPath?.sides ?? 3 }
+  private get pathStartAngle(): number { return this.textPath?.startAngle ?? -90 }
+  private set pathStartAngle(value: number) { this.textPath = { ...this.textPath, startAngle: value } }
+  private get pathDirection(): ITextPathDirection { return this.textPath?.direction ?? 'forward' }
+  private set pathDirection(value: ITextPathDirection) { this.textPath = { ...this.textPath, direction: value } }
+  private get pathSide(): ITextPathSide { return this.textPath?.side ?? 'outer' }
+  private set pathSide(value: ITextPathSide) { this.textPath = { ...this.textPath, side: value } }
+  private get pathAlign(): ITextPathAlign { return this.textPath?.align ?? 'center' }
+  private set pathAlign(value: ITextPathAlign) { this.textPath = { ...this.textPath, align: value } }
+  private get pathClosed(): boolean { return this.textPath?.closed ?? false }
+  private set pathClosed(value: boolean) { this.textPath = { ...this.textPath, closed: value } }
+  private get pathAnchors(): IPathAnchor[] { return this.textPath?.anchors ?? [] }
+  private set pathAnchors(value: IPathAnchor[]) { this.textPath = { ...this.textPath, anchors: value } }
+  private get pathEditing(): boolean { return this.textPath?.editing ?? false }
+  private set pathEditing(value: boolean) { this.textPath = { ...this.textPath, editing: value } }
+  private _pathGenerator?: ITextPathGenerator
+  private get cursorColor(): string { return this.textCursor?.color ?? RICHTEXT_DEFAULTS.cursorColor }
+  private set cursorColor(value: string) { this.textCursor = { ...this.textCursor, color: value } }
+  private get cursorWidth(): number { return this.textCursor?.width ?? RICHTEXT_DEFAULTS.cursorWidth }
+  private set cursorWidth(value: number) { this.textCursor = { ...this.textCursor, width: value } }
+  private get pathGuideColor(): string { return this.bezier?.guideColor ?? RICHTEXT_DEFAULTS.pathGuideColor }
+  private set pathGuideColor(value: string) { this.bezier = { ...this.bezier, guideColor: value } }
+  private get pathGuideWidth(): number { return this.bezier?.guideWidth ?? RICHTEXT_DEFAULTS.pathGuideWidth }
+  private set pathGuideWidth(value: number) { this.bezier = { ...this.bezier, guideWidth: value } }
+  private get pathHandleFill(): string { return this.bezier?.handleFill ?? RICHTEXT_DEFAULTS.pathHandleFill }
+  private set pathHandleFill(value: string) { this.bezier = { ...this.bezier, handleFill: value } }
+  private get pathHandleStroke(): string { return this.bezier?.handleStroke ?? RICHTEXT_DEFAULTS.pathHandleStroke }
+  private set pathHandleStroke(value: string) { this.bezier = { ...this.bezier, handleStroke: value } }
+  private get pathHandleSize(): number { return this.bezier?.handleSize ?? RICHTEXT_DEFAULTS.pathHandleSize }
+  private set pathHandleSize(value: number) { this.bezier = { ...this.bezier, handleSize: value } }
+  private get pathHandleLineWidth(): number { return this.bezier?.handleLineWidth ?? RICHTEXT_DEFAULTS.pathHandleLineWidth }
+  private set pathHandleLineWidth(value: number) { this.bezier = { ...this.bezier, handleLineWidth: value } }
+  private get pathAnchorFill(): string { return this.anchor?.fill ?? RICHTEXT_DEFAULTS.pathAnchorFill }
+  private set pathAnchorFill(value: string) { this.anchor = { ...this.anchor, fill: value } }
+  private get pathAnchorActiveFill(): string { return this.anchor?.activeFill ?? RICHTEXT_DEFAULTS.pathAnchorActiveFill }
+  private set pathAnchorActiveFill(value: string) { this.anchor = { ...this.anchor, activeFill: value } }
+  private get pathAnchorStroke(): string { return this.anchor?.stroke ?? RICHTEXT_DEFAULTS.pathAnchorStroke }
+  private set pathAnchorStroke(value: string) { this.anchor = { ...this.anchor, stroke: value } }
+  private get pathAnchorRadius(): number { return this.anchor?.radius ?? RICHTEXT_DEFAULTS.pathAnchorRadius }
+  private set pathAnchorRadius(value: number) { this.anchor = { ...this.anchor, radius: value } }
+  private get pathAnchorLineWidth(): number { return this.anchor?.lineWidth ?? RICHTEXT_DEFAULTS.pathAnchorLineWidth }
+  private set pathAnchorLineWidth(value: number) { this.anchor = { ...this.anchor, lineWidth: value } }
+  private get pathAnchorMenuEnabled(): boolean { return this.anchor?.menu?.enabled ?? RICHTEXT_DEFAULTS.pathAnchorMenuEnabled }
+  private set pathAnchorMenuEnabled(value: boolean) { this.anchor = { ...this.anchor, menu: { ...this.anchor?.menu, enabled: value } } }
+  private get pathAnchorMenuBackground(): string { return this.anchor?.menu?.background ?? RICHTEXT_DEFAULTS.pathAnchorMenuBackground }
+  private set pathAnchorMenuBackground(value: string) { this.anchor = { ...this.anchor, menu: { ...this.anchor?.menu, background: value } } }
+  private get pathAnchorMenuColor(): string { return this.anchor?.menu?.color ?? RICHTEXT_DEFAULTS.pathAnchorMenuColor }
+  private set pathAnchorMenuColor(value: string) { this.anchor = { ...this.anchor, menu: { ...this.anchor?.menu, color: value } } }
+  private get pathAnchorMenuDeleteColor(): string { return this.anchor?.menu?.deleteColor ?? RICHTEXT_DEFAULTS.pathAnchorMenuDeleteColor }
+  private set pathAnchorMenuDeleteColor(value: string) { this.anchor = { ...this.anchor, menu: { ...this.anchor?.menu, deleteColor: value } } }
+  private get pathAnchorMenuBorderColor(): string { return this.anchor?.menu?.borderColor ?? RICHTEXT_DEFAULTS.pathAnchorMenuBorderColor }
+  private set pathAnchorMenuBorderColor(value: string) { this.anchor = { ...this.anchor, menu: { ...this.anchor?.menu, borderColor: value } } }
+  private get pathAnchorMenuBorderRadius(): number { return this.anchor?.menu?.borderRadius ?? RICHTEXT_DEFAULTS.pathAnchorMenuBorderRadius }
+  private set pathAnchorMenuBorderRadius(value: number) { this.anchor = { ...this.anchor, menu: { ...this.anchor?.menu, borderRadius: value } } }
+  private get pathAnchorMenuFontSize(): number { return this.anchor?.menu?.fontSize ?? RICHTEXT_DEFAULTS.pathAnchorMenuFontSize }
+  private set pathAnchorMenuFontSize(value: number) { this.anchor = { ...this.anchor, menu: { ...this.anchor?.menu, fontSize: value } } }
+  private get pathAnchorMenuPadding(): string { return this.anchor?.menu?.padding ?? RICHTEXT_DEFAULTS.pathAnchorMenuPadding }
+  private set pathAnchorMenuPadding(value: string) { this.anchor = { ...this.anchor, menu: { ...this.anchor?.menu, padding: value } } }
+  private get pathAnchorMenuShadow(): string { return this.anchor?.menu?.shadow ?? RICHTEXT_DEFAULTS.pathAnchorMenuShadow }
+  private set pathAnchorMenuShadow(value: string) { this.anchor = { ...this.anchor, menu: { ...this.anchor?.menu, shadow: value } } }
   
   // 字符级样式（用于导入/导出 JSON），set 时触发更新以保持响应式
   public get styles(): any {
@@ -304,6 +489,22 @@ export class RichTextPlus extends UI {
   public debugMode = false
   private _pathDragIndex: number | null = null
   private _pathDragHandle: 'anchor' | 'in' | 'out' = 'anchor'
+  private _selectedPathAnchorIndex: number | null = null
+  private _configuredPathAppearance = new Set<typeof PATH_APPEARANCE_KEYS[number]>()
+  private _lastPathAnchorClick: { index: number; time: number } | null = null
+  private _handledPointerDownEvents = new WeakSet<object>()
+  private _pathAnchorMenuElement: HTMLDivElement | null = null
+  private _onSelectedPathAnchorKeyDown = (event: KeyboardEvent): void => {
+    if (this._selectedPathAnchorIndex === null) return
+    if (event.key !== 'Delete' && event.key !== 'Backspace') return
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    if (!this.pathAnchorMenuEnabled) this.removePathAnchor(this._selectedPathAnchorIndex)
+  }
+  private _onPathAnchorMenuOutsidePointerDown = (event: PointerEvent): void => {
+    if (this._pathAnchorMenuElement?.contains(event.target as Node)) return
+    this._hidePathAnchorMenu()
+  }
   private _pathChangedDuringDrag = false
   private _pathGlyphs: IPathGlyphLayout[] = []
   
@@ -323,7 +524,8 @@ export class RichTextPlus extends UI {
   }
   
   constructor(data?: IRichTextInputData) {
-    super(data)
+    super(expandPathConfig(data) as IRichTextInputData)
+    this._trackPathAppearance(data)
     
     // ⚠️ 必须先创建测量 canvas，再处理样式（避免 _splitLinesWithWrap 报错）
     this._measureCanvas = document.createElement('canvas')
@@ -334,7 +536,7 @@ export class RichTextPlus extends UI {
     if (data?.onEditingExited) this.onEditingExited = data.onEditingExited
     if (data?.onSelectionChange) this.onSelectionChange = data.onSelectionChange
     if (data?.onPathChange) this.onPathChange = data.onPathChange
-    this.pathEditing = !!data?.pathEditing
+    this.pathEditing = !!data?.textPath?.editing
     
     // 导入样式数据（支持两种格式）
     if (data?.styleRanges) {
@@ -348,8 +550,8 @@ export class RichTextPlus extends UI {
     // 启用边界框命中检测
     this.hitBox = true
     
-    // 指定使用 RichTextEditor 作为内部编辑器
-    this.editInner = 'RichTextEditor'
+    // 指定使用 RichTextPlusEditor 作为内部编辑器
+    this.editInner = 'RichTextPlusEditor'
     
     // 绑定事件
     this._bindEvents()
@@ -358,6 +560,22 @@ export class RichTextPlus extends UI {
 
     // 与 Leafer Text 一致：确保首次渲染时 renderBounds 被正确计算
     this.__layout.renderChanged || this.__layout.renderChange()
+  }
+
+  public set(data: any, transition?: any): void {
+    this._trackPathAppearance(data)
+    super.set(expandPathConfig(data) as any, transition)
+    if (data?.textPath?.editing !== undefined && this._hiddenTextarea) {
+      this.setPathEditing(!!data.textPath.editing)
+    }
+  }
+
+  private _trackPathAppearance(data: any): void {
+    if (!this._configuredPathAppearance || !data || typeof data !== 'object') return
+    const values = { ...data, ...flattenPathConfig(data) }
+    PATH_APPEARANCE_KEYS.forEach(key => {
+      if (values[key] !== undefined) this._configuredPathAppearance.add(key)
+    })
   }
   
   // ============ Leafer 生命周期方法 ============
@@ -383,7 +601,7 @@ export class RichTextPlus extends UI {
       this._updateGraphemes()
       this._measureText()
 
-      if (this.textPath !== 'none') {
+      if (this._pathMode !== TextPathMode.None) {
         const pathBounds = this._getPathBounds()
         const box = this.__layout.boxBounds
         box.x = pathBounds.x
@@ -709,7 +927,7 @@ export class RichTextPlus extends UI {
     
     ctx.save()
 
-    if (this.textPath !== 'none') {
+    if (this._pathMode !== TextPathMode.None) {
       if (this.isEditing && this.selectionStart !== this.selectionEnd) this._drawPathSelection(ctx)
       this._drawPathText(ctx)
       if (this.isEditing && this.selectionStart === this.selectionEnd) this._drawPathCursor(ctx)
@@ -1212,7 +1430,7 @@ export class RichTextPlus extends UI {
   }
 
   private _getPathSamples() {
-    if (this.textPath === 'circle') {
+    if (this._pathMode === TextPathMode.Circle) {
       const textLength = this._lineMetrics.reduce(
         (sum, line) => sum + line.chars.reduce(
           (lineSum, char) => lineSum + char.width + this._parseLetterSpacing(char.style.letterSpacing, char.style.fontSize!), 0
@@ -1223,6 +1441,20 @@ export class RichTextPlus extends UI {
       // pathStartAngle 表示文字的视觉锚点，默认 -90° 应直接位于圆的上方。
       const pathAngle = resolveCirclePathStartAngle(this.pathStartAngle, this.pathAlign)
       return sampleCirclePath(radius, pathAngle)
+    }
+    if (this._pathMode === TextPathMode.Polygon) {
+      return sampleBezierPath(
+        createRegularPolygonPath(this.pathSides, this.pathRadius, this.pathStartAngle),
+        true
+      )
+    }
+    if (this._pathGenerator) {
+      const textLength = this._lineMetrics.reduce(
+        (sum, line) => sum + line.chars.reduce(
+          (lineSum, char) => lineSum + char.width + this._parseLetterSpacing(char.style.letterSpacing, char.style.fontSize!), 0
+        ), 0
+      )
+      return sampleBezierPath(this._pathGenerator({ textLength, textPath: { ...this.textPath } }), this.pathClosed)
     }
     return sampleBezierPath(this.pathAnchors ?? [], this.pathClosed)
   }
@@ -1257,16 +1489,20 @@ export class RichTextPlus extends UI {
     const samples = this._getPathSamples()
     const glyphs = this._getPathGlyphLayouts()
     const fontSize = Math.max(this.fontSize, ...this._lineMetrics.flatMap(line => line.chars.map(char => char.style.fontSize ?? this.fontSize)))
-    const points = glyphs.length ? glyphs : samples
+    const anchors = (this._pathMode === TextPathMode.Custom ? this.pathAnchors ?? [] : []).flatMap(anchor => [
+      anchor,
+      ...(anchor.handleIn ? [{ x: anchor.x + anchor.handleIn.x, y: anchor.y + anchor.handleIn.y }] : []),
+      ...(anchor.handleOut ? [{ x: anchor.x + anchor.handleOut.x, y: anchor.y + anchor.handleOut.y }] : [])
+    ])
+    const points = [...samples, ...glyphs, ...anchors]
     if (!points.length) return { x: 0, y: 0, width: 1, height: Math.max(1, fontSize) }
-    const xs = points.map(point => point.x)
-    const ys = points.map(point => point.y)
-    const padding = fontSize + this._getStrokeExpand()
-    const minX = Math.min(...xs) - padding
-    const minY = Math.min(...ys) - padding
-    const maxX = Math.max(...xs) + padding
-    const maxY = Math.max(...ys) + padding
-    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+    const controlPadding = this.pathEditing
+      ? Math.max(
+          this.pathAnchorRadius + this.pathAnchorLineWidth / 2,
+          this.pathHandleSize / 2 + this.pathHandleLineWidth / 2
+        )
+      : 0
+    return getPathBounds(points, Math.max(fontSize + this._getStrokeExpand(), controlPadding))
   }
 
   private _drawPathText(ctx: CanvasRenderingContext2D): void {
@@ -1312,31 +1548,54 @@ export class RichTextPlus extends UI {
   }
 
   private _drawPathCursor(ctx: CanvasRenderingContext2D): void {
-    const glyph = this._getPathGlyphLayouts()[Math.min(this.selectionStart, this._pathGlyphs.length - 1)]
-    if (!glyph) return
+    const glyphs = this._getPathGlyphLayouts()
+    const chars = this._getPathChars()
+    if (!glyphs.length) return
+
+    const atEnd = this.selectionStart > 0
+    const index = Math.min(Math.max(0, this.selectionStart - (atEnd ? 1 : 0)), glyphs.length - 1)
+    const glyph = glyphs[index]
+    const item = chars[index]
+    if (!item) return
+
+    const advance = item.char.width + this._parseLetterSpacing(item.char.style.letterSpacing, item.char.style.fontSize!)
+    const caret = getPathCaret(this._getPathSamples(), glyph, advance, {
+      atEnd,
+      direction: this.pathDirection,
+      side: this.pathSide,
+      rotation: (item.char.style.rotation ?? 0) * Math.PI / 180
+    })
+    const height = item.char.style.fontSize ?? this.fontSize
+    const normalX = Math.cos(caret.rotation) * height
+    const normalY = Math.sin(caret.rotation) * height
+
     ctx.save()
-    ctx.translate(glyph.x, glyph.y)
-    ctx.rotate(glyph.rotation)
-    ctx.fillStyle = this.cursorColor
-    ctx.fillRect(0, -this.fontSize, this.cursorWidth, this.fontSize)
+    ctx.globalAlpha = this._cursorOpacity
+    ctx.beginPath()
+    ctx.moveTo(caret.x, caret.y)
+    ctx.lineTo(caret.x + normalX, caret.y + normalY)
+    ctx.strokeStyle = this.cursorColor
+    ctx.lineWidth = this.cursorWidth
+    ctx.stroke()
     ctx.restore()
   }
 
   private _drawPathControls(ctx: CanvasRenderingContext2D): void {
     ctx.save()
-    ctx.strokeStyle = 'rgba(22, 119, 255, 0.7)'
-    ctx.fillStyle = '#ffffff'
-    ctx.lineWidth = 1
     const samples = this._getPathSamples()
     if (samples.length > 1) {
       ctx.beginPath()
       samples.forEach((sample, index) => index ? ctx.lineTo(sample.x, sample.y) : ctx.moveTo(sample.x, sample.y))
+      ctx.strokeStyle = this.pathGuideColor
+      ctx.lineWidth = this.pathGuideWidth
       ctx.stroke()
     }
-    const anchors = this.textPath === 'circle'
+    const anchors = this._pathMode === TextPathMode.Circle
       ? [{ x: 0, y: -this.pathRadius }]
-      : (this.pathAnchors ?? [])
-    anchors.forEach(anchor => {
+      : this._pathMode === TextPathMode.Polygon
+        ? createRegularPolygonPath(this.pathSides, this.pathRadius, this.pathStartAngle)
+        : (this.pathAnchors ?? [])
+    anchors.forEach((anchor, index) => {
       if ('handleIn' in anchor && anchor.handleIn) {
         this._drawPathHandle(ctx, anchor, anchor.handleIn)
       }
@@ -1344,7 +1603,10 @@ export class RichTextPlus extends UI {
         this._drawPathHandle(ctx, anchor, anchor.handleOut)
       }
       ctx.beginPath()
-      ctx.arc(anchor.x, anchor.y, 5, 0, Math.PI * 2)
+      ctx.arc(anchor.x, anchor.y, this.pathAnchorRadius, 0, Math.PI * 2)
+      ctx.fillStyle = index === this._selectedPathAnchorIndex ? this.pathAnchorActiveFill : this.pathAnchorFill
+      ctx.strokeStyle = this.pathAnchorStroke
+      ctx.lineWidth = this.pathAnchorLineWidth
       ctx.fill()
       ctx.stroke()
     })
@@ -1354,12 +1616,16 @@ export class RichTextPlus extends UI {
   private _drawPathHandle(ctx: CanvasRenderingContext2D, anchor: IPathAnchor, handle: { x: number; y: number }): void {
     const x = anchor.x + handle.x
     const y = anchor.y + handle.y
+    const halfSize = this.pathHandleSize / 2
+    ctx.strokeStyle = this.pathHandleStroke
+    ctx.fillStyle = this.pathHandleFill
+    ctx.lineWidth = this.pathHandleLineWidth
     ctx.beginPath()
     ctx.moveTo(anchor.x, anchor.y)
     ctx.lineTo(x, y)
     ctx.stroke()
-    ctx.fillRect(x - 3, y - 3, 6, 6)
-    ctx.strokeRect(x - 3, y - 3, 6, 6)
+    ctx.fillRect(x - halfSize, y - halfSize, this.pathHandleSize, this.pathHandleSize)
+    ctx.strokeRect(x - halfSize, y - halfSize, this.pathHandleSize, this.pathHandleSize)
   }
   
   // ============ 样式管理 ============
@@ -1472,7 +1738,7 @@ export class RichTextPlus extends UI {
   private _pointerToIndex(x: number, y: number): number {
     if (!this._lineMetrics.length) return 0
 
-    if (this.textPath !== 'none') {
+    if (this._pathMode !== TextPathMode.None) {
       const glyphs = this._getPathGlyphLayouts()
       const chars = this._getPathChars()
       if (!glyphs.length) return 0
@@ -2503,7 +2769,7 @@ export class RichTextPlus extends UI {
   }
 
   private _getCursorLocalPosition(): { x: number; y: number } {
-    if (this.textPath !== 'none') {
+    if (this._pathMode !== TextPathMode.None) {
       const glyphs = this._getPathGlyphLayouts()
       const glyph = glyphs[Math.min(this.selectionStart, glyphs.length - 1)]
       if (glyph) return { x: glyph.x, y: glyph.y - this.fontSize }
@@ -2570,6 +2836,7 @@ export class RichTextPlus extends UI {
     // 我们需要监听 double_tap 来记录位置，在 Editor 触发 enterEditing 前
     
     this.on('double_tap', (e: any) => {
+      if (this._selectedPathAnchorIndex !== null) return
       const point = this.getInnerPoint(e)
       const index = this._pointerToIndex(point.x, point.y)
       this._pendingCursorPosition = index
@@ -2613,12 +2880,29 @@ export class RichTextPlus extends UI {
   }
   
   /**
-   * 公开方法：处理 pointer down（供 RichTextEditor 调用）
+   * 公开方法：处理 pointer down（供 RichTextPlusEditor 调用）
    */
   public _handlePointerDown(e: any): void {
     if (!this.editable || !this.isEditing) return
+
+    if (e && typeof e === 'object') {
+      if (this._handledPointerDownEvents.has(e)) return
+      this._handledPointerDownEvents.add(e)
+    }
     
     const point = this.getInnerPoint(e)
+    if (this.pathEditing) {
+      const hadSelectedAnchor = this._selectedPathAnchorIndex !== null
+      this._handlePathAnchorDoubleClick(point.x, point.y, e)
+      if (hadSelectedAnchor || this._selectedPathAnchorIndex !== null) {
+        this._isMouseDown = false
+        this._pathDragIndex = null
+        if (hadSelectedAnchor && this._selectedPathAnchorIndex === null) {
+          this._hiddenTextarea?.focus()
+        }
+        return
+      }
+    }
     if (this.pathEditing && this._beginPathControlDrag(point.x, point.y)) return
     const index = this._pointerToIndex(point.x, point.y)
     
@@ -2640,10 +2924,11 @@ export class RichTextPlus extends UI {
   }
   
   /**
-   * 处理指针移动（公开方法，供 RichTextEditor 调用）
+   * 处理指针移动（公开方法，供 RichTextPlusEditor 调用）
    */
   public _handlePointerMove(e: any): void {
     if (!this._isMouseDown || !this.isEditing) return
+    if (this._selectedPathAnchorIndex !== null) return
     
     const point = this.getInnerPoint(e)
     if (this._pathDragIndex !== null) {
@@ -2663,7 +2948,7 @@ export class RichTextPlus extends UI {
   }
   
   /**
-   * 处理指针抬起（公开方法，供 RichTextEditor 调用）
+   * 处理指针抬起（公开方法，供 RichTextPlusEditor 调用）
    */
   public _handlePointerUp(_e: any): void {
     this._isMouseDown = false
@@ -2677,18 +2962,152 @@ export class RichTextPlus extends UI {
   /** 开启路径编辑后，点击空白轨迹会新增锚点，点击锚点可拖动。 */
   public setPathEditing(value: boolean): void {
     this.pathEditing = value
+    if (!value) {
+      this._selectedPathAnchorIndex = null
+      this._lastPathAnchorClick = null
+      this._stopListeningForSelectedPathAnchorKeys()
+      this._hidePathAnchorMenu()
+      if (this.isEditing && this._hiddenTextarea) {
+        this._hiddenTextarea.value = String(this.text || '')
+        this._updateTextarea()
+        this._hiddenTextarea.focus()
+      }
+    }
     this.forceRender()
   }
 
+  private _handlePathAnchorDoubleClick(x: number, y: number, event: any): void {
+    if (this._pathMode === TextPathMode.Circle || this._pathMode === TextPathMode.Polygon) return
+    const anchors = this.pathAnchors ?? []
+    const threshold = Math.max(12, this.pathAnchorRadius + 4)
+    let nearestIndex = -1
+    let nearestDistance = threshold
+    anchors.forEach((anchor, index) => {
+      const distance = Math.hypot(x - anchor.x, y - anchor.y)
+      if (distance <= nearestDistance) {
+        nearestIndex = index
+        nearestDistance = distance
+      }
+    })
+    if (nearestIndex < 0) {
+      this._lastPathAnchorClick = null
+      return
+    }
+    const time = event?.origin?.timeStamp ?? event?.timeStamp ?? Date.now()
+    const elapsed = this._lastPathAnchorClick ? time - this._lastPathAnchorClick.time : -1
+    const isDoubleClick = this._lastPathAnchorClick?.index === nearestIndex && elapsed > 0 && elapsed <= 400
+    this._lastPathAnchorClick = { index: nearestIndex, time }
+    if (!isDoubleClick) return
+    this._selectedPathAnchorIndex = this._selectedPathAnchorIndex === nearestIndex ? null : nearestIndex
+    this._lastPathAnchorClick = null
+    if (this._selectedPathAnchorIndex === null) {
+      this._stopListeningForSelectedPathAnchorKeys()
+      this._hidePathAnchorMenu()
+    } else {
+      this._listenForSelectedPathAnchorKeys()
+      if (this.pathAnchorMenuEnabled) this._showPathAnchorMenu(nearestIndex, x, y, event)
+    }
+    this.forceRender()
+  }
+
+  private _showPathAnchorMenu(index: number, x: number, y: number, event: any): void {
+    if (typeof document === 'undefined') return
+    this._hidePathAnchorMenu()
+
+    const menu = document.createElement('div')
+    menu.setAttribute('role', 'menu')
+    menu.setAttribute('data-rich-text-path-anchor-menu', 'true')
+    menu.style.cssText = [
+      'position:fixed',
+      'z-index:2147483647',
+      'box-sizing:border-box',
+      `background:${this.pathAnchorMenuBackground}`,
+      `color:${this.pathAnchorMenuColor}`,
+      `border:1px solid ${this.pathAnchorMenuBorderColor}`,
+      `border-radius:${this.pathAnchorMenuBorderRadius}px`,
+      `padding:${this.pathAnchorMenuPadding}`,
+      `box-shadow:${this.pathAnchorMenuShadow}`
+    ].join(';')
+
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.setAttribute('role', 'menuitem')
+    button.textContent = '删除锚点'
+    button.style.cssText = [
+      'display:block',
+      'min-width:88px',
+      'min-height:44px',
+      'border:0',
+      'padding:4px 8px',
+      'background:transparent',
+      `color:${this.pathAnchorMenuDeleteColor}`,
+      'font-family:inherit',
+      `font-size:${this.pathAnchorMenuFontSize}px`,
+      'text-align:left',
+      'cursor:pointer',
+      'touch-action:manipulation'
+    ].join(';')
+    button.addEventListener('click', () => {
+      if (this._selectedPathAnchorIndex === index) this.removePathAnchor(index)
+      this._hidePathAnchorMenu()
+    })
+    menu.appendChild(button)
+    document.body.appendChild(menu)
+    this._pathAnchorMenuElement = menu
+    document.addEventListener('pointerdown', this._onPathAnchorMenuOutsidePointerDown, true)
+
+    const origin = event?.origin ?? event
+    const view = (this.leafer as any)?.view as HTMLElement | undefined
+    const rect = view?.getBoundingClientRect?.()
+    const world = this._localToWorldPoint(x, y)
+    const clientX = Number.isFinite(origin?.clientX) ? origin.clientX : (rect?.left ?? 0) + world.x
+    const clientY = Number.isFinite(origin?.clientY) ? origin.clientY : (rect?.top ?? 0) + world.y
+    const left = Math.max(4, Math.min(clientX, window.innerWidth - menu.offsetWidth - 4))
+    const top = Math.max(4, Math.min(clientY, window.innerHeight - menu.offsetHeight - 4))
+    menu.style.left = `${left}px`
+    menu.style.top = `${top}px`
+  }
+
+  private _hidePathAnchorMenu(): void {
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('pointerdown', this._onPathAnchorMenuOutsidePointerDown, true)
+    }
+    this._pathAnchorMenuElement?.remove()
+    this._pathAnchorMenuElement = null
+  }
+
+  private _listenForSelectedPathAnchorKeys(): void {
+    document.addEventListener('keydown', this._onSelectedPathAnchorKeyDown, true)
+  }
+
+  private _stopListeningForSelectedPathAnchorKeys(): void {
+    document.removeEventListener('keydown', this._onSelectedPathAnchorKeyDown, true)
+  }
+
   public setPathAnchors(anchors: IPathAnchor[], closed = this.pathClosed): void {
-    this.textPath = 'custom'
+    this._pathGenerator = undefined
+    this._pathMode = TextPathMode.Custom
     this.pathClosed = closed
     this.pathAnchors = anchors.map(anchor => ({
       ...anchor,
       handleIn: anchor.handleIn ? { ...anchor.handleIn } : undefined,
       handleOut: anchor.handleOut ? { ...anchor.handleOut } : undefined
     }))
+    this._configuredPathAppearance.add('textPath')
+    this._configuredPathAppearance.add('pathClosed')
+    this._configuredPathAppearance.add('pathAnchors')
     this._notifyPathChange()
+    this._relayout()
+  }
+
+  /** 注册运行时路径生成器；返回的坐标相对文字节点原点，回调不会写入 JSON。 */
+  public setPathGenerator(generator?: ITextPathGenerator): void {
+    this._pathGenerator = generator
+    if (generator) {
+      this._pathMode = TextPathMode.Custom
+      this.pathEditing = false
+      this._configuredPathAppearance.add('textPath')
+    }
     this._relayout()
   }
 
@@ -2702,6 +3121,10 @@ export class RichTextPlus extends UI {
     const anchors = [...(this.pathAnchors ?? [])]
     if (index < 0 || index >= anchors.length) return
     anchors.splice(index, 1)
+    this._selectedPathAnchorIndex = null
+    this._lastPathAnchorClick = null
+    this._stopListeningForSelectedPathAnchorKeys()
+    this._hidePathAnchorMenu()
     this.setPathAnchors(anchors)
   }
 
@@ -2719,7 +3142,7 @@ export class RichTextPlus extends UI {
 
   private _beginPathControlDrag(x: number, y: number): boolean {
     const threshold = 12
-    if (this.textPath === 'circle') {
+    if (this._pathMode === TextPathMode.Circle || this._pathMode === TextPathMode.Polygon) {
       const hit = Math.hypot(x, y)
       if (Math.abs(hit - this.pathRadius) <= threshold) {
         this._pathDragIndex = 0
@@ -2784,39 +3207,36 @@ export class RichTextPlus extends UI {
 
   private _movePathControl(x: number, y: number): void {
     if (this._pathDragIndex === null) return
-    if (this.textPath === 'circle') {
+    if (this._pathMode === TextPathMode.Circle || this._pathMode === TextPathMode.Polygon) {
       this.pathRadius = Math.max(8, Math.hypot(x, y))
+      this._configuredPathAppearance.add('pathRadius')
       this._pathChangedDuringDrag = true
     } else {
-      const anchors = [...(this.pathAnchors ?? [])]
-      const anchor = anchors[this._pathDragIndex]
-      if (!anchor) return
-      if (this._pathDragHandle === 'anchor') {
-        anchors[this._pathDragIndex] = { ...anchor, x, y }
-      } else {
-        const key = this._pathDragHandle === 'in' ? 'handleIn' : 'handleOut'
-        anchors[this._pathDragIndex] = { ...anchor, [key]: { x: x - anchor.x, y: y - anchor.y } }
-      }
-      this.pathAnchors = anchors
+      this.pathAnchors = movePathAnchor(this.pathAnchors ?? [], this._pathDragIndex, this._pathDragHandle, x, y)
       this._pathChangedDuringDrag = true
     }
-    this._relayout()
+    // 拖动只改变路径几何，复用已测量的字形，避免每个指针事件都重排整段文本。
+    this.__layout.boxChanged || this.__layout.boxChange()
+    this.forceUpdate()
+    this.forceRender()
   }
 
   private _notifyPathChange(): void {
     this.onPathChange?.({
-      textPath: this.textPath,
-      pathRadius: this.pathRadius,
-      pathStartAngle: this.pathStartAngle,
-      pathDirection: this.pathDirection,
-      pathSide: this.pathSide,
-      pathAlign: this.pathAlign,
-      pathClosed: this.pathClosed,
-      pathAnchors: (this.pathAnchors ?? []).map(anchor => ({
-        ...anchor,
-        handleIn: anchor.handleIn ? { ...anchor.handleIn } : undefined,
-        handleOut: anchor.handleOut ? { ...anchor.handleOut } : undefined
-      }))
+      textPath: {
+        mode: this._pathMode,
+        radius: this.pathRadius,
+        startAngle: this.pathStartAngle,
+        direction: this.pathDirection,
+        side: this.pathSide,
+        align: this.pathAlign,
+        closed: this.pathClosed,
+        anchors: (this.pathAnchors ?? []).map(anchor => ({
+          ...anchor,
+          handleIn: anchor.handleIn ? { ...anchor.handleIn } : undefined,
+          handleOut: anchor.handleOut ? { ...anchor.handleOut } : undefined
+        }))
+      }
     })
   }
   
@@ -2902,6 +3322,9 @@ export class RichTextPlus extends UI {
   public exitEditing(): void {
     if (!this.isEditing) return
     
+    this._hidePathAnchorMenu()
+    this._stopListeningForSelectedPathAnchorKeys()
+    this._selectedPathAnchorIndex = null
     this.isEditing = false
     
     // ✅ 恢复原始 draggable 状态
@@ -2955,7 +3378,7 @@ export class RichTextPlus extends UI {
     textarea.autocapitalize = 'off'
     textarea.autocomplete = 'off'
     textarea.spellcheck = false
-    textarea.setAttribute('data-richtext-editor', 'true')
+    textarea.setAttribute('data-rich-text-plus-editor', 'true')
     textarea.style.cssText = `
       position: fixed;
       top: 0;
@@ -2976,6 +3399,9 @@ export class RichTextPlus extends UI {
     
     // 事件监听
     textarea.addEventListener('input', this._onInput.bind(this))
+    textarea.addEventListener('beforeinput', (e: InputEvent) => {
+      if (this.pathEditing || this._selectedPathAnchorIndex !== null) e.preventDefault()
+    })
     textarea.addEventListener('keydown', this._onKeyDown.bind(this))
     textarea.addEventListener('compositionstart', () => { 
       this._inComposition = true
@@ -3121,6 +3547,12 @@ export class RichTextPlus extends UI {
   
   private _onInput(forceOrEvent?: boolean | Event): void {
     const force = typeof forceOrEvent === 'boolean' ? forceOrEvent : false
+    if ((this.pathEditing || this._selectedPathAnchorIndex !== null) && this._hiddenTextarea) {
+      this._hiddenTextarea.value = String(this.text || '')
+      this._hiddenTextarea.selectionStart = this._graphemeIndexToCodeUnit(this.selectionStart)
+      this._hiddenTextarea.selectionEnd = this._graphemeIndexToCodeUnit(this.selectionEnd)
+      return
+    }
     if (!this._hiddenTextarea || (this._inComposition && !force)) return
 
     // 粘贴进来的 \r\n / \r 需要归一化，否则 \r 会被当普通字符参与排版
@@ -3269,6 +3701,23 @@ export class RichTextPlus extends UI {
   
   private _onKeyDown(e: KeyboardEvent): void {
     const isMod = e.ctrlKey || e.metaKey
+
+    if (this._selectedPathAnchorIndex !== null) {
+      if (!this.pathAnchorMenuEnabled && (e.key === 'Delete' || e.key === 'Backspace')) {
+        e.preventDefault()
+        this.removePathAnchor(this._selectedPathAnchorIndex)
+      } else {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+      return
+    }
+
+    if (this.pathEditing && (e.key === 'Delete' || e.key === 'Backspace')) {
+      e.preventDefault()
+      e.stopPropagation()
+      return
+    }
 
     // 输入法组合期间不拦截任何按键，交给 IME 处理（Esc 用于取消候选）
     if (this._inComposition || (e as any).isComposing) return
@@ -3998,6 +4447,8 @@ export class RichTextPlus extends UI {
    * 销毁：清理隐藏 textarea、定时器、离屏 canvas，避免 DOM / GPU 内存泄漏
    */
   public destroy(): void {
+    this._hidePathAnchorMenu()
+    this._stopListeningForSelectedPathAnchorKeys()
     this._stopCursorBlink()
     this._destroyHiddenTextarea()
     EditingManager.clearActive(this)
@@ -4022,8 +4473,7 @@ export class RichTextPlus extends UI {
     const json = super.toJSON()
     
     // ✅ 使用 styleRanges（简洁格式）
-    const styleRanges = this._compressToStyleRanges()
-    json.styleRanges = styleRanges
+    json.styleRanges = this._compressToStyleRanges()
     
     // 移除不需要导出的内部属性
     delete json.hitBox
@@ -4031,9 +4481,40 @@ export class RichTextPlus extends UI {
     delete json.isEditing
     delete json.selectionStart
     delete json.selectionEnd
-    delete json.cursorColor
-    delete json.cursorWidth
     delete json.selectionColor
+
+    const configuredGroup = (fields: Record<string, string>) => Object.fromEntries(
+      Object.entries(fields)
+        .filter(([, field]) => this._configuredPathAppearance.has(field as typeof PATH_APPEARANCE_KEYS[number]))
+        .map(([key, field]) => [key, (this as any)[field]])
+    )
+    const cursor = configuredGroup(PATH_CONFIG_FIELDS.textCursor)
+    const bezier = configuredGroup(PATH_CONFIG_FIELDS.bezier)
+    const anchor = configuredGroup(PATH_CONFIG_FIELDS.anchor)
+    const menu = this.pathAnchorMenuEnabled ? configuredGroup(PATH_CONFIG_FIELDS.menu) : {}
+
+    delete json.textCursor
+    delete json.bezier
+    delete json.anchor
+    if (Object.keys(cursor).length) json.textCursor = cursor
+    if (Object.keys(bezier).length) json.bezier = bezier
+    if (Object.keys(menu).length) anchor.menu = menu
+    if (Object.keys(anchor).length) json.anchor = anchor
+    const textPath = configuredGroup(PATH_CONFIG_FIELDS.textPath)
+    if (this._configuredPathAppearance.has('textPath')) textPath.mode = this._pathMode
+    if (!this._configuredPathAppearance.has('pathEditing')) delete textPath.editing
+    if (!Object.keys(textPath).length) delete json.textPath
+
+    PATH_APPEARANCE_KEYS.forEach(key => delete json[key])
+    delete json.pathRadius
+    delete json.pathStartAngle
+    delete json.pathDirection
+    delete json.pathSide
+    delete json.pathAlign
+    delete json.pathClosed
+    delete json.pathAnchors
+    delete json.pathEditing
+    if (Object.keys(textPath).length) json.textPath = textPath
     
     return json
   }

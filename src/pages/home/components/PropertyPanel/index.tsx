@@ -1,7 +1,7 @@
 import { EditOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { Button, Divider, Empty, Form, Input, InputNumber, Select, Space } from "antd";
 import { useAppTranslation } from "@/i18n/useAppTranslation";
-import type { ICharStyle } from "leafer-x-richTextPlus";
+import type { ICharStyle, ITextPathMode } from "leafer-x-richTextPlus";
 import type { CharacterSelection } from "leafer-x-curved-text";
 import type {
   CanvasAnimationItem,
@@ -202,12 +202,16 @@ function TextProperty({
     }
     onUpdateNode(node.id, next);
   };
-  const updateTextPath = (textPath: NonNullable<TextNode["textPath"]>) => {
-    if (textPath === "custom" && !node.pathAnchors?.length) {
-      onUpdateNode(node.id, {
-        textPath,
-        pathEditing: true,
-        pathAnchors: [
+  const textPath = node.textPath ?? {};
+  const updatePath = (patch: Partial<NonNullable<TextNode["textPath"]>>) => {
+    onUpdateNode(node.id, { textPath: { ...textPath, ...patch } });
+  };
+  const updateTextPath = (mode: NonNullable<TextNode["textPath"]>["mode"]) => {
+    if (mode === "custom" && !textPath.anchors?.length) {
+      updatePath({
+        mode,
+        editing: true,
+        anchors: [
           { x: -180, y: 0, handleOut: { x: 90, y: -120 } },
           { x: 0, y: -90, handleIn: { x: -70, y: -40 }, handleOut: { x: 70, y: 40 } },
           { x: 180, y: 0, handleIn: { x: -90, y: -120 } },
@@ -215,7 +219,12 @@ function TextProperty({
       });
       return;
     }
-    onUpdateNode(node.id, { textPath, ...(textPath === "none" && { pathEditing: false }) });
+    updatePath({
+      mode,
+      ...(mode === "polygon" && { sides: textPath.sides ?? 3 }),
+      ...(mode === "polygon" && { editing: false }),
+      ...(mode === "none" && { editing: false }),
+    });
   };
 
   return (
@@ -258,66 +267,79 @@ function TextProperty({
       <label className="property-field">
         <span>文字路径</span>
         <Select
-          value={node.textPath ?? "none"}
+          value={textPath.mode ?? ("none" as ITextPathMode)}
           options={[
-            { label: "直线", value: "none" },
-            { label: "圆形", value: "circle" },
-            { label: "自定义曲线", value: "custom" },
+            { label: "直线", value: "none" as ITextPathMode },
+            { label: "圆形", value: "circle" as ITextPathMode },
+            { label: "自定义曲线", value: "custom" as ITextPathMode },
+            { label: "正多边形", value: "polygon" as ITextPathMode },
           ]}
           onChange={updateTextPath}
         />
       </label>
-      {node.textPath && node.textPath !== "none" && (
+      {textPath.mode && textPath.mode !== "none" && (
         <>
           <label className="property-field">
             <span>路径半径</span>
             <InputNumber
               min={8}
-              value={toPanelNumber(node.pathRadius ?? 120)}
-              onChange={(value) => onUpdateNode(node.id, { pathRadius: Number(value ?? 120) })}
+              value={toPanelNumber(textPath.radius ?? 120)}
+              onChange={(value) => updatePath({ radius: Number(value ?? 120) })}
             />
           </label>
+          {textPath.mode === "polygon" && (
+            <label className="property-field">
+              <span>多边形边数</span>
+              <InputNumber
+                min={3}
+                max={128}
+                precision={0}
+                value={textPath.sides ?? 3}
+                onChange={(value) => updatePath({ sides: Math.max(3, Math.min(128, Math.floor(Number(value ?? 3)))) })}
+              />
+            </label>
+          )}
           <label className="property-field">
             <span>文字朝向</span>
             <Select
-              value={node.pathSide ?? "outer"}
+              value={textPath.side ?? "outer"}
               options={[{ label: "外侧", value: "outer" }, { label: "内侧", value: "inner" }]}
-              onChange={(pathSide) => onUpdateNode(node.id, { pathSide })}
+              onChange={(side) => updatePath({ side })}
             />
           </label>
           <label className="property-field">
             <span>路径方向</span>
             <Select
-              value={node.pathDirection ?? "forward"}
+              value={textPath.direction ?? "forward"}
               options={[{ label: "正向", value: "forward" }, { label: "反向", value: "reverse" }]}
-              onChange={(pathDirection) => onUpdateNode(node.id, { pathDirection })}
+              onChange={(direction) => updatePath({ direction })}
             />
           </label>
           <label className="property-field">
             <span>路径对齐</span>
             <Select
-              value={node.pathAlign ?? "center"}
+              value={textPath.align ?? "center"}
               options={[
                 { label: "起点", value: "start" },
                 { label: "居中", value: "center" },
                 { label: "终点", value: "end" },
               ]}
-              onChange={(pathAlign) => onUpdateNode(node.id, { pathAlign })}
+              onChange={(align) => updatePath({ align })}
             />
           </label>
-          {node.textPath === "circle" && (
+          {textPath.mode === "circle" && (
             <label className="property-field">
               <span>起始角度</span>
               <InputNumber
-                value={toPanelNumber(node.pathStartAngle ?? -90)}
-                onChange={(value) => onUpdateNode(node.id, { pathStartAngle: Number(value ?? -90) })}
+                value={toPanelNumber(textPath.startAngle ?? -90)}
+                onChange={(value) => updatePath({ startAngle: Number(value ?? -90) })}
               />
             </label>
           )}
           <Button
             icon={<EditOutlined />}
-            type={node.pathEditing ? "primary" : "default"}
-            onClick={() => onUpdateNode(node.id, { pathEditing: !node.pathEditing })}
+            type={textPath.editing ? "primary" : "default"}
+            onClick={() => updatePath({ editing: !textPath.editing })}
           >
             编辑路径
           </Button>

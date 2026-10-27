@@ -2,7 +2,7 @@ import "@leafer-in/animate";
 import { Ellipse, Group, Image, Polygon, Rect, Star, type IUI } from "leafer-ui";
 import { CurvedText } from "leafer-x-curved-text";
 import { RichTextPlus } from "leafer-x-richTextPlus";
-import type { IStyleRange, ITextPathData } from "leafer-x-richTextPlus";
+import type { IStyleRange, ITextCursorConfig, IPathBezierConfig, IPathAnchorConfig, ITextPathConfig } from "leafer-x-richTextPlus";
 import type { CanvasNode, ManagedNodeUI, NodeUIInput } from "@/types";
 import { getLeaferAnimation } from "./animation";
 import { getLineClassPrefix, syncLineGroupContent } from "./lineUi";
@@ -57,19 +57,14 @@ export const getNodeUIInput = (node: CanvasNode): NodeUIInput => {
       fontSize: node.fontSize,
       fontWeight: node.fontWeight,
       fill: node.fill,
+      textCursor: node.textCursor,
       lineHeight: node.lineHeight,
-      pathAlign: node.pathAlign,
-      pathAnchors: node.pathAnchors,
-      pathClosed: node.pathClosed,
-      pathDirection: node.pathDirection,
-      pathEditing: node.pathEditing,
-      pathRadius: node.pathRadius,
-      pathSide: node.pathSide,
-      pathStartAngle: node.pathStartAngle,
+      anchor: node.anchor,
+      bezier: node.bezier,
+      textPath: node.textPath,
       scaleX: node.scaleX ?? 1,
       scaleY: node.scaleY ?? 1,
       text: node.text,
-      textPath: node.textPath,
     };
   }
 
@@ -217,11 +212,21 @@ export const getNodePatchFromUI = (ui: IUI, node: CanvasNode) => {
   // RichTextPlus 的编辑器缩放使用 scaleX / scaleY，按原字段持久化以便切页重建。
   if (node.kind === "text" || node.kind === "curvedText") {
     if (node.kind === "text") {
-      const richText = ui as IUI & Partial<ITextPathData> & {
+      const richText = ui as IUI & {
         fontSize?: number;
         lineHeight?: number;
         styleRanges?: IStyleRange[];
-        toJSON?: () => { styleRanges?: IStyleRange[] };
+        textPath?: ITextPathConfig;
+        textCursor?: ITextCursorConfig;
+        bezier?: IPathBezierConfig;
+        anchor?: IPathAnchorConfig;
+        toJSON?: () => {
+          styleRanges?: IStyleRange[];
+          textPath?: ITextPathConfig;
+          textCursor?: ITextCursorConfig;
+          bezier?: IPathBezierConfig;
+          anchor?: IPathAnchorConfig;
+        };
       };
       const serialized = richText.toJSON?.();
       const styleRanges = richText.styleRanges ?? serialized?.styleRanges;
@@ -232,16 +237,10 @@ export const getNodePatchFromUI = (ui: IUI, node: CanvasNode) => {
         scaleX: Number(ui.scaleX ?? node.scaleX ?? 1),
         scaleY: Number(ui.scaleY ?? node.scaleY ?? 1),
         ...(styleRanges && { styleRanges }),
-        ...(richText.textPath && richText.textPath !== 'none' && {
-          textPath: richText.textPath,
-          pathRadius: richText.pathRadius,
-          pathStartAngle: richText.pathStartAngle,
-          pathDirection: richText.pathDirection,
-          pathSide: richText.pathSide,
-          pathAlign: richText.pathAlign,
-          pathClosed: richText.pathClosed,
-          pathAnchors: richText.pathAnchors,
-        }),
+        ...(serialized?.textCursor && { textCursor: serialized.textCursor }),
+        ...(serialized?.bezier && { bezier: serialized.bezier }),
+        ...(serialized?.anchor && { anchor: serialized.anchor }),
+        ...(serialized?.textPath && { textPath: serialized.textPath }),
         x: Math.round(ui.x ?? node.x),
         y: Math.round(ui.y ?? node.y),
       };

@@ -1,12 +1,12 @@
-// RichTextEditor - RichTextPlus 的内部编辑器
+// RichTextPlusEditor - RichTextPlus 的内部编辑器
 // 集成 Leafer Editor，实现"选中元素 -> 双击进入编辑"的标准流程
 
 import { InnerEditor, registerInnerEditor } from '@leafer-in/editor'
 import type { RichTextPlus } from './RichTextPlus'
 
 @registerInnerEditor()
-export class RichTextEditor extends InnerEditor {
-  public get tag() { return 'RichTextEditor' }
+export class RichTextPlusEditor extends InnerEditor {
+  public get tag() { return 'RichTextPlusEditor' }
   
   declare public editTarget: RichTextPlus
   
@@ -55,7 +55,7 @@ export class RichTextEditor extends InnerEditor {
         // 获取点击的世界坐标
         const worldPoint = { x: e.x, y: e.y }
 
-        if (richtext.pathEditing) {
+        if (richtext.textPath?.editing) {
           richtext._handlePointerDown(e)
           return
         }
@@ -91,7 +91,7 @@ export class RichTextEditor extends InnerEditor {
           // 但不要阻止默认输入（否则 textarea 无法接收输入）
           if (e.stop) e.stop()
           const activeEl = document.activeElement as HTMLElement | null
-          const isRichTextTextarea = activeEl?.getAttribute?.('data-richtext-editor') === 'true'
+          const isRichTextTextarea = activeEl?.getAttribute?.('data-rich-text-plus-editor') === 'true'
           const isTextEntry = !!activeEl && (
             activeEl.tagName === 'INPUT' ||
             activeEl.tagName === 'SELECT' ||
