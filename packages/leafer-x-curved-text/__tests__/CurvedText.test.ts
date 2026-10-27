@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CurvedText } from "../src";
 
-const { MockGroup, MockText, MockRect } = vi.hoisted(() => {
+const { MockGroup, MockText } = vi.hoisted(() => {
   class MockGroup {
     children: MockText[] = [];
     data: Record<string, unknown>;
@@ -63,12 +63,10 @@ const { MockGroup, MockText, MockRect } = vi.hoisted(() => {
     }
   }
 
-  class MockRect extends MockText {}
-
-  return { MockGroup, MockText, MockRect };
+  return { MockGroup, MockText };
 });
 
-vi.mock("@leafer-ui/core", () => ({ Group: MockGroup, Rect: MockRect, Text: MockText }));
+vi.mock("@leafer-ui/core", () => ({ Group: MockGroup, Text: MockText }));
 
 const createCurvedText = (overrides: Record<string, unknown> = {}) =>
   new CurvedText({
@@ -87,20 +85,15 @@ describe("CurvedText", () => {
   it("按字素簇创建独立 Leafer Text 子对象", () => {
     const curvedText = createCurvedText();
 
-    expect((curvedText as unknown as InstanceType<typeof MockGroup>).children).toHaveLength(4);
+    expect((curvedText as unknown as InstanceType<typeof MockGroup>).children).toHaveLength(3);
     expect(curvedText.text).toBe("ABC");
   });
 
-  it("点击编辑控制点切换字符编辑模式", () => {
+  it("不会创建编辑模式切换控件", () => {
     const curvedText = createCurvedText({ characterEditing: false });
-    const handle = (curvedText as unknown as InstanceType<typeof MockGroup>).children.at(-1)!;
 
     expect(curvedText.characterEditing).toBe(false);
-    handle.listeners.get("tap")?.({});
-    expect(curvedText.characterEditing).toBe(true);
-    handle.listeners.get("tap")?.({});
-    expect(curvedText.characterEditing).toBe(false);
-    expect(curvedText.data).toMatchObject({ draggable: true, editable: true });
+    expect((curvedText as unknown as InstanceType<typeof MockGroup>).children).toHaveLength(3);
   });
 
   it("字符编辑激活时禁用外层拖拽和编辑", () => {
@@ -135,7 +128,7 @@ describe("CurvedText", () => {
 
     curvedText.setText("A");
 
-    expect((curvedText as unknown as InstanceType<typeof MockGroup>).children).toHaveLength(2);
+    expect((curvedText as unknown as InstanceType<typeof MockGroup>).children).toHaveLength(1);
     expect(curvedText.characterSelection).toBeUndefined();
   });
 

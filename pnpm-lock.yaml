@@ -33,6 +33,9 @@ importers:
       '@leafer-in/text-editor':
         specifier: ^2.2.3
         version: 2.2.3(@leafer-in/editor@2.2.3)(@leafer-in/interface@2.2.3)(@leafer-ui/core@2.2.3)(@leafer-ui/interface@2.2.3)
+      '@leafer-in/viewport':
+        specifier: ^2.3.2
+        version: 2.3.2(@leafer-in/interface@2.2.3)(@leafer-ui/core@2.2.3)(@leafer-ui/interface@2.2.3)
       '@leafer-ui/core':
         specifier: ^2.2.3
         version: 2.2.3
@@ -195,6 +198,31 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@24.13.3)(jsdom@29.1.1)(vite@8.1.5)
 
+  packages/leafer-x-curved-text:
+    dependencies:
+      '@leafer-ui/interface':
+        specifier: 2.2.3
+        version: 2.2.3
+    devDependencies:
+      '@leafer-ui/core':
+        specifier: ^2.2.3
+        version: 2.2.10
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1
+      leafer-ui:
+        specifier: ^2.2.3
+        version: 2.2.10
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+      vite:
+        specifier: ^8.1.1
+        version: 8.3.5(@types/node@24.13.3)(less@4.7.0)
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@24.13.3)(jsdom@29.1.1)(vite@8.3.5)
+
   packages/leafer-x-magnifier:
     dependencies:
       '@leafer-ui/interface':
@@ -219,6 +247,28 @@ importers:
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@24.13.3)(jsdom@29.1.1)(vite@8.1.5)
+
+  packages/leafer-x-richText:
+    dependencies:
+      '@leafer-in/editor':
+        specifier: ^2.2.3
+        version: 2.2.10(@leafer-in/interface@2.2.10)(@leafer-in/resize@2.2.10)(@leafer-ui/core@2.2.10)(@leafer-ui/draw@2.2.10)(@leafer-ui/interface@2.2.3)
+      '@leafer-in/text-editor':
+        specifier: ^2.2.3
+        version: 2.2.10(@leafer-in/editor@2.2.10)(@leafer-in/interface@2.2.10)(@leafer-ui/core@2.2.10)(@leafer-ui/interface@2.2.3)
+      leafer-ui:
+        specifier: ^2.2.3
+        version: 2.2.10
+    devDependencies:
+      '@leafer-ui/interface':
+        specifier: 2.2.3
+        version: 2.2.3
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.1
+        version: 4.1.10(@types/node@24.13.3)(jsdom@29.1.1)(vite@8.3.5)
 
   packages/leafer-x-video-player:
     dependencies:
@@ -1005,7 +1055,6 @@ packages:
     dependencies:
       '@leafer-ui/interface': 2.2.3
       '@leafer/interface': 2.2.3
-    dev: false
 
   /@leafer-in/interface@2.2.3(@leafer-ui/interface@2.2.3)(@leafer/interface@2.2.3):
     resolution: {integrity: sha512-CnmrVxtKk72SSVowTqMaMKYo8gKfqEAy5fc2q8xbXaPjM8+n1XWkcMnFG1Ww0OLvjgAJnabwnQ/9tUT23+L8Ew==}
@@ -1116,6 +1165,18 @@ packages:
       '@leafer-ui/interface': 2.2.3
     dev: false
 
+  /@leafer-in/viewport@2.3.2(@leafer-in/interface@2.2.3)(@leafer-ui/core@2.2.3)(@leafer-ui/interface@2.2.3):
+    resolution: {integrity: sha512-co126FY81H36kkAxfTosDZKzlMgzgzZPYdTmYyZEby1FrE9ABlv2Qe0e52Vj4ojefBjQm9v1iH0mV39LMO5nkg==}
+    peerDependencies:
+      '@leafer-in/interface': ^2.3.2
+      '@leafer-ui/core': ^2.3.2
+      '@leafer-ui/interface': 2.2.3
+    dependencies:
+      '@leafer-in/interface': 2.2.3(@leafer-ui/interface@2.2.3)(@leafer/interface@2.2.3)
+      '@leafer-ui/core': 2.2.3
+      '@leafer-ui/interface': 2.2.3
+    dev: false
+
   /@leafer-ui/app@2.2.10:
     resolution: {integrity: sha512-mdL7g4YY6l6qg90lZ5ldUSydoHv4FR2JNPM5MTknEh7vc9KDads4eDpeMgnk0kKviRSkfCkpaJ70PIdak+SwFQ==}
     dependencies:
@@ -1145,7 +1206,6 @@ packages:
     dependencies:
       '@leafer-ui/draw': 2.2.10
       '@leafer/core': 2.2.10
-    dev: false
 
   /@leafer-ui/color@2.2.3:
     resolution: {integrity: sha512-V5f8mQuZ7OsjntBuMs7dHOutiKAiFFcbOsZTOoxRBy1oyB4yP5FNmeDsP49bLFt3MDligfpfqBLpLsquSdwAZQ==}
@@ -1248,7 +1308,6 @@ packages:
     dependencies:
       '@leafer-ui/draw': 2.2.10
       '@leafer/core': 2.2.10
-    dev: false
 
   /@leafer-ui/effect@2.2.3:
     resolution: {integrity: sha512-7B6MULzBnWY4O+AErbaSguxjrlbULSUWDVhyHe5FvoR2m8F6Tpvl0qoVODjAyJOCqUUq5BDKFSyuU9cSaBHieg==}
@@ -1293,7 +1352,6 @@ packages:
     dependencies:
       '@leafer-ui/core': 2.2.10
       '@leafer/core': 2.2.10
-    dev: false
 
   /@leafer-ui/interaction-web@2.2.3:
     resolution: {integrity: sha512-FMajE1RZVu6BbhsN6cueaiNXqDcrRuQTjAec7W0epH/vkKiOED9KwiO0h2vnurd0KdOpk1t+1E2ykWw+aEujNg==}
@@ -1325,7 +1383,6 @@ packages:
     dependencies:
       '@leafer-ui/draw': 2.2.10
       '@leafer/core': 2.2.10
-    dev: false
 
   /@leafer-ui/paint@2.2.3:
     resolution: {integrity: sha512-ZQe++YFMtS7KL78WTuOhm1Tpkx3WmLvYFz6i+PrsdFr8ALtJon6QxZqP3J2jooPeuyyEiNbcMBVqXtc0Lye/qw==}
@@ -1341,7 +1398,6 @@ packages:
       '@leafer-ui/effect': 2.2.10
       '@leafer-ui/paint': 2.2.10
       '@leafer-ui/text': 2.2.10
-    dev: false
 
   /@leafer-ui/partner@2.2.3:
     resolution: {integrity: sha512-K7lUF9p1NJnlLGoddHHbG3uhwtHCSAgQEkGupyEQWhr1RJa7uXGk9S/sGQ8Hivt4RY2VnOoGvzEpEpbMAUkIfA==}
@@ -1366,7 +1422,6 @@ packages:
     resolution: {integrity: sha512-5YULpUUC5AYIcs/SvWEtrfyFO+UwkJLm6qigkWmsgfjqFfu/kK3wPn1kGhfmVYBn8b2GYfqRPTLfiorB+bhRDg==}
     dependencies:
       '@leafer/core': 2.2.10
-    dev: false
 
   /@leafer-ui/text@2.2.3:
     resolution: {integrity: sha512-tSaUPbH43z0xdbSRj9DtremezqRexZnX/a7srrzYpp9SU5vPPV7Hn544WyzX61iI1J3vyxw7KrPFP9JpP0hF1Q==}
@@ -1385,7 +1440,6 @@ packages:
       '@leafer/interface': 2.2.3
       '@leafer/partner': 2.2.10
       '@leafer/web-core': 2.2.10
-    dev: false
 
   /@leafer-ui/web@2.2.3:
     resolution: {integrity: sha512-LBc0IpFd3SNoaOhzvK6TB9jS08mZIw/ayTu6YNtrORWwtH2n4etgS3hRNPkN77x/S/cYfElD6Sie9MN0pCnL8w==}
@@ -1404,7 +1458,6 @@ packages:
     resolution: {integrity: sha512-s070vJu13CUqpGwzLRvbGdsCY9QElfyI9wuWC/GQsrYiIJDMahPzy8j/oKoUzxQBz73bnB1e4Iw75rTRo9SjXQ==}
     dependencies:
       '@leafer/core': 2.2.10
-    dev: false
 
   /@leafer/canvas-web@2.2.3:
     resolution: {integrity: sha512-nwW430tDQghLYTe/CVJQmzn7a6M58Ul7pQPOZ8GyYIBPInvc+bgPtYVZG3XGIEwy20+j10tOVJrKWPhOYkR4xA==}
@@ -1601,7 +1654,6 @@ packages:
     resolution: {integrity: sha512-xjzfibUI+ujTEt6WRk30xbY/ssVbiRQj3dwEODXsI+rjIjRaDwmDTCVx41ve6NUOyFATCRyqEKMPEpMdfQ0DNg==}
     dependencies:
       '@leafer/core': 2.2.10
-    dev: false
 
   /@leafer/image-web@2.2.3:
     resolution: {integrity: sha512-yN2qJYFYIg2bDSPGPpHap4vrfCp1X9+bSKucgaZWwm73FAEpk1XOqwjH6pFZrzX4riUahychP5EWjBy18zkoWA==}
@@ -1649,7 +1701,6 @@ packages:
     resolution: {integrity: sha512-L8PzgC7gOz025FD2y1CFfO+UArr6GUGIYvNbHZ+ufY17b2mm7uIXPKYxt+iMRY/HRQaommXug3XoblZL3dAdeQ==}
     dependencies:
       '@leafer/core': 2.2.10
-    dev: false
 
   /@leafer/layouter@2.2.3:
     resolution: {integrity: sha512-J9+7zMcyEyRdXPaFtYZcfgTKaSh7JIX53ptNlk9WwMBKaxuUvCdMFpuXGbiN2r5N4HP+1OWwjJR4T/RDMEjCuQ==}
@@ -1676,7 +1727,6 @@ packages:
       '@leafer/renderer': 2.2.10
       '@leafer/selector': 2.2.10
       '@leafer/watcher': 2.2.10
-    dev: false
 
   /@leafer/partner@2.2.3:
     resolution: {integrity: sha512-1HMmDjuALEH3TFKJnVwezt78ym6Zj/Zi/syMCg57TVg9Y2IrrR9NqlOKAOWDJtvLX+zX8IJvjXjCJEnoJ/nyyQ==}
@@ -1717,7 +1767,6 @@ packages:
     resolution: {integrity: sha512-Lyan5njc5aEJkUtUuVEcdq0JdHmNug2iztxkGWRIFIITa4pI07v4CE+Q4+z4YwYlarxGfwQiEU+bBrNcL+HEjg==}
     dependencies:
       '@leafer/core': 2.2.10
-    dev: false
 
   /@leafer/renderer@2.2.3:
     resolution: {integrity: sha512-qWa/UPLHbLQPlH00Ts6XZqtMjLe6dnidVcrWn57zbIEWilRErZ8nxjjiM9bKlBl/epb4NQwJ4gNMoVm++sA/Zw==}
@@ -1728,7 +1777,6 @@ packages:
     resolution: {integrity: sha512-2alAwWCQgc8cm/d2d8mtaaTetjLso1agYrKkvCphBOn54Ryu3zhiq/ksZHjbBHoo/tVW0agE3qXtcqvFPktOnQ==}
     dependencies:
       '@leafer/core': 2.2.10
-    dev: false
 
   /@leafer/selector@2.2.3:
     resolution: {integrity: sha512-T6/U5Ho/Zj/Hi0BqcRg5pSVDTbe/4SQVVYY+YvNbL/wL1yh4P7b6H9avMmwnCiiI0Y7knopV5J3ISLFytttNlQ==}
@@ -1753,7 +1801,6 @@ packages:
       '@leafer/data': 2.2.10
       '@leafer/event': 2.2.10
       '@leafer/list': 2.2.10
-    dev: false
 
   /@leafer/watcher@2.2.3:
     resolution: {integrity: sha512-cTmzX9e1xBYc2qTWVehmPNJymHwtKacyJZNCF3f8A9pkzfECFKrINLh7lzoGFwUo2aQuyWcEfMAUUvXpfHQlgw==}
@@ -1770,7 +1817,6 @@ packages:
       '@leafer/image-web': 2.2.10
       '@leafer/interface': 2.2.3
       '@leafer/partner': 2.2.10
-    dev: false
 
   /@leafer/web-core@2.2.3:
     resolution: {integrity: sha512-Dr6sTht92x/i7Tug0qdnx+B+tHWvx2BWfrcYmEc70tFX3uHrO1EQoV1XFrWxL8shITw/1f4vQxpFwxChXbwh8A==}
@@ -3401,6 +3447,23 @@ packages:
       vite: 8.1.5(@types/node@24.13.3)(less@4.7.0)
     dev: true
 
+  /@vitest/mocker@4.1.10(vite@8.3.5):
+    resolution: {integrity: sha512-v0xaezt+DKEmKfaxg133ldzADrwLGd7Ze1MfQQTYfvs8OqZIwbxyxaYURivwV7sWy5fqn3rH5uOrSp07bp44Ow==}
+    peerDependencies:
+      msw: ^2.4.9
+      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
+    peerDependenciesMeta:
+      msw:
+        optional: true
+      vite:
+        optional: true
+    dependencies:
+      '@vitest/spy': 4.1.10
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+      vite: 8.3.5(@types/node@24.13.3)(less@4.7.0)
+    dev: true
+
   /@vitest/mocker@5.0.5(vite@8.3.5):
     resolution: {integrity: sha512-xLL3lkDegJZw+MGoGaCCsFayDZthGgpAtr3Vziyfc4p7xH89K7KRPcRBBh/kEYm0Aqkt5DtTmkYpBtRV/FrHZg==}
     peerDependencies:
@@ -3830,7 +3893,7 @@ packages:
     engines: {node: ^10 || ^12.20.0 || ^14.13.0 || >=15.0.0}
     dependencies:
       mdn-data: 2.27.1
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
     dev: true
 
   /css.escape@1.5.1:
@@ -4494,7 +4557,6 @@ packages:
       '@leafer/core': 2.2.10
       '@leafer/interface': 2.2.3
       '@leafer/partner': 2.2.10
-    dev: false
 
   /leafer-ui@2.2.3:
     resolution: {integrity: sha512-wOPdhVzOyweusqYOwiK/HPhM4bWFYQ/MvherctEgHsgNpHLg/1FPvEher5hPcumv9IRfTY/KnH5fJmVSNkQk8A==}
@@ -5902,6 +5964,73 @@ packages:
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
       vite: 8.1.5(@types/node@24.13.3)(less@4.7.0)
+      why-is-node-running: 2.3.0
+    transitivePeerDependencies:
+      - msw
+    dev: true
+
+  /vitest@4.1.10(@types/node@24.13.3)(jsdom@29.1.1)(vite@8.3.5):
+    resolution: {integrity: sha512-R9jUTe5S4Qb0HCd4TNqpC7oGcrMssMRGXLW80ubjWsW9VH5GF8y1Y0SFLY9AbqSk6nt0PnOx4H4WNJYZ13GUPw==}
+    engines: {node: ^20.0.0 || ^22.0.0 || >=24.0.0}
+    hasBin: true
+    peerDependencies:
+      '@edge-runtime/vm': '*'
+      '@opentelemetry/api': ^1.9.0
+      '@types/node': ^20.0.0 || ^22.0.0 || >=24.0.0
+      '@vitest/browser-playwright': 4.1.10
+      '@vitest/browser-preview': 4.1.10
+      '@vitest/browser-webdriverio': 4.1.10
+      '@vitest/coverage-istanbul': 4.1.10
+      '@vitest/coverage-v8': 4.1.10
+      '@vitest/ui': 4.1.10
+      happy-dom: '*'
+      jsdom: '*'
+      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
+    peerDependenciesMeta:
+      '@edge-runtime/vm':
+        optional: true
+      '@opentelemetry/api':
+        optional: true
+      '@types/node':
+        optional: true
+      '@vitest/browser-playwright':
+        optional: true
+      '@vitest/browser-preview':
+        optional: true
+      '@vitest/browser-webdriverio':
+        optional: true
+      '@vitest/coverage-istanbul':
+        optional: true
+      '@vitest/coverage-v8':
+        optional: true
+      '@vitest/ui':
+        optional: true
+      happy-dom:
+        optional: true
+      jsdom:
+        optional: true
+    dependencies:
+      '@types/node': 24.13.3
+      '@vitest/expect': 4.1.10
+      '@vitest/mocker': 4.1.10(vite@8.3.5)
+      '@vitest/pretty-format': 4.1.10
+      '@vitest/runner': 4.1.10
+      '@vitest/snapshot': 4.1.10
+      '@vitest/spy': 4.1.10
+      '@vitest/utils': 4.1.10
+      es-module-lexer: 2.3.2
+      expect-type: 1.4.0
+      jsdom: 29.1.1
+      magic-string: 0.30.21
+      obug: 2.1.4
+      pathe: 2.0.3
+      picomatch: 4.0.7
+      std-env: 4.3.0
+      tinybench: 2.9.0
+      tinyexec: 1.3.1
+      tinyglobby: 0.2.17
+      tinyrainbow: 3.1.0
+      vite: 8.3.5(@types/node@24.13.3)(less@4.7.0)
       why-is-node-running: 2.3.0
     transitivePeerDependencies:
       - msw

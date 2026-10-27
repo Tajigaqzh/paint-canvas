@@ -1,4 +1,4 @@
-import { Group, Rect, Text } from "@leafer-ui/core";
+import { Group, Text } from "@leafer-ui/core";
 import { layoutArcText, type CurvedTextStyle } from "./arcLayout";
 import { splitGraphemes } from "./graphemes";
 import { Emitter } from "./emitter";
@@ -22,7 +22,6 @@ export class CurvedText extends Group {
   private styleRunsValue: NonNullable<CurvedTextConfig["styleRuns"]>;
   private measureGrapheme: NonNullable<CurvedTextConfig["measureGrapheme"]>;
   private glyphs: Array<InstanceType<typeof Text>> = [];
-  private editingHandle?: InstanceType<typeof Rect>;
   private glyphIndexes = new WeakMap<object, number>();
   private selection: CharacterSelection | undefined;
   private dragStart: number | undefined;
@@ -76,13 +75,7 @@ export class CurvedText extends Group {
     this.characterEditingValue = value;
     // 内部字符编辑期间让指针只作用于字符，不让 Leafer Editor 拖动整个 Group。
     this.set({ draggable: !value, editable: !value });
-    this.editingHandle?.set({ fill: value ? "#1677ff" : "#64748b" });
     if (!value) this.clearCharacterSelection();
-  }
-
-  toggleCharacterEditing() {
-    this.characterEditing = !this.characterEditingValue;
-    return this.characterEditingValue;
   }
 
   get selectionFill() {
@@ -244,19 +237,6 @@ export class CurvedText extends Group {
       this.add(ui);
       return ui;
     });
-    this.editingHandle = new Rect({
-      fill: this.characterEditingValue ? "#1677ff" : "#64748b",
-      height: 22,
-      hittable: true,
-      stroke: "#ffffff",
-      strokeWidth: 1,
-      tag: "curvedTextEditingHandle",
-      width: 22,
-      x: 0,
-      y: -36,
-    });
-    this.editingHandle.on("tap", () => this.toggleCharacterEditing());
-    this.add(this.editingHandle);
     this.updateSelectionPaint();
   }
 
