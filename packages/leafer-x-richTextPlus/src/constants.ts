@@ -1,6 +1,6 @@
 // RichTextPlus 常量
 
-export const RICHTEXT_DEFAULTS = {
+export const RICHTEXT_DEFAULTS = Object.freeze({
   // 基础字符样式
   fontSize: 16,
   fontFamily: "Arial, sans-serif",
@@ -71,7 +71,7 @@ export const RICHTEXT_DEFAULTS = {
   /** 光标闪烁间隔（ms），定时切换显隐，避免逐帧重绘 */
   cursorBlinkInterval: 530,
   selectionColor: "rgba(17, 119, 255, 0.3)",
-};
+});
 
 // 单词边界正则
 export const RE_WORD_BOUNDARY = /[\s\u200B]/;

@@ -667,42 +667,56 @@ export class RichTextPlus extends UI {
     }
   };
 
+  /**
+   * 构造顺序有硬依赖，不要随意调换：
+   * 1) 先由 super 写入数据层；
+   * 2) 再创建测量 canvas —— 后面的样式导入会触发分行，而分行依赖 _measureCtx；
+   * 3) 最后挂事件、标记 renderChanged，让首次渲染算出真实的 renderBounds。
+   */
   constructor(data?: IRichTextInputData) {
+    // expandPathConfig 会把 textPath.sideCount 规整为合法边数，再交给 Leafer 数据层
     super(expandPathConfig(data) as IRichTextInputData);
+    // 记录哪些路径外观字段是调用方显式给的，toJSON 只导出这些，避免把默认值写进文档
     this._trackPathAppearance(data);
 
     // ⚠️ 必须先创建测量 canvas，再处理样式（避免 _splitLinesWithWrap 报错）
+    // 样式导入 → 重新分行 → 测宽，全链路都读 _measureCtx，顺序反了会直接抛错
     this._measureCanvas = document.createElement("canvas");
     this._measureCtx = this._measureCanvas.getContext("2d")!;
 
-    // 保存回调
+    // 保存回调（逐个判空，避免把未传入的 undefined 覆盖掉已有默认实现）
     if (data?.onEditingEntered) this.onEditingEntered = data.onEditingEntered;
     if (data?.onEditingExited) this.onEditingExited = data.onEditingExited;
     if (data?.onSelectionChange) this.onSelectionChange = data.onSelectionChange;
     if (data?.onPathChange) this.onPathChange = data.onPathChange;
+    // 路径编辑是编辑会话开关，从序列化数据里恢复时只看 textPath.editing
     this.pathEditing = !!data?.textPath?.editing;
 
     // 导入样式数据（支持两种格式）
     if (data?.styleRanges) {
       // 推荐格式：range-based（简洁，兼容 Figma）
+      // 优先于 styles：两种同时存在时以 range 为准，避免两套坐标体系互相覆盖
       this._loadFromStyleRanges(data.styleRanges);
     } else if (data?.styles) {
       // 兼容格式：index-based（旧格式）
       this._deserializeStyles(data.styles);
     }
 
-    // 启用边界框命中检测
+    // 启用边界框命中检测；只开开关不够，具体形状由 __drawHitPath 提供
     this.hitBox = true;
 
     // 指定使用 RichTextPlusEditor 作为内部编辑器
+    // 这里只写名字，Editor 通过注册表查找，所以插件初始化时要先注册该编辑器
     this.editInner = "RichTextPlusEditor";
 
     // 绑定事件
     this._bindEvents();
 
+    // 默认四角保持比例；写在展开之前，调用方传了 editConfig 时会以调用方为准
     this.editConfig = { lockRatio: "corner", ...this.editConfig };
 
     // 与 Leafer Text 一致：确保首次渲染时 renderBounds 被正确计算
+    // 本类重写了 __updateRenderBounds，不主动标脏的话首帧可能用未初始化的边界
     this.__layout.renderChanged || this.__layout.renderChange();
   }
 
@@ -834,67 +848,105 @@ export class RichTextPlus extends UI {
     (UI as any).prototype.__scaleResize.call(this, scaleX, scaleY);
   }
 
+  /**
+   * 四角拖拽缩放时把“缩放”折算成“改字号”，而不是保留 scaleX / scaleY。
+   *
+   * 为什么这么做：直接留 scale 会让字形被拉伸 / 模糊，固定宽高下还会与排版尺寸打架。
+   * 折成字号后所有派生数据（行高、字符宽度、选区、光标）仍然是一套真实排版值。
+   * 字符级样式、padding、行高、字间距、固定宽高都要等比跟上，否则会出现部分字符大小不变。
+   */
   private _scaleResizeFontSize(scale: number): void {
+    // scale 来自拖拽，可能为 0 / NaN（按到边中点等边界情况）；与 1 几乎相等时无需重排
     if (!Number.isFinite(scale) || scale <= 0 || Math.abs(scale - 1) < 1e-6) return;
 
+    // 字号变了会触发重新分行，行号 / 列号随之变化，所以先转为与行无关的线性样式，
+    // 交给 _relayout → _applyPendingStyles 重新映射回新的二维坐标，否则样式会错位
     const linearStyles = this._convertStylesToLinear();
     for (const [index, style] of linearStyles) {
+      // 逐个复制：同一个 style 对象可能被多个字符共享，就地改会连带改到别人
       const resized = { ...style };
       if (typeof resized.fontSize === "number") resized.fontSize *= scale;
       resized.letterSpacing = this._scalePixelUnit(resized.letterSpacing, scale);
       linearStyles.set(index, resized);
     }
+    // 空 Map 置 null：_applyPendingStyles 以 truthy 判断是否有待应用样式，空对象会白白走一遭迁移
     this._pendingLinearStyles = linearStyles.size ? linearStyles : null;
 
+    // 元素级度量同步缩放，保证与字符级样式的缩放口径一致
     this.fontSize *= scale;
     this.padding = Array.isArray(this.padding)
       ? this.padding.map((value) => value * scale)
       : this.padding * scale;
+    // ! 只去掉 _scalePixelUnit 可能返回 undefined 的分支：这两个属性有默认值，实际不会是 undefined
     this.lineHeight = this._scalePixelUnit(this.lineHeight, scale)!;
     this.letterSpacing = this._scalePixelUnit(this.letterSpacing, scale)!;
 
+    // 固定宽高要跟着缩；自动宽高由重排重新测量，这里改反而会覆盖实测值
     if (!this.autoWidth) this.width = Math.abs(this.width * scale);
     if (!this.autoHeight) this.height = Math.abs(this.height * scale);
 
     this._relayout();
   }
 
+  /**
+   * 按比例缩放一个可能带单位的像素值，给 _scaleResizeFontSize 用（letterSpacing / lineHeight）。
+   *
+   * 只缩放绝对像素：
+   * - number：直接乘；
+   * - IUnitData { type: 'px' }：只改 value（新建对象，不改入参，避免污染共用样式）；
+   * - percent 等其它单位：本身是相对字号的比值，字号变了它会自动跟着变，再乘就重复缩放。
+   */
   private _scalePixelUnit(
     value: number | IUnitData | undefined,
     scale: number,
   ): number | IUnitData | undefined {
     if (typeof value === "number") return value * scale;
     if (value?.type === "px") return { ...value, value: value.value * scale };
+    // undefined / percent / 其它单位原样返回
     return value;
   }
 
   /**
    * 更新翻转状态（用于扩展渲染边界，避免翻转残影）
+   *
+   * 只关心 scaleX / scaleY 的符号，不关心幅值：幅值变化会正常走 boxBounds / renderBounds 重算，
+   * 而符号变化会把图形镜到镜像位置，旧位置的像素不会被新绘制覆盖，必须额外置位提醒
+   * __updateRenderBounds 把上一帧区域一起并进来。
+   * 调用点：__updateBoxBounds 算完边界后、__updateRenderBounds 开头。
    */
   private _updateFlipRenderFlag(): void {
+    // 归一成 ±1，初值为 1（未翻转），只有变号才算一次翻转
     const signX = (this.scaleX ?? 1) < 0 ? -1 : 1;
     const signY = (this.scaleY ?? 1) < 0 ? -1 : 1;
 
     if (signX !== this._lastScaleSignX || signY !== this._lastScaleSignY) {
+      // 先置位再更新记录，保证 __updateRenderBounds 本次就能读到“刚翻转过”的信号
       this._needsFlipRenderBounds = true;
       this._lastScaleSignX = signX;
       this._lastScaleSignY = signY;
+      // 通知 Leafer 重算边界并重绘：否则本帧仍用旧的 renderBounds，翻转后旧区域擦不掉
       this.__layout.renderChange();
     }
   }
 
   /**
-   * 更新渲染边界（扩展翻转时的旧区域，避免残影）
+   * 更新渲染边界（局部坐标）：Leafer 根据 renderBounds 决定该节点要重绘哪块区域。
+   *
+   * 本类必须重写：文本可能溢出文本框（textOverflow='show'）、带阴影 / 描边，
+   * 而且翻转时上一帧的区域也会被用到。算小了就会出现文字被裁、拖动或翻转后留残影。
+   * 入口由 __updateRenderSpread() 返回正值保证，renderBounds 已存在才会进来。
    */
   __updateRenderBounds(): void {
     const { renderBounds, boxBounds } = this.__layout;
+    // renderBounds 未初始化（极早期生命周期）时直接退出，否则会写入 NaN 边界
     if (!renderBounds) return;
 
-    // 阴影扩展
+    // 阴影扩展：同时统计全局 shadow 与字符级 shadow，并计入 spread 缩放与 blur 的额外扩散
     const shadowExpand = this._getContentShadowExpand();
 
     if (this.textOverflow === "show") {
       // textOverflow='show'：renderBounds = union(boxBounds, contentBounds) + shadow
+      // 此时绘制阶段不裁剪，所以必须把溢出部分也算进来，否则右侧 / 下侧文字会被切掉
       const content = this._getContentRenderBounds();
       const minX = Math.min(boxBounds.x, content.x);
       const minY = Math.min(boxBounds.y, content.y);
@@ -905,15 +957,19 @@ export class RichTextPlus extends UI {
       renderBounds.width = maxX - minX + shadowExpand * 2;
       renderBounds.height = maxY - minY + shadowExpand * 2;
     } else {
+      // 其它模式绘制时会被 clip 到文本框内，边界只需要覆盖 boxBounds
       renderBounds.x = boxBounds.x - shadowExpand;
       renderBounds.y = boxBounds.y - shadowExpand;
       renderBounds.width = boxBounds.width + shadowExpand * 2;
       renderBounds.height = boxBounds.height + shadowExpand * 2;
     }
 
+    // 检查 scaleX / scaleY 是否刚变号（翻转），变号会置 _needsFlipRenderBounds 并请求重新计算边界
     this._updateFlipRenderFlag();
 
     if (this._needsFlipRenderBounds && this._lastWorldRenderBounds) {
+      // 翻转后图形镜到另一侧，但 canvas 是增量重绘的：只画新区域不会擦掉旧位置的像素。
+      // 所以把上一帧的 world 边界逆变换回当前局部坐标，与本帧区域做并集，一次盖掉新旧两处
       const worldMatrix = (this.worldTransform || (this as any).__world) as any;
       const lastLocal = this._transformBoundsToLocal(this._lastWorldRenderBounds, worldMatrix);
 
@@ -922,21 +978,32 @@ export class RichTextPlus extends UI {
       const maxX = Math.max(renderBounds.x + renderBounds.width, lastLocal.x + lastLocal.width);
       const maxY = Math.max(renderBounds.y + renderBounds.height, lastLocal.y + lastLocal.height);
 
+      // 四周再外扩 1px，吸收浮点运算与像素对齐误差，避免边界上残留一条缝
       renderBounds.x = minX - 1;
       renderBounds.y = minY - 1;
       renderBounds.width = maxX - minX + 2;
       renderBounds.height = maxY - minY + 2;
 
+      // 只对一次翻转生效，下一次变号时重新置位
       this._needsFlipRenderBounds = false;
     }
 
+    // 记录本帧的 world 边界，作为下一帧翻转时并集的参考区域
     const worldMatrix = (this.worldTransform || (this as any).__world) as any;
     this._lastWorldRenderBounds = this._transformBounds(renderBounds, worldMatrix);
   }
 
+  /**
+   * 计算「实际字形内容」的包围盒（含 padding 与描边外扩），单位与 boxBounds 一致。
+   *
+   * 仅在 textOverflow === 'show' 时被 __updateRenderBounds 使用：这时文字允许溢出文本框，
+   * 渲染边界要取 union(boxBounds, 本方法结果)，否则溢出部分会被裁掉、拖动时留残影。
+   * 坐标系与 boxBounds 相同（相对节点原点），所以字符位置要加上 padding 才是节点坐标。
+   */
   private _getContentRenderBounds(): { x: number; y: number; width: number; height: number } {
     const padding = this._parsePadding(this.padding);
 
+    // 还没排版（空文本 / 首次渲染前）没有行度量可累加，退化为「宽高 + padding」，保证边界不塌陷
     if (!this._lineMetrics.length) {
       return {
         x: 0,
@@ -946,14 +1013,17 @@ export class RichTextPlus extends UI {
       };
     }
 
+    // 用 ±Infinity 做初值，让第一行的值自然覆盖，不用额外判空
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
     let maxY = -Infinity;
 
+    // 只取每行首/末字符：行内字符按顺序排布，包围盒由两端决定，没必要遍历全部字符
     for (let lineIdx = 0; lineIdx < this._lineMetrics.length; lineIdx++) {
       const line = this._lineMetrics[lineIdx];
       if (!line.chars.length) {
+        // 空行没有字形，只贡献纵向范围（否则空行会被当成 0 宽行漏掉）
         minY = Math.min(minY, line.y);
         maxY = Math.max(maxY, line.y + line.height);
         continue;
@@ -961,17 +1031,21 @@ export class RichTextPlus extends UI {
 
       const firstChar = line.chars[0];
       const lastChar = line.chars[line.chars.length - 1];
+      // 字间距是字符级样式，行尾的间距只跟最后一个字符有关，要单独补上
       const lastLetterSpacing = this._parseLetterSpacing(
         lastChar.style.letterSpacing,
         lastChar.style.fontSize!,
       );
 
+      // 字符的 x 已包含缩进和水平对齐偏移，所以直接用首/末字符取行宽，
+      // 不能用 measureText 的行宽，否则居中 / 右对齐时位置会偏
       minX = Math.min(minX, firstChar.x);
       maxX = Math.max(maxX, lastChar.x + lastChar.width + lastLetterSpacing);
       minY = Math.min(minY, line.y);
       maxY = Math.max(maxY, line.y + line.height);
     }
 
+    // 所有行都是空行时 min/max 仍是 ±Infinity，归零避免 NaN 边界传给 Leafer
     if (!isFinite(minX) || !isFinite(maxX)) {
       minX = 0;
       maxX = 0;
@@ -981,20 +1055,33 @@ export class RichTextPlus extends UI {
       maxY = 0;
     }
 
+    // 描边向外扩多少取决于 strokeAlign：outside=width、center=width/2、inside=0
     const strokeExpand = this._getStrokeExpand();
     // 注意：阴影扩展由 __updateRenderBounds 统一处理，这里只处理描边
     return {
       x: minX + padding.left - strokeExpand,
       y: minY + padding.top - strokeExpand,
+      // 宽度 = 内容跨度 + 左右 padding + 两侧描边外扩
       width: maxX - minX + padding.left + padding.right + strokeExpand * 2,
       height: maxY - minY + padding.top + padding.bottom + strokeExpand * 2,
     };
   }
 
+  /**
+   * 把局部坐标下的轴对齐包围盒，经世界矩阵变换成 world 空间的轴对齐包围盒（AABB）。
+   *
+   * 用于记录 _lastWorldRenderBounds（翻转检测时再逆变换回局部），
+   * 以及上一帧 / 本帧渲染边界的并集计算。
+   * 因为旋转、斜切后四条边不再与坐标轴平行，只变换左上角或直接算 x*a 都不对，
+   * 必须把四个角全部变换后再取极值。代价是结果会略大于理想包围盒（外接矩形），
+   * 但对渲染边界来说宁可偏大（多画一点）也不能偏小（残影 / 裁剪）。
+   */
   private _transformBounds(
     bounds: { x: number; y: number; width: number; height: number },
     matrix: any,
   ): { x: number; y: number; width: number; height: number } {
+    // 没有矩阵（节点未挂到 Leafer 树）时局部坐标就是世界坐标；
+    // 返回浅拷贝而不是原对象，避免调用方回写时污染入参
     if (!matrix) return { ...bounds };
     const { a, b, c, d, e, f } = matrix;
     const x1 = bounds.x;
@@ -1002,6 +1089,7 @@ export class RichTextPlus extends UI {
     const x2 = bounds.x + bounds.width;
     const y2 = bounds.y + bounds.height;
 
+    // 四个角依次为左上 / 右上 / 左下 / 右下，每个都做一次 [a c e; b d f] 仿射变换
     const p1x = a * x1 + c * y1 + e;
     const p1y = b * x1 + d * y1 + f;
     const p2x = a * x2 + c * y1 + e;
@@ -1011,6 +1099,7 @@ export class RichTextPlus extends UI {
     const p4x = a * x2 + c * y2 + e;
     const p4y = b * x2 + d * y2 + f;
 
+    // 四个角中取极值，得到包住整个四边形的最小轴对齐矩形
     const minX = Math.min(p1x, p2x, p3x, p4x);
     const minY = Math.min(p1y, p2y, p3y, p4y);
     const maxX = Math.max(p1x, p2x, p3x, p4x);
@@ -1024,15 +1113,26 @@ export class RichTextPlus extends UI {
     };
   }
 
+  /**
+   * _transformBounds 的逆运算：world 空间的包围盒 → 当前局部空间。
+   *
+   * 唯一调用点是 __updateRenderBounds 的翻转处理：_lastWorldRenderBounds 存的是上一帧的
+   * world 边界，要和本帧局部 renderBounds 做并集，必须先逆变换回当前局部坐标系。
+   * 翻转（scaleX / scaleY 变号）后新旧区域不在同一侧，不并集就会留下旧位置的残影。
+   */
   private _transformBoundsToLocal(
     bounds: { x: number; y: number; width: number; height: number },
     matrix: any,
   ): { x: number; y: number; width: number; height: number } {
+    // 没有矩阵时无法定义“世界”→世界上直接当局部处理，保持与 _transformBounds 对称
     if (!matrix) return { ...bounds };
     const { a, b, c, d, e, f } = matrix;
+    // 行列式：矩阵 [a c; b d] 可逆的充要条件。为 0 说明被压成一条线（如 scale 为 0），
+    // 此时逆变换会除零得到 Infinity，直接放弃变换、保守返回原边界
     const det = a * d - b * c;
     if (!det) return { ...bounds };
 
+    // 2×3 仿射矩阵求逆：旋转 / 缩放部分用伴随矩阵除以 det，平移部分用逆矩阵回代
     const ia = d / det;
     const ib = -b / det;
     const ic = -c / det;
@@ -1045,6 +1145,7 @@ export class RichTextPlus extends UI {
     const x2 = bounds.x + bounds.width;
     const y2 = bounds.y + bounds.height;
 
+    // 与 _transformBounds 一致：四角依次为左上 / 右上 / 左下 / 右下，用逆矩阵逐个变换
     const p1x = ia * x1 + ic * y1 + ie;
     const p1y = ib * x1 + id * y1 + iff;
     const p2x = ia * x2 + ic * y1 + ie;
@@ -1054,6 +1155,7 @@ export class RichTextPlus extends UI {
     const p4x = ia * x2 + ic * y2 + ie;
     const p4y = ib * x2 + id * y2 + iff;
 
+    // 同样取极值：逆变换后四边形不一定轴对齐，需要外接矩形包住它
     const minX = Math.min(p1x, p2x, p3x, p4x);
     const minY = Math.min(p1y, p2y, p3y, p4y);
     const maxX = Math.max(p1x, p2x, p3x, p4x);
@@ -1069,17 +1171,30 @@ export class RichTextPlus extends UI {
 
   /**
    * 绘制碰撞路径（必须实现）
+   *
+   * Leafer 的命中检测不走主 canvas，而是让每个节点在独立的 hitCanvas 上画出自己的形状，
+   * 点击时读像素颜色反查节点。所以这里不能省略，否则编辑器选不中文本。
+   * 本类没重写 __drawHit，走的是 hitBox=true 的内置路径：hitCanvas 先按 boxBounds 矩形判定，
+   * 命中后再由这里定义具体形状。整体按矩形命中（不做逐字命中），
+   * 这也是 RichTextPlusEditor 能用 richtext.hit(worldPoint) 判断“是否点在文本上”的前提。
    */
   __drawHitPath(hitCanvas: ILeaferCanvas): void {
     const { context } = hitCanvas;
+    // 用 boxBounds（固定宽高时即文本框本身，自动宽高时即实测内容尺寸）
     const { x, y, width, height } = this.__layout.boxBounds;
 
+    // 只 beginPath + rect，不 fill：填充由 Leafer 统一完成，节点里重复填充会破坏命中色
     context.beginPath();
     context.rect(x, y, width, height);
   }
 
   /**
-   * 自定义绘制（核心）
+   * 自定义绘制（核心），Leafer 每次重绘这个节点都会走到这里。
+   *
+   * 两条互斥分支：路径文字（圆形 / 多边形 / 贝塞尔）与普通横排文本，
+   * 两者共用同一套选区 / 光标概念，但几何计算完全不同，所以各自一套绘制入口。
+   * 整段用 save/restore 包裹：本方法会改 fillStyle / font / globalAlpha / clip 等状态，
+   * 泄漏到主画布会影响同一帧后面的其它节点。
    */
   __draw(canvas: ILeaferCanvas): void {
     const ctx = canvas.context as CanvasRenderingContext2D;
@@ -1087,23 +1202,26 @@ export class RichTextPlus extends UI {
     ctx.save();
 
     if (this._pathMode !== TextPathMode.None) {
+      // 顺序即图层顺序：选区底色 → 字形 → 光标 → 锚点 / 控制柄
       if (this.isEditing && this.selectionStart !== this.selectionEnd) this._drawPathSelection(ctx);
       this._drawPathText(ctx);
+      // 光标只在选区折叠时画：有选中范围时视觉上应只看到高亮，与 _startCursorBlink 的判定一致
       if (this.isEditing && this.selectionStart === this.selectionEnd) this._drawPathCursor(ctx);
+      // 控制点只在路径编辑模式画，否则会污染正常的文字编辑界面
       if (this.isEditing && this.pathEditing) this._drawPathControls(ctx);
       ctx.restore();
       return;
     }
 
-    // 1. 绘制选区背景
+    // 1. 绘制选区背景（非编辑态不画，避免选中元素时就出现“正在输入”的错觉）
     if (this.isEditing && this.selectionStart !== this.selectionEnd) {
       this._drawSelection(ctx);
     }
 
-    // 2. 绘制文本
+    // 2. 绘制文本（内部自己处理 padding / 裁剪 / 阴影 / 描边）
     this._drawText(ctx);
 
-    // 3. 绘制光标
+    // 3. 绘制光标（同样只在选区折叠时画，闪烁由 _cursorOpacity 控制）
     if (this.isEditing && this.selectionStart === this.selectionEnd) {
       this._drawCursor(ctx);
     }
@@ -1593,8 +1711,25 @@ export class RichTextPlus extends UI {
     };
   }
 
+  /**
+   * 把当前路径设置统一采样成折线，作为路径排版的唯一入口。
+   *
+   * 四个分支按固定顺序判断，同一时刻只走一条：
+   * Circle 预设 → Polygon 预设 → 运行时生成器 → 自定义锚点。
+   * 预设优先，是为了「切换圆形/多边形」能立刻覆盖其它来源；
+   * 生成器又排在锚点之前，因为 `setPathAnchors` 会清掉生成器、
+   * `setPathGenerator` 会把模式切成 Custom，两者理论上互斥，这里的顺序只是兜底。
+   *
+   * 返回的每个采样点都带累计弧长 `distance` 和切线角 `angle`
+   * （由 `sampleBezierPath` / `sampleCirclePath` 内部的 `appendSample` 维护）。
+   * 下游分工：`layoutGlyphsOnPath` 按弧长布字，`getPathCaret` 按切线角摆光标，
+   * 而 `_getPathBounds` 直接把点集当多边形算包围盒。
+   * 因此这里不做过滤或裁剪——任何一个采样点被丢，都会让三处结果互相错位。
+   */
   private _getPathSamples() {
     if (this._pathMode === TextPathMode.Circle) {
+      // 文字总长按「字宽 + 字间距」累加，必须与 _getPathGlyphLayouts 里的 advance 口径一致，
+      // 否则撑圆用的长度和布字用的长度对不上，字符在圆上会忽密忽疏
       const textLength = this._lineMetrics.reduce(
         (sum, line) =>
           sum +
@@ -1607,6 +1742,8 @@ export class RichTextPlus extends UI {
           ),
         0,
       );
+      // 半径取 max(pathRadius, 周长需求)：一圈放不下时自动把圆撑大，
+      // 否则首尾字符会重叠在一处
       const radius = Math.max(this.pathRadius, textLength / (Math.PI * 2));
       // 圆形路径是完整一圈；center 对齐的路径中点比起点多 180°。
       // pathStartAngle 表示文字的视觉锚点，默认 -90° 应直接位于圆的上方。
@@ -1614,12 +1751,17 @@ export class RichTextPlus extends UI {
       return sampleCirclePath(radius, pathAngle);
     }
     if (this._pathMode === TextPathMode.Polygon) {
+      // closed = true 才会补上「最后一个顶点 → 第一个顶点」的边，否则文字沿开口折线铺开。
+      // 这里不给 startAngle 做 resolveCirclePathStartAngle 的 180° 预推：
+      // 多边形的该参数表示顶点方位角，居中是按弧长算的；
+      // 半径也不像圆形那样按文字长度撑大，边数固定，撑大会让顶点偏离预设形状
       return sampleBezierPath(
         createRegularPolygonPath(this.pathSides, this.pathRadius, this.pathStartAngle),
         true,
       );
     }
     if (this._pathGenerator) {
+      // 同一套 textLength 口径，供回调自行决定是否按文字长度撑开路径
       const textLength = this._lineMetrics.reduce(
         (sum, line) =>
           sum +
@@ -1632,29 +1774,58 @@ export class RichTextPlus extends UI {
           ),
         0,
       );
+      // textPath 传浅拷贝：回调拿到的是快照，就地改写不会污染节点的分组属性。
+      // 该回调在每次重排、路径拖拽时都会执行，必须保持纯函数语义
       return sampleBezierPath(
         this._pathGenerator({ textLength, textPath: { ...this.textPath } }),
         this.pathClosed,
       );
     }
+    // 兜底：自定义贝塞尔锚点。handleIn / handleOut 是相对锚点的偏移，
+    // 由 sampleBezierPath 内部经 controlPoint 转成绝对控制点；是否闭合看 pathClosed
     return sampleBezierPath(this.pathAnchors ?? [], this.pathClosed);
   }
 
+  /**
+   * 把「路径折线 + 每个字符的推进宽度」算成每个字形的落点与旋转角。
+   *
+   * 输入是 `_getPathSamples()` 的采样点和逐字 advance，交给 `layoutGlyphsOnPath`
+   * 按 `align` / `direction` / `side` 分配弧长；输出再叠加字符自带的 `rotation`。
+   * `_drawPathText`、`_drawPathSelection`、`_drawPathCursor`、`_getPathBounds`
+   * 都走这里，所以字形位置只有一个来源，不会出现“画的是一套、算包围盒用另一套”。
+   *
+   * ⚠️ 下标口径：`selectionStart` / `selectionEnd` 是**包含**换行符的字素下标
+   * （`\n` 也占一位），而这里拍平后的 `chars` 不含换行符。
+   * 文本里一旦出现硬换行，字形下标就会比字素下标落后，选中区和光标随之错位，
+   * 所以路径文字应避免 `\n`；需要多行时应改用普通文本 + 自定义绘制。
+   *
+   * 注意这里每次调用都重新计算：路径几何（拖拽半径/锚点）和文字都可能变，
+   * 没有可靠的失效信号，做缓存反而容易拿到过期字形。
+   */
   private _getPathGlyphLayouts(): IPathGlyphLayout[] {
+    // 路径排版忽略换行：把每行的 chars 拍平成一条流，
+    // 这样后面的弧长布字就等价于「第一个字符到最后一个字符」顺次推进
     const chars = this._lineMetrics.flatMap((line) => line.chars);
     const samples = this._getPathSamples();
     const layouts = layoutGlyphsOnPath(
       samples,
+      // advance 取「字宽 + 字间距」，必须与 _getPathSamples 里 textLength 的口径一致；
+      // 少算字间距会让最后一个字符提前停在路径中段，多算则会溢出折线末端
       chars.map(
         (char) =>
           char.width + this._parseLetterSpacing(char.style.letterSpacing, char.style.fontSize!),
       ),
+      // direction 只反转阅读方向，side 才决定字身朝内还是朝外（内部加 180°），
+      // 两者不要混用：改 direction 不会隐式改变内外侧
       { align: this.pathAlign, direction: this.pathDirection, side: this.pathSide },
     );
+    // 字符级 rotation 以「度」存储，这里转弧度后叠加到切线角上；
+    // 路径模式下它是相对切线的偏移，普通文本模式下才是绕字符中心自转
     this._pathGlyphs = layouts.map((glyph, index) => ({
       ...glyph,
       rotation: glyph.rotation + ((chars[index]?.style.rotation ?? 0) * Math.PI) / 180,
     }));
+    // 此字段只是本次结果的快照，其它方法一律重新调用本方法取最新值，不要依赖它做跨帧缓存
     return this._pathGlyphs;
   }
 
@@ -3072,12 +3243,21 @@ export class RichTextPlus extends UI {
     return { x: x + padding.left, y: line.y + padding.top };
   }
 
+  /**
+   * 把隐藏 textarea 搬运到视觉光标处。
+   * 隐藏 textarea 是 position: fixed 的 1×1 透明元素，浏览器把输入法候选窗、
+   * 自动填充提示、光标滚动锚点都挂在它身上，所以它必须跟着光标走；
+   * 否则中文输入时候选词会出现在屏幕左上角。
+   */
   private _updateTextareaPosition(): void {
+    // 未进入编辑（textarea 尚未创建）或节点还没挂到 Leafer 实例上时，无法计算屏幕位置
     if (!this._hiddenTextarea || !this.leafer) return;
 
+    // view 就是画布的 canvas DOM，用来把 world 坐标换算成页面坐标
     const view = (this.leafer as any).view as HTMLElement | undefined;
     if (!view || !view.getBoundingClientRect) return;
 
+    // 局部坐标（含 padding）→ world 坐标，再加上 canvas 在页面中的偏移，得到 fixed 定位用的视口坐标
     const { x, y } = this._getCursorLocalPosition();
     const world = this._localToWorldPoint(x, y);
     const rect = view.getBoundingClientRect();
@@ -3085,14 +3265,24 @@ export class RichTextPlus extends UI {
     const left = rect.left + world.x;
     const top = rect.top + world.y;
 
+    // 排版未就绪时坐标可能是 NaN/Infinity，写进 style 会产生非法 CSS，这里兜住
     if (Number.isFinite(left)) this._hiddenTextarea.style.left = `${left}px`;
     if (Number.isFinite(top)) this._hiddenTextarea.style.top = `${top}px`;
   }
 
+  /**
+   * 节点局部坐标 → 画布 world 坐标。
+   * 用途：把光标 / 锚点这类局部坐标换算成可叠加 canvas 视口偏移的屏幕位置，
+   * 供 _updateTextareaPosition（定位隐藏 textarea）和锚点菜单定位使用。
+   * 注意：结果只到 world，不含 canvas 在页面中的 left/top，调用方需自己加 getBoundingClientRect 偏移。
+   */
   private _localToWorldPoint(x: number, y: number): { x: number; y: number } {
+    // worldTransform 是 Leafer 的实时世界矩阵；__world 是兼容旧版本 / 未挂载时的兜底字段
     const worldMatrix = (this.worldTransform || (this as any).__world) as any;
+    // 节点还没加入 Leafer 树时没有世界矩阵，局部坐标即视为 world 坐标
     if (!worldMatrix) return { x, y };
 
+    // 标准 2D 仿射变换：[a c e; b d f]，e / f 为平移量
     const { a, b, c, d, e, f } = worldMatrix;
     return {
       x: a * x + c * y + e,
@@ -3102,17 +3292,28 @@ export class RichTextPlus extends UI {
 
   // ============ 事件绑定 ============
 
+  /**
+   * 统一挂载编辑器的交互事件，只负责分流，具体逻辑落在对应的 _handleXxx / _checkXxx 里：
+   * - double_tap / tap：记录双击落点、选词、三击选行
+   * - pointer.down / move / up：光标定位、拖拽选区、路径锚点拖动
+   * - key.down / key.up：编辑态下拦住键盘事件，避免 Editor 把按键当成元素操作
+   */
   private _bindEvents(): void {
     // 注意：使用 Editor 时，点击事件由 Editor 管理
     // 我们需要监听 double_tap 来记录位置，在 Editor 触发 enterEditing 前
 
+    // 双击：Editor 随后会调用 enterEditing，此时光标位置已经丢失，
+    // 所以先把落点换算成线性索引暂存到 _pendingCursorPosition，
+    // 由 enterEditing 消费它来落光标，否则进入编辑后光标会回到 0。
     this.on("double_tap", (e: any) => {
+      // 路径锚点被选中时双击是锚点语义（新增/切换锚点），不参与文本定位
       if (this._selectedPathAnchorIndex !== null) return;
       const point = this.getInnerPoint(e);
       const index = this._pointerToIndex(point.x, point.y);
       this._pendingCursorPosition = index;
 
       // 如果已经在编辑状态，直接选词
+      // （已在编辑态不会再触发 enterEditing，双击语义直接降级为选词）
       if (this.isEditing) {
         this._selectWord(index);
       }
@@ -3120,15 +3321,19 @@ export class RichTextPlus extends UI {
 
     this.on("pointer.down", (e: any) => {
       // 只有在已编辑状态才处理
+      // 非编辑态的按下由 Editor 负责选中 / 拖动元素，这里抢了会和选区打架
       if (this.isEditing) {
         this._handlePointerDown(e);
       }
     });
 
+    // 拖拽选区依赖按下 → 移动 → 抬起的完整序列，move / up 必须无条件监听，
+    // 是否处于拖拽中由 _handlePointerMove 内部的 _isMouseDown 判断。
     this.on("pointer.move", this._handlePointerMove.bind(this));
     this.on("pointer.up", this._handlePointerUp.bind(this));
 
     this.on("tap", (e: any) => {
+      // 三击选行：Leafer 没有原生 triple_tap，只能自己按 tap 的时间间隔计数
       if (this.isEditing) {
         this._checkTripleTap(e);
       }
@@ -3144,6 +3349,7 @@ export class RichTextPlus extends UI {
     });
 
     this.on("key.up", (e: any) => {
+      // 抬键同样要拦：否则 Editor 会收到 key.up，把前面的按键当成一次完整的元素操作
       if (this.isEditing) {
         if (e.stop) e.stop();
       }
@@ -3152,10 +3358,17 @@ export class RichTextPlus extends UI {
 
   /**
    * 公开方法：处理 pointer down（供 RichTextPlusEditor 调用）
+   *
+   * 两条路径都会打进来：节点自身的 pointer.down 绑定，
+   * 以及 RichTextPlusEditor 在 app 层转发的 pointer.down；
+   * 处理顺序是：路径锚点交互 → 路径控制点拖动 → 普通文本定位 / 选选区。
    */
   public _handlePointerDown(e: any): void {
+    // 不可编辑或未进入编辑态时，按下仍归 Editor（选中 / 拖动元素）
     if (!this.editable || !this.isEditing) return;
 
+    // 同一个事件可能被节点绑定和 Editor 转发重复调用，用 WeakSet 按事件对象去重，
+    // WeakSet 不持有引用，事件对象回收后自动清理，不会泄漏
     if (e && typeof e === "object") {
       if (this._handledPointerDownEvents.has(e)) return;
       this._handledPointerDownEvents.add(e);
@@ -3163,32 +3376,41 @@ export class RichTextPlus extends UI {
 
     const point = this.getInnerPoint(e);
     if (this.pathEditing) {
+      // 路径编辑优先级最高：点中锚点只做选中 / 取消选中 / 双击，不改文本光标
       const hadSelectedAnchor = this._selectedPathAnchorIndex !== null;
       this._handlePathAnchorDoubleClick(point.x, point.y, e);
       if (hadSelectedAnchor || this._selectedPathAnchorIndex !== null) {
+        // 锚点交互期间不能留下拖拽态，否则 move 会被当成选区拖拽
         this._isMouseDown = false;
         this._pathDragIndex = null;
         if (hadSelectedAnchor && this._selectedPathAnchorIndex === null) {
+          // 点击空白处取消了锚点选中，此时 textarea 可能已失焦，要抢回来继续输入
           this._hiddenTextarea?.focus();
         }
         return;
       }
     }
+    // 没点中锚点但按在了半径 / 控制柄上，转为路径拖拽，不当成文本点击
     if (this.pathEditing && this._beginPathControlDrag(point.x, point.y)) return;
     const index = this._pointerToIndex(point.x, point.y);
 
     if (e.shiftKey) {
+      // Shift + 点击 = 扩展选区：以原选区起点为锚点（首次按下时惰性初始化）；
+      // 这里不置 _isMouseDown，所以 Shift 只支持点选扩展，不进入拖选
       if (this._selectionAnchor === null) {
         this._selectionAnchor = this.selectionStart;
       }
       this.selectionStart = Math.min(this._selectionAnchor, index);
       this.selectionEnd = Math.max(this._selectionAnchor, index);
     } else {
+      // 普通点击：光标落到点击处、清掉旧选区，并把当前位置存为拖选锚点，
+      // 后续 pointer.move 靠 _isMouseDown + _selectionAnchor 计算拖选范围
       this._selectionAnchor = index;
       this.selectionStart = this.selectionEnd = index;
       this._isMouseDown = true;
     }
 
+    // 选中后要同步三处状态：隐藏 textarea 的选区与位置、画布光标 / 选区重绘、宿主回调
     this._updateTextarea();
     this.forceRender();
     this._notifySelectionChange();
@@ -3196,23 +3418,31 @@ export class RichTextPlus extends UI {
 
   /**
    * 处理指针移动（公开方法，供 RichTextPlusEditor 调用）
+   *
+   * 由 RichTextPlusEditor 在 app 层无条件转发，所以这里要靠 _isMouseDown 自己判断
+   * 是否处于按下拖拽状态，否则单纯的鼠标移动也会反复重排 / 重绘。
    */
   public _handlePointerMove(e: any): void {
+    // 没按下或不在编辑态：普通 hover 不处理
     if (!this._isMouseDown || !this.isEditing) return;
+    // 锚点选中时鼠标移动留给锚点菜单 / 锚点交互，不跨文本选区
     if (this._selectedPathAnchorIndex !== null) return;
 
     const point = this.getInnerPoint(e);
     if (this._pathDragIndex !== null) {
+      // 拖的是半径或贝塞尔控制柄：只改路径几何，不影响文本选区
       this._movePathControl(point.x, point.y);
       return;
     }
     const index = this._pointerToIndex(point.x, point.y);
 
+    // 拖选：锚点固定在按下处，光标跟随指针，两个方向都算一次完整选区
     if (this._selectionAnchor !== null) {
       this.selectionStart = Math.min(this._selectionAnchor, index);
       this.selectionEnd = Math.max(this._selectionAnchor, index);
     }
 
+    // 每帧同步 textarea 选区/位置 + 重绘光标与选区 + 通知宿主，保证拖选实时可见
     this._updateTextarea();
     this.forceRender();
     this._notifySelectionChange();
@@ -4695,25 +4925,46 @@ export class RichTextPlus extends UI {
   }
 
   /**
-   * Index → Range 转换（导出时，压缩格式）
+   * 把内部「逐字符二维样式表」压成线性、升序、互不重叠的 range 列表。
+   *
+   * 输出格式与 Figma 对齐：`[{ start, end, ...style }]`，区间是**半开**的，
+   * 即 `[start, end)`，与反方向的 `_loadFromStyleRanges` 的 `i < end` 一一对应。
+   *
+   * 两个语义要点：
+   * 1. 只有被字符级样式覆盖过的字符才会出现在 range 里；没覆盖的字符不占位，
+   *    渲染时回落到元素级基础样式。所以 `ranges` 不连续、也不覆盖全文都是正常的。
+   * 2. 合并条件有两条：线性下标相邻，且 `_styleKey` 相等（key 排序后比较，
+   *    因此属性书写顺序不同、值为 undefined 的键不影响合并）。
+   *
+   * 前提：`_lines` / `_lineHasNewline` 必须与当前 text 同步，因为 `_locationToLinear`
+   * 靠它们算行前缀长度。布局还没跑过时先调 `_updateGraphemes`，否则下标会错位。
+   *
+   * 复杂度 O(n log n)（排序）+ 每次比较两次 `_styleKey` 序列化；
+   * 长文本大量字符级样式时这里是导出热点，但正常文档量级无需优化。
+   * 本方法不修改 `_styles`，只读取，可重复调用。
    */
   private _compressToStyleRanges(): IStyleRange[] {
     const ranges: IStyleRange[] = [];
 
-    // 收集线性样式
+    // 收集线性样式：range 必须用「文本下标」而不是「行号 + 列号」表达，
+    // 否则换一次行、改一次宽度，所有 range 就失效了
     const linearStyles = new Map<number, ICharStyle>();
     for (const [lineIdx, lineStyles] of this._styles.entries()) {
       for (const [charIdx, style] of lineStyles.entries()) {
         const linear = this._locationToLinear(lineIdx, charIdx);
+        // 同一线性下标只会有一个来源（行/列与文本下标一一对应），直接覆盖即可
         linearStyles.set(linear, style);
       }
     }
 
+    // 提前返回：既省事，也避免下面 sortedIndices[0] 取到 undefined
     if (linearStyles.size === 0) return ranges;
 
-    // 按索引排序
+    // 按索引升序排序：Map 的插入顺序反映的是「用户改样式的顺序」，
+    // 可能是先改第 3 行再回头改第 1 行，不排序就无法判断“相邻”
     const sortedIndices = Array.from(linearStyles.keys()).sort((a, b) => a - b);
 
+    // currentStart / currentStyle 描述“正在累积的那一段”，lastIndex 是它目前覆盖到的末位
     let currentStart = sortedIndices[0];
     let currentStyle = linearStyles.get(currentStart)!;
     let lastIndex = currentStart;
@@ -4722,15 +4973,17 @@ export class RichTextPlus extends UI {
       const index = sortedIndices[i];
       const style = linearStyles.get(index)!;
 
-      // 检查是否可以合并（相邻且样式相同）
+      // 检查是否可以合并（相邻且样式相同）：两条缺一不可。
+      // 不相邻说明中间有未覆盖字符，硬合会把基础样式区也圈进来；
+      // 样式不同则必须断开，否则后者会覆盖前者
       const isAdjacent = index === lastIndex + 1;
       const isSameStyle = this._styleKey(style) === this._styleKey(currentStyle);
 
       if (isAdjacent && isSameStyle) {
-        // 继续当前 range
+        // 继续当前 range：只推进末位，起点和样式不变
         lastIndex = index;
       } else {
-        // 结束当前 range，开始新 range
+        // 结束当前 range，开始新 range。注意 end 取 lastIndex + 1（半开区间）
         ranges.push({
           start: currentStart,
           end: lastIndex + 1,
@@ -4743,7 +4996,8 @@ export class RichTextPlus extends UI {
       }
     }
 
-    // 添加最后一个 range
+    // 添加最后一个 range：循环只在“断开”时 push，末尾这段没有断点，需要单独补。
+    // 上面的 size > 0 已保证 currentStyle 存在，这里的守卫仅是防御
     if (currentStyle) {
       ranges.push({
         start: currentStart,
@@ -4757,44 +5011,85 @@ export class RichTextPlus extends UI {
 
   /**
    * 销毁：清理隐藏 textarea、定时器、离屏 canvas，避免 DOM / GPU 内存泄漏
+   *
+   * 顺序很重要：先自己清理（此时 leafer / 节点引用还在），最后才 super.destroy()；
+   * super 之后节点已从 Leafer 树摘除，再访问 DOM / 画布就会拿不到。
    */
   public destroy(): void {
+    // 锚点菜单是挂在 document.body 上的 DOM，必须手动摘掉，
+    // 同时会把它的 document pointerdown 监听一起移除
     this._hidePathAnchorMenu();
+    // 锚点选中时会往 document 上挂 keydown（删除键），不摘会残留跨实例事件
     this._stopListeningForSelectedPathAnchorKeys();
+    // 光标闪烁是 setInterval，不清理会持续 forceRender 一个已销毁节点
     this._stopCursorBlink();
+    // 隐藏 textarea 自己监听了 input / beforeinput / keydown 等，由它统一解绑并 remove
     this._destroyHiddenTextarea();
+    // 从全局编辑管理器中注销，否则单例会一直持有 this，整棵树都无法回收
     EditingManager.clearActive(this);
     this.isEditing = false;
 
+    // 两张离屏 canvas 带 canvas backing store（占的是 GPU / 显存），置空才能释放，
+    // 它们只是渲染缓存，重建成本低，不需要保活
     this._offscreenCanvas = null;
     this._shadowCanvas = null;
     this._shadowCtx = null;
+    // 测量 canvas 是游离节点，字段类型非空无法置 null；清空尺寸即可立即释放 backing store。
+    // 副作用可忽略：measureText 与画布尺寸无关，且 measureTextWidth 每次都会重设 ctx.font
+    this._measureCanvas.width = 0;
+    this._measureCanvas.height = 0;
+    // 历史栈里存的是深拷贝过的样式 Map，体积大，不清会随节点一起被单例 / 外部引用拖住
     this._undoStack = [];
     this._redoStack = [];
+    // 字符级样式与行度量是最大的两块内存，就地清空比等 GC 更稳，
+    // 也避免节点被误复用（destroy 后实例不应再渲染）
     this._styles.clear();
     this._pendingLinearStyles = null;
     this._lineMetrics = [];
 
+    // 最后交回父类：摘除节点、清理 Leafer 内部引用
     super.destroy();
   }
 
   /**
-   * 重写 toJSON，使用 Range-based 格式（兼容 Figma）
+   * 重写 toJSON，输出「适合持久化」的形状，而不是 Leafer 数据层的原始形状。
+   *
+   * 为什么不直接用 `super.toJSON()`：它会把注册过的数据属性原样吐出来，
+   * 包括 `textPath` / `textCursor` / `bezier` / `anchor` 四个分组对象的当前值，
+   * 以及 `isEditing`、`selectionStart` 这类运行时状态。这些内容要么是瞬时态，
+   * 要么是默认值，写进文档后会随文档一起固化，之后改默认值老文档也不会跟随。
+   *
+   * 输出约定三条不变量：
+   * 1. 字符样式只输出 `styleRanges`（Figma 风格、相邻同样式会合并），
+   *    不输出逐字符的二维样式表；
+   * 2. 路径相关字段只输出「调用方显式配置过」的那些（由 `_configuredPathAppearance` 记录），
+   *    没配置过的不写入，保持文档精简且不覆盖后续默认值；
+   * 3. 纯运行时状态一律剔除（编辑态、选区、命中配置、内部编辑器名）。
+   *
+   * 注意顺序：先 `delete` 掉 `super.toJSON()` 给的引用，再把新建对象挂回去。
+   * `json.anchor` / `json.textPath` 是否与实例属性同引用取决于 Leafer 的序列化实现，
+   * 先删后建可以确保后面的 `menu`、`mode` 补丁不会写回实例、污染真实配置。
+   *
+   * 本方法无副作用：只改局部的 `json`，不修改实例状态，可反复调用。
    */
   public toJSON(): any {
     const json = super.toJSON();
 
-    // ✅ 使用 styleRanges（简洁格式）
+    // ✅ 使用 styleRanges（简洁格式）：二维逐字样式表体积大且与排版行列绑定，
+    // 导出时压成线性 range，加载方也不需要知道内部行/列结构
     json.styleRanges = this._compressToStyleRanges();
 
-    // 移除不需要导出的内部属性
-    delete json.hitBox;
-    delete json.editInner;
-    delete json.isEditing;
-    delete json.selectionStart;
-    delete json.selectionEnd;
-    delete json.selectionColor;
+    // 移除不需要导出的内部属性：这些都是运行时/交互态，与文档内容无关
+    delete json.hitBox; // 命中检测开关，由构造函数固定开启
+    delete json.editInner; // 内部编辑器名，注册表决定
+    delete json.isEditing; // 当前是否处于编辑态
+    delete json.selectionStart; // 选区是瞬时状态
+    delete json.selectionEnd; // 同上，光标/选区不参与持久化
+    delete json.selectionColor; // 纯外观配置，不属于文档语义
 
+    // 把「分组对象里的字段名 → 实例上的扁平属性名」这张映射表用起来：
+    // 先按 _configuredPathAppearance 过滤出显式配置过的项，再从实例读当前值。
+    // 没配置过的字段不会进结果，避免把默认值写进文档
     const configuredGroup = (fields: Record<string, string>) =>
       Object.fromEntries(
         Object.entries(fields)
@@ -4806,20 +5101,29 @@ export class RichTextPlus extends UI {
     const cursor = configuredGroup(PATH_CONFIG_FIELDS.textCursor);
     const bezier = configuredGroup(PATH_CONFIG_FIELDS.bezier);
     const anchor = configuredGroup(PATH_CONFIG_FIELDS.anchor);
+    // 菜单样式只在菜单开关为真时才值得导出：关着的时候这些字段纯属冗余
     const menu = this.pathAnchorMenuEnabled ? configuredGroup(PATH_CONFIG_FIELDS.menu) : {};
 
+    // 先删掉 super 给的三个分组引用，再按需重建；空组不写回，避免出现 `textCursor: {}`
     delete json.textCursor;
     delete json.bezier;
     delete json.anchor;
     if (Object.keys(cursor).length) json.textCursor = cursor;
     if (Object.keys(bezier).length) json.bezier = bezier;
+    // 必须在把 anchor 挂回 json 之前塞 menu，否则菜单样式会被丢掉
     if (Object.keys(menu).length) anchor.menu = menu;
     if (Object.keys(anchor).length) json.anchor = anchor;
     const textPath = configuredGroup(PATH_CONFIG_FIELDS.textPath);
+    // mode 特殊：它在映射表里对应的扁平名就是 `textPath` 本身，
+    // 既是分组对象又是「整组是否配置过」的标记，所以不在 configuredGroup 里，
+    // 只能在确认配置过之后单独补上
     if (this._configuredPathAppearance.has("textPath")) textPath.mode = this._pathMode;
+    // pathEditing 是编辑会话开关，默认不落盘，否则下次打开文档会自动进入锚点编辑
     if (!this._configuredPathAppearance.has("pathEditing")) delete textPath.editing;
     if (!Object.keys(textPath).length) delete json.textPath;
 
+    // 防御性清理：这些扁平字段现在不是数据属性，super.toJSON() 通常不带，
+    // 但删不存在的键无副作用；保留这层可以防止日后改回数据属性时把旧形状漏进文档
     PATH_APPEARANCE_KEYS.forEach((key) => delete json[key]);
     delete json.pathRadius;
     delete json.pathStartAngle;
@@ -4829,6 +5133,7 @@ export class RichTextPlus extends UI {
     delete json.pathClosed;
     delete json.pathAnchors;
     delete json.pathEditing;
+    // textPath 放到最后写回：前面可能已经把它删了，同时要保证用的是重建后的分组对象
     if (Object.keys(textPath).length) json.textPath = textPath;
 
     return json;
