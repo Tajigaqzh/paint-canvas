@@ -15,7 +15,7 @@ const createFakeContext = () => {
   };
   return new Proxy(known, {
     get: (target, prop) =>
-      prop in target ? target[prop as string] : (() => undefined as unknown as never),
+      prop in target ? target[prop as string] : () => undefined as unknown as never,
     set: (target, prop, value) => {
       target[prop as string] = value;
       return true;
